@@ -20,11 +20,13 @@ It has two parts, and the first one is not in this repository.
     `bus`, `kron`, `gpu`, `ledger`, `threads`, `heap`);
   - **many observers, one hand**: several connections can watch at once, and only the one holding the pointer can
     act;
-  - a **live stream** of the same rows.
+  - a **live stream** of the same rows, in two forms: typed intrabuf records over elektro-Q for the Inspector, and
+    CSV text on the automation socket for agents and files.
 
   It ships wherever automation does: in the debug edition, behind `--automation`, and never in a release build.
 - **The Inspector** is a VexelRay app, built from the `vexel-desktop` template, that runs out of process. It is the
-  port's richest client. It draws from the stream, and calls the query verbs when you select something. Running
+  port's richest client. It draws from the typed stream, and sends query verbs over the same link when you select
+  something. Running
   apart means it disturbs the target as little as possible, outlives a target crash, and can inspect itself.
 
 An agent uses the same port through `ottermate`, which relays verbs it does not know. Whatever the Inspector can
@@ -48,8 +50,22 @@ An earlier draft of this roadmap gave the Inspector its own socket. Extending th
   in the clockwork, in order with what they caused.
 
 The automation socket's limits are fixed in the port plan rather than worked around: it gains several observers
-with one hand, and a stream beside its request/response verbs. The stream is the `correlations.csv` row format, so
-a live stream, a saved recording and an existing probe file are all the same thing to the Inspector.
+with one hand, and a stream beside its request/response verbs.
+
+The one place the Inspector leaves the automation socket is its stream. A spike measured the options (atchung
+[`docs/spikes/elektroq-inspector-stream.md`](../../atchung/docs/spikes/elektroq-inspector-stream.md)):
+
+- **Text would keep up.** CSV text sustains 27 times the real peak of a full trace, so speed is not why the
+  Inspector switches.
+- **Text can't carry everything the Inspector needs.** It has no shape for snapshots of maps and lists, no typed
+  reply for a query, and no loud failure when two builds disagree on a schema. Its loopback port can be dialled by
+  any local process.
+- **So the Inspector uses intrabuf records over elektro-Q,** through a Unix domain socket that the discovery file
+  advertises. elektro-Q handles all four points, and it is the direction the stack has already taken.
+- **Agents, `ottermate` and files keep the text form.** The ring and its per-connection sender are shared, so the two
+  forms cannot disagree about what happened.
+- **Recordings stay CSV.** `--replay` reads probe CSV files, and the Inspector treats files and live streams the same
+  way at the level of rows.
 
 ## The clockwork
 
@@ -169,7 +185,10 @@ Steps 1–5 of [flight-recorder.md](../../vexelray-gui/docs/plans/flight-recorde
 2. `LoopCounters` and the frame counter, in vexelray-gui-core.
 3. The recorder and its first verbs: `recorder`, `rows`, `gaps`, `frames`, `why`.
 4. Many observers, one hand.
-5. The stream.
+5. The stream: first the shared sender and the text form (5a), then the elektro-Q link module and the three elektro-Q
+   fixes it needs (5b).
+
+Steps 1–4 landed on 2026-10-17.
 
 Discovery ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)) is in M0 too. It can land any time after
 step 4: the per-app file, `hello` with protocol 1.0, and `ottermate list`, `--app` and `--pid`.
@@ -181,7 +200,8 @@ it. All of this works before the Inspector draws anything.
 ### M1 — First light
 
 - The Inspector app skeleton. It attaches through a picker that watches the discovery folder, by launching
-  (`inspector --launch <command>`, like `ottermate --launch`), or by port. It sends `hello` and reads the stream.
+  (`inspector --launch <command>`, like `ottermate --launch`), or by port. It sends `hello` and reads the typed
+  stream (step 5b). Until 5b lands, it can read the text stream (5a) through the same row source as `--replay`.
 - On screen: a balance wheel that ticks in step with the target's frames, plus frame time and park reason.
 - The recorder's own cost is shown from day one, so its overhead is measured, not assumed.
 
@@ -251,8 +271,8 @@ the Inspector shows as glowing parts:
 
 Recording and replay:
 
-- Save a session to a file and open it later. A recording is a saved stream, which is a probe CSV, so existing
-  captures open too.
+- Save a session to a file and open it later. A recording is saved as a probe CSV, with the frame stamp column, so
+  existing captures open too.
 - Scripted capture through `ottermate`, so CI runs can attach recordings to failures.
 
 ## Principles

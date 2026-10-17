@@ -188,7 +188,7 @@ Steps 1–5 of [flight-recorder.md](../../vexelray-gui/docs/plans/flight-recorde
 5. The stream: first the shared sender and the text form (5a), then the elektro-Q link module and the three elektro-Q
    fixes it needs (5b).
 
-Steps 1–4 and 5a landed on 2026-10-17.
+Steps 1–4 and 5a landed on 2026-10-17, and so did discovery.
 
 Discovery ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)) is in M0 too. It can land any time after
 step 4: the per-app file, `hello` with protocol 1.0, and `ottermate list`, `--app` and `--pid`.

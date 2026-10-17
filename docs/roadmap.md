@@ -114,8 +114,8 @@ Nothing runs until you press Enter. You can edit the command first, run it, and 
   pretending to be durable. Where a landmark or selector names the thing durably (otter.md), the command uses that
   instead of a ref.
 - **The working directory is the target's.** That is where a relative path in a command such as `shot after.png`
-  should resolve. The Inspector knows the directory when it launched the target. When it attached by port, it asks
-  the target with the `process` verb (see the upstream table).
+  should resolve. Every running app records its directory in its discovery file, and `hello` reports it too
+  ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)).
 
 What it needs:
 
@@ -152,7 +152,7 @@ flight-recorder.md §8 says which verb needs which item. These are what it needs
 | vexelray / supirvast | GPU timestamp query pools, `VK_EXT_debug_utils` names, a validation-message listener, swapchain mode and image-count query | Today GPU time is inferred from the submit→fence latency, and validation messages only go to stdout. |
 | vexelray-present-dxgi / dxgi-bridge | Expose the shared fence values per frame, plus DXGI present statistics | Gives the magazine its real positions. |
 | vexelray-framework | The processor emitting the `@Subscribe`/`@Publishes` graph as generated data | Threading rule T4.5 notes the graph exists only inside the processor. It is the blueprint for the gear train. |
-| vexelray-gui | A `process` verb on the automation socket: pid, working directory, command line and start time | Gives the command menu its working directory when the Inspector attached by port. Agents need it too, to know which run they are talking to. |
+| vexelray-gui | Discovery ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)): one file per running app in `~/.vexelray/automation/`, kept honest by an OS lock, and a `hello` verb reporting the protocol version and which domains this build and run offer | The attach picker lists running apps without launching them. Panels and menu items grey out with a reason before asking. The command menu gets its working directory. Agents use `ottermate list`. |
 | mainframe | `--insert-command=<text>`, typed at the prompt and never run | The command menu's *Open in MainFrame*. A sibling of `--insert-path`, with a character-set safety rule. |
 
 ## Milestones
@@ -171,14 +171,17 @@ Steps 1–5 of [flight-recorder.md](../../vexelray-gui/docs/plans/flight-recorde
 4. Many observers, one hand.
 5. The stream.
 
-Done means an agent can run `ottermate why <frame>` against any VexelRay app and get an answer it can check, and a
-second connection can stream that app's rows while the first one drives it. All of this works before the Inspector
-draws anything.
+Discovery ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)) is in M0 too. It can land any time after
+step 4: the per-app file, `hello` with protocol 1.0, and `ottermate list`, `--app` and `--pid`.
+
+Done means an agent can run `ottermate list`, pick any running VexelRay app, run `ottermate --app <name> why
+<frame>`, and get an answer it can check. A second connection can stream that app's rows while the first one drives
+it. All of this works before the Inspector draws anything.
 
 ### M1 — First light
 
-- The Inspector app skeleton. It attaches by launching (`inspector --launch <command>`, like `ottermate --launch`) or
-  by port, and reads the stream.
+- The Inspector app skeleton. It attaches through a picker that watches the discovery folder, by launching
+  (`inspector --launch <command>`, like `ottermate --launch`), or by port. It sends `hello` and reads the stream.
 - On screen: a balance wheel that ticks in step with the target's frames, plus frame time and park reason.
 - The recorder's own cost is shown from day one, so its overhead is measured, not assumed.
 
@@ -188,7 +191,7 @@ draws anything.
   the actual park, stalls and hook overruns.
 - The tape view, and stop-the-clock with ring scrubbing.
 - Port: the rest of meter.md (`meter`, `wake`, `focus loop`, and CPU per thread).
-- The command menu, on the escapement first. It needs the `process` verb and MainFrame's
+- The command menu, on the escapement first. It needs discovery (for the working directory) and MainFrame's
   `--insert-command`. Every later milestone gives its data the menu as that data lands.
 
 ### M3 — Messages

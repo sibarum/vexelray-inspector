@@ -71,15 +71,67 @@ There is also a **tape view**: a flat, scrollable timeline of the same events, w
 ruled lines. The clockwork is the bird's-eye view and the tape is the precision instrument. Selecting something in
 either one selects it in both.
 
-Two controls work across all views:
+Three controls work across all views:
 
 - **Stop the clock.** Freeze the view, then step through the rings frame by frame, backward or forward. The target keeps
   running.
 - **Problem markers.** A part that breaks a rule glows (see M8). The glow shows from the bird's-eye view, so you don't
   have to drill in to find it.
+- **The command menu.** Right-click any datum to get the command behind it (see below).
 
 Gears, cams and beads are natural signed-distance shapes, so the clockwork can be drawn as SDF in a `vexelray-gui`
 viewport and does not need a second pipeline.
+
+### The command menu: every datum has its command
+
+Right-clicking any datum, whether a gear, a bead, a row on the tape or a value in a panel, opens a menu:
+
+- **Open in MainFrame**: opens a MainFrame terminal with the `ottermate` command for that datum already typed at the
+  prompt, in the right working directory.
+- **Copy command**: puts the same command on the clipboard.
+- **Copy value**: puts the datum itself on the clipboard.
+
+The same menu opens from the keyboard (the menu key or Shift+F10) on the selected part. A typed command looks like
+this:
+
+```
+ottermate --port 50845 why 18342
+```
+
+Nothing runs until you press Enter. You can edit the command first, run it, and keep going from there in a shell.
+
+- **It makes the GUI and the CLI one instrument.** The Inspector is the GUI and `ottermate` is its CLI. The menu
+  shows that a fact on screen is a fact you can ask for.
+- **It enforces "agent first".** A datum with no command still gets the menu, but its command items are disabled
+  and name what is missing (`no verb yet: bus needs the atchung tap`). A gap is visible the moment you ask for it,
+  and a test can assert that every datum the Inspector draws maps to a command.
+- **Why a menu rather than an icon on each datum.** A menu adds nothing to the picture, so it works on clockwork parts
+  as well as on panels, and it has room for more than one action. What it gives up is that you can't see at a
+  glance that the commands are there. The status bar's hint for the item under the pointer ("right-click: command")
+  and the keyboard route make up for that.
+- **The command names the target exactly.** It carries the port, and `--window` when the datum belongs to a window
+  other than the main one. The port lives only as long as that run, so the command is honest about it rather than
+  pretending to be durable. Where a landmark or selector names the thing durably (otter.md), the command uses that
+  instead of a ref.
+- **The working directory is the target's.** That is where a relative path in a command such as `shot after.png`
+  should resolve. The Inspector knows the directory when it launched the target. When it attached by port, it asks
+  the target with the `process` verb (see the upstream table).
+
+What it needs:
+
+- **MainFrame `--insert-command=<text>`.** A sibling of `--insert-path`, the option Vexplore's *Open MainFrame Here*
+  uses. It follows the same contract: the text is typed once the prompt is drawn, it is never run, and it is not typed
+  if you start typing first. A command is a command line rather than one quoted name, so the safety rule changes:
+  every character must come from a set that the shell treats as inert: letters, digits, space and `-_.=:/\~`. The set
+  leaves out `#`, which starts a comment in PowerShell, `,`, which makes an array, `@`, which splats, and every
+  quote. If any character falls outside the set, nothing is typed and a notice says why. Commands containing an
+  otter selector with quotes are therefore refused until MainFrame can quote per shell, and *Copy command* still
+  works for them.
+- **`ottermate` reachable from that terminal.** It is not on the `PATH` today. Until MainFrame's stack environment
+  ([stack-env.md](../../mainframe/docs/stack-env.md)) is built, the typed command uses `ottermate`'s full path.
+- **One window per click, at first.** MainFrame cannot yet open a tab in a window that is already running (it can
+  only start another instance), so each click opens a new window. A request to the running MainFrame would fix
+  that later, and elektro-Q would be the natural channel for it.
 
 ## Upstream work (the spine)
 
@@ -100,6 +152,8 @@ flight-recorder.md §8 says which verb needs which item. These are what it needs
 | vexelray / supirvast | GPU timestamp query pools, `VK_EXT_debug_utils` names, a validation-message listener, swapchain mode and image-count query | Today GPU time is inferred from the submit→fence latency, and validation messages only go to stdout. |
 | vexelray-present-dxgi / dxgi-bridge | Expose the shared fence values per frame, plus DXGI present statistics | Gives the magazine its real positions. |
 | vexelray-framework | The processor emitting the `@Subscribe`/`@Publishes` graph as generated data | Threading rule T4.5 notes the graph exists only inside the processor. It is the blueprint for the gear train. |
+| vexelray-gui | A `process` verb on the automation socket: pid, working directory, command line and start time | Gives the command menu its working directory when the Inspector attached by port. Agents need it too, to know which run they are talking to. |
+| mainframe | `--insert-command=<text>`, typed at the prompt and never run | The command menu's *Open in MainFrame*. A sibling of `--insert-path`, with a character-set safety rule. |
 
 ## Milestones
 
@@ -134,6 +188,8 @@ draws anything.
   the actual park, stalls and hook overruns.
 - The tape view, and stop-the-clock with ring scrubbing.
 - Port: the rest of meter.md (`meter`, `wake`, `focus loop`, and CPU per thread).
+- The command menu, on the escapement first. It needs the `process` verb and MainFrame's
+  `--insert-command`. Every later milestone gives its data the menu as that data lands.
 
 ### M3 — Messages
 

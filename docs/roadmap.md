@@ -188,7 +188,10 @@ Steps 1–5 of [flight-recorder.md](../../vexelray-gui/docs/plans/flight-recorde
 5. The stream: first the shared sender and the text form (5a), then the elektro-Q link module and the three elektro-Q
    fixes it needs (5b).
 
-Steps 1–4 and 5a landed on 2026-10-17, and so did discovery.
+**M0 landed on 2026-10-17**: all five steps and discovery. The Inspector's end of the link is
+`dev.vexelray.gui.inspector.link.LinkClient` in `vexelray-gui-inspector-link`. It connects through a discovery file,
+then opens the stream and sends queries. Every framework app in a debug edition, and the gui demo, starts the link
+beside its socket.
 
 Discovery ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)) is in M0 too. It can land any time after
 step 4: the per-app file, `hello` with protocol 1.0, and `ottermate list`, `--app` and `--pid`.
@@ -200,8 +203,9 @@ it. All of this works before the Inspector draws anything.
 ### M1 — First light
 
 - The Inspector app skeleton. It attaches through a picker that watches the discovery folder, by launching
-  (`inspector --launch <command>`, like `ottermate --launch`), or by port. It sends `hello` and reads the typed
-  stream (step 5b). Until 5b lands, it can read the text stream (5a) through the same row source as `--replay`.
+  (`inspector --launch <command>`, like `ottermate --launch`), or by port. It reads the typed stream through
+  `LinkClient`, as a second row source beside `--replay`: the link's `Row` maps field for field onto the
+  Inspector's rows.
 - On screen: a balance wheel that ticks in step with the target's frames, plus frame time and park reason.
 - The recorder's own cost is shown from day one, so its overhead is measured, not assumed.
 

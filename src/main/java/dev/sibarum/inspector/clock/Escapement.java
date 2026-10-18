@@ -47,6 +47,41 @@ public final class Escapement implements RowSink {
 
         /** A run began ({@code origin}), or ended ({@code why}); the view says so. */
         void source(String state);
+
+        /** Tell {@code first} and then {@code second} of everything: the window, and the history beside it. */
+        static Listener both(Listener first, Listener second) {
+            return new Listener() {
+                @Override
+                public void tick(Beat beat) {
+                    first.tick(beat);
+                    second.tick(beat);
+                }
+
+                @Override
+                public void rest(Beat beat) {
+                    first.rest(beat);
+                    second.rest(beat);
+                }
+
+                @Override
+                public void wake(Beat beat) {
+                    first.wake(beat);
+                    second.wake(beat);
+                }
+
+                @Override
+                public void lost(Beat beat) {
+                    first.lost(beat);
+                    second.lost(beat);
+                }
+
+                @Override
+                public void source(String state) {
+                    first.source(state);
+                    second.source(state);
+                }
+            };
+        }
     }
 
     private final Listener listener;

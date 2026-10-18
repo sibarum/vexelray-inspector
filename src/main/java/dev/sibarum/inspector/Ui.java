@@ -29,6 +29,8 @@ final class Ui implements Escapement.Listener {
     private final Movement movement;
     private final Node inspecting;
     private final Picker picker;
+    private final Node history;
+    private final Node[] historyLines;
     private final Node frame;
     private final Node frameTime;
     private final Node interval;
@@ -62,10 +64,32 @@ final class Ui implements Escapement.Listener {
 
         // Two faces of one area: the movement while something is being inspected, the picker while nothing is. Shown
         // and hidden rather than swapped, so each keeps its state (and the picker its entries) between turns.
-        inspecting = gui.row()
-                .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
-                .gap(Length.rem(2.5f))
-                .children(movement.node(), readouts);
+        // This application's builds, under the movement: each line one build, summed over the runs kept of it, the
+        // running one marked. Hidden until there is a build to show.
+        history = gui.column()
+                .gap(Length.rem(0.2f))
+                .padding(Length.rem(0.6f))
+                .background(gui.theme().color(Role.PANEL))
+                .corner(Length.rem(0.4f));
+        history.append(gui.text("THIS APPLICATION'S BUILDS").textSize(Length.rem(0.7f))
+                .textColor(gui.theme().color(Role.ACCENT)));
+        historyLines = new Node[dev.sibarum.inspector.history.Runs.LIMIT];
+        for (int i = 0; i < historyLines.length; i++) {
+            historyLines[i] = gui.text("").font("mono").textSize(Length.rem(0.72f))
+                    .textColor(gui.theme().color(Role.INK));
+            historyLines[i].visible(false);
+            gui.landmark(Landmarks.HISTORY + "." + (i + 1), historyLines[i]);
+            history.append(historyLines[i]);
+        }
+        history.visible(false);
+        gui.landmark(Landmarks.HISTORY, history);
+        inspecting = gui.column()
+                .alignItems(AlignItems.CENTER)
+                .gap(Length.rem(0.8f))
+                .children(gui.row()
+                        .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
+                        .gap(Length.rem(2.5f))
+                        .children(movement.node(), readouts), history);
         picker.node().visible(false);
         Node body = gui.row()
                 .width(Length.FILL).height(Length.grow(1f))
@@ -138,6 +162,34 @@ final class Ui implements Escapement.Listener {
     /** The window's title says what is being inspected. */
     void title(String source) {
         titleBar.title(source + " — " + Inspector.TITLE);
+    }
+
+    /**
+     * Show {@code builds}, {@code running}'s application's history, newest first, with the running build marked; an
+     * empty list hides the strip. Any thread: writes are queued.
+     */
+    void history(dev.sibarum.inspector.history.Build running,
+                 java.util.List<dev.sibarum.inspector.history.History.BuildStats> builds) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        boolean listed = false;
+        for (var b : builds) {
+            boolean now = running != null && b.build().key().equals(running.key());
+            listed |= now;
+            lines.add((now ? "▸ " : "  ") + b.text() + (now ? "  (running)" : ""));
+        }
+        // A build never run before still heads the list, so the running build is always on it: a new commit or a
+        // fresh edit is exactly the build to compare with the ones before.
+        if (running != null && running.known() && !listed && !builds.isEmpty()) {
+            lines.addFirst("▸ " + running.shortSource() + "  first run  (running)");
+        }
+        for (int i = 0; i < historyLines.length; i++) {
+            boolean shown = i < lines.size();
+            historyLines[i].visible(shown);
+            if (shown) {
+                historyLines[i].text(lines.get(i));
+            }
+        }
+        history.visible(!lines.isEmpty());
     }
 
     /** Show the picker (nothing is being inspected) or the movement (something is). Any thread: writes are queued. */

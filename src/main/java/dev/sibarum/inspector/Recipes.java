@@ -1,6 +1,9 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.clock.Escapement;
+import dev.sibarum.inspector.history.History;
+import dev.sibarum.inspector.history.Recorder;
+import dev.sibarum.inspector.history.Runs;
 import dev.sibarum.inspector.rows.Attach;
 import dev.sibarum.inspector.rows.Pacer;
 import dev.sibarum.inspector.rows.ReplaySource;
@@ -14,6 +17,7 @@ import dev.vexelray.framework.api.Setting;
 import dev.vexelray.framework.shell.Appearance;
 import dev.vexelray.framework.shell.Shell;
 import dev.vexelray.gui.core.Gui;
+import dev.vexelray.gui.core.app.AppHome;
 import dev.vexelray.gui.core.layout.Length;
 import dev.vexelray.gui.krono.KronoGui;
 import dev.vexelray.gui.widget.TitleBar;
@@ -99,10 +103,23 @@ final class Recipes {
         return ui;
     }
 
-    /** The main loop's state, read from the rows; it tells the window. Where the rows go, so it is a {@link RowSink}. */
+    /**
+     * The runs being inspected, measured and kept by build: one CSV line per run, per application, in
+     * {@code ~/.vexelray-inspector/history/}. Read and written on the offload lane; what is read goes to the window.
+     */
     @Provides
-    RowSink escapement(Ui ui) {
-        return new Escapement(ui);
+    Runs runs(Gui gui, Ui ui) {
+        History history = new History(AppHome.of(Inspector.APP).dir().resolve("history"));
+        return new Recorder(history, gui.offload(), ui::history);
+    }
+
+    /**
+     * The main loop's state, read from the rows; it tells the window, and the history beside it. Where the rows go, so
+     * it is a {@link RowSink}.
+     */
+    @Provides
+    RowSink escapement(Ui ui, Runs runs) {
+        return new Escapement(Escapement.Listener.both(ui, runs));
     }
 
     /**
@@ -114,24 +131,31 @@ final class Recipes {
      * live application goes away or a replay ends for good. It shows the movement as soon as a run begins.
      */
     @Provides
-    Started start(Shell shell, Sources sources, RowSink escapement, Ui ui, Picker picker) {
+    Started start(Shell shell, Sources sources, RowSink escapement, Ui ui, Picker picker, Runs runs) {
         sources.listen(new Sources.Listener() {
             @Override
             public void attached(RowSource now) {
                 ui.title(now.describe());
+                // The run of whatever was attached before ends here, and this application's builds are shown.
+                runs.finish();
+                runs.look(now.build().orElse(null));
             }
 
             @Override
             public void began(String origin) {
                 ui.picking(false);
+                runs.begin(sources.current().build().orElse(null));
             }
 
             @Override
             public void ended(String why) {
                 ui.title("nothing attached");
                 ui.picking(true);
+                runs.finish();
             }
         });
+        // Closing the Inspector keeps the run being measured, before the lanes it would otherwise be written on stop.
+        shell.disposer().register(runs);
         picker.start();
         sources.start(escapement);
         return new Started();

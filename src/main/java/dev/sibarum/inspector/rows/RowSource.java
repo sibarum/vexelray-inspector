@@ -37,6 +37,14 @@ public interface RowSource extends AutoCloseable {
         return false;
     }
 
+    /**
+     * Which build these rows come from, when the source knows: a live application advertises its exact source in its
+     * discovery file. A replay does not know, and its runs are shown but not kept in the history.
+     */
+    default java.util.Optional<dev.sibarum.inspector.history.Build> build() {
+        return java.util.Optional.empty();
+    }
+
     /** Stop delivering. The sink may see one more row in flight; it never sees one after this returns. */
     @Override
     void close();

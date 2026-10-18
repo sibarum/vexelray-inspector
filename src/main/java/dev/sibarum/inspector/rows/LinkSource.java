@@ -38,6 +38,7 @@ public final class LinkSource implements RowSource {
 
     private final String endpoint;
     private final String who;
+    private final dev.sibarum.inspector.history.Build build;
     private volatile LinkClient client;
     private volatile boolean closed;
     private volatile Thread thread;
@@ -47,8 +48,19 @@ public final class LinkSource implements RowSource {
      * @param who      the application, for people: {@code demo (pid 18292)}
      */
     public LinkSource(String endpoint, String who) {
+        this(endpoint, who, null);
+    }
+
+    /** As above, and the build the application advertises, so its runs can be kept by build. */
+    public LinkSource(String endpoint, String who, dev.sibarum.inspector.history.Build build) {
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
         this.who = Objects.requireNonNull(who, "who");
+        this.build = build;
+    }
+
+    @Override
+    public java.util.Optional<dev.sibarum.inspector.history.Build> build() {
+        return java.util.Optional.ofNullable(build);
     }
 
     @Override

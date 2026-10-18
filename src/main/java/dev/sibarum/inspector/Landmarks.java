@@ -28,6 +28,9 @@ final class Landmarks {
     static final String LOST = "readout.lost";
     static final String STALLS = "readout.stalls";
 
+    /** This application's builds under the movement; each line is {@code history.<n>}, newest first. */
+    static final String HISTORY = "history";
+
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";
 

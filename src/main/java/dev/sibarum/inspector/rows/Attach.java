@@ -46,7 +46,7 @@ public final class Attach {
         if (unavailable(e) != null) {
             throw new IllegalArgumentException(who(e) + " has " + unavailable(e));
         }
-        return new LinkSource(e.stream(), who(e));
+        return new LinkSource(e.stream(), who(e), dev.sibarum.inspector.history.Build.of(e));
     }
 
     /**

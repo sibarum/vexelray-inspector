@@ -285,6 +285,16 @@ Recording and replay:
   existing captures open too.
 - Scripted capture through `ottermate`, so CI runs can attach recordings to failures.
 
+History by build:
+
+- **Started 2026-10-18.** Every application built with `vexelray-build-maven-plugin` advertises exactly what it was
+  built from: its coordinates and its source (the commit, plus a digest of any uncommitted change), and the same for
+  every stamped stack part. The Inspector keeps one line per live run of a known build (frames, frame time
+  p50/p95/p99, stalls, rows lost, parks) and compares builds in a strip under the movement.
+- **Next:** a rule that makes the strip glow when this build is worse than the last one (p95 up by more than a
+  threshold, new stalls), and the same comparison as a port verb for agents. A history per stack part would show
+  which part's change moved a number.
+
 ## Principles
 
 - **Zero cost when off.** The sockets start off, in a release build as in any other, and `Probe.ON` stays a static

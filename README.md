@@ -104,6 +104,33 @@ Whichever source is current delivers on a thread of its own, and the escapement 
 A prop written off the GUI thread is applied by the next drain. The swing is moved onto the timeline
 (`KronoGui.onTimeline`), so the angles are only ever touched there. Nothing runs inside the frame loop.
 
+## Automation
+
+The Inspector can be driven and read from outside, by a script, a macro or an agent, through the framework's two loopback
+sockets: **remote control** (the keys, clicks and reads a person has) and **diagnostics** (the flight recorder, the
+log, the Inspector). Both are in every build, the release one too, and both start off.
+
+- **Switched on by hand**: the plug in the title bar opens the switches, one per socket, each with a port (blank for
+  a free one).
+- **Switched on at launch**, for an agent that means to: `--automation=0` (both, on a free port),
+  `--automation.control=<port>`, `--automation.diagnostics=<port>`, or `VEXELRAY_AUTOMATION=0` in the environment.
+- **Not there at all**: `--automation.available=none` (or `control`, or `diagnostics`), or
+  `VEXELRAY_AUTOMATION_AVAILABLE` in the environment. A socket that is not available cannot be switched on by
+  anything, and with neither available the plug is gone.
+
+Whatever turned it on, **the plug's lamps say what each socket is doing**, remote control's (red) left of the plug and
+diagnostics' (blue) right:
+
+| Lamp | Means |
+| --- | --- |
+| none | off, and nothing has connected to it this session |
+| ring | open, and nothing has connected yet |
+| filled ring | open, and something is connected now |
+| ring with a grey dot | open; something was connected and has gone |
+| grey dot | off, after something had connected to it this session |
+
+The plug's tooltip and the switches' window say the same in words, with the port and how many are connected.
+
 ## Taking a screenshot
 
 Screenshots are `ottermate`'s (`vexelray-gui/vexelray-gui-automation-cli`). The plaque is the thing to wait on:
@@ -123,13 +150,12 @@ timeline), but it does not say *which* beat; `await` on a landmark does.
 ## A native executable
 
 ```
-mvn -Pnative-release package -DskipTests      # target/vexelray-inspector.exe        no console, no driving socket
-mvn -Pnative package -DskipTests              # target/vexelray-inspector-debug.exe  a console, and ottermate can drive it
+mvn -Pnative-release package -DskipTests      # target/vexelray-inspector.exe        no console
+mvn -Pnative package -DskipTests              # target/vexelray-inspector-debug.exe  a console: prints the automation port line
 ```
 
-From a Visual Studio developer prompt with a GraalVM JDK as `JAVA_HOME`. `InspectorApp` is written twice:
-`src/edition-debug` names `AutomationStarter` and `src/edition-release` does not. Keep the two identical apart from
-`starters`. Not yet built natively.
+From a Visual Studio developer prompt with a GraalVM JDK as `JAVA_HOME`. Both carry the Inspector's own automation
+sockets, off until asked for ([Automation](#automation)). Not yet built natively.
 
 ## Logging
 

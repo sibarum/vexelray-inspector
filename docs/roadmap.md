@@ -23,7 +23,8 @@ It has two parts, and the first one is not in this repository.
   - a **live stream** of the same rows, in two forms: typed intrabuf records over elektro-Q for the Inspector, and
     CSV text on the automation socket for agents and files.
 
-  It ships wherever automation does: in the debug edition, behind `--automation`, and never in a release build.
+  It ships wherever automation does: in every build, the release one included, and off until `--automation` or the
+  title bar's plug switches it on.
 - **The Inspector** is a VexelRay app, built from the `vexel-desktop` template, that runs out of process. It is the
   port's richest client. It draws from the typed stream, and sends query verbs over the same link when you select
   something. Running
@@ -190,7 +191,7 @@ Steps 1–5 of [flight-recorder.md](../../vexelray-gui/docs/plans/flight-recorde
 
 **M0 landed on 2026-10-17**: all five steps and discovery. The Inspector's end of the link is
 `dev.vexelray.gui.inspector.link.LinkClient` in `vexelray-gui-inspector-link`. It connects through a discovery file,
-then opens the stream and sends queries. Every framework app in a debug edition, and the gui demo, starts the link
+then opens the stream and sends queries. Every framework app with automation, and the gui demo, starts the link
 beside its socket.
 
 Discovery ([discovery.md](../../vexelray-gui/docs/plans/discovery.md)) is in M0 too. It can land any time after
@@ -286,7 +287,8 @@ Recording and replay:
 
 ## Principles
 
-- **Zero cost when off.** The release edition has no automation module, and `Probe.ON` stays a static final.
+- **Zero cost when off.** The sockets start off, in a release build as in any other, and `Probe.ON` stays a static
+  final.
 - **Agent first.** Every fact the Inspector draws can also be asked through a port verb, with a fixed reply shape.
   If an agent cannot ask it, the Inspector does not draw it.
 - **Bounded cost when on, and visible.** The Inspector shows what it costs.

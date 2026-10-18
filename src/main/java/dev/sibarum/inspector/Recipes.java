@@ -34,8 +34,8 @@ import java.nio.file.Path;
  * <p>The flow is one line: <b>source → escapement → ui</b>. The {@link RowSource} delivers rows on its own thread to
  * the {@link Escapement}, which turns the frame lane into {@code Beat}s and hands each to the {@link Ui}.
  *
- * <p>The driving socket is not here. It comes from {@code AutomationStarter}, which the debug edition of
- * {@code InspectorApp} names in its {@code @VexelApp} (see {@link Inspector}).
+ * <p>The automation sockets are not here. They come from {@code AutomationStarter}, which {@code InspectorApp}
+ * names in its {@code @VexelApp} (see {@link Inspector}).
  */
 @Configuration
 final class Recipes {

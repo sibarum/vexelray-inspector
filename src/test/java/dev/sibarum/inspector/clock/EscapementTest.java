@@ -38,6 +38,12 @@ class EscapementTest {
         }
 
         @Override
+        public void lost(Beat b) {
+            events.add("lost " + b.lostRows());
+            beats.add(b);
+        }
+
+        @Override
         public void source(String state) {
             events.add("source " + state);
         }
@@ -83,6 +89,51 @@ class EscapementTest {
         e.row(row(1, "main", "frame", "loop.park", "200ms"));
         e.row(row(2001, "main", "frame", "before frame", "1.0ms"));
         assertEquals("wake budget spent after 200 ms", log.events.get(2));
+    }
+
+    @Test
+    void lostRowsAreCountedAndTheNextFrameSaysItMissedBeats() {
+        Log log = new Log();
+        Escapement e = new Escapement(log);
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(10, "main", "frame", "frame.present", "#2"));
+        assertFalse(e.beat().missedBeats());
+        e.row(row(20, "-", "stream", "lost", "5..9"));
+        assertEquals(5, e.beat().lostRows());
+        assertFalse(e.beat().missedBeats(), "not until a frame comes after the gap");
+        e.row(row(90, "main", "frame", "frame.present", "#9"));
+
+        assertEquals(List.of("tick #1 —", "tick #2 —", "lost 5", "tick #9 —"), log.events);
+        Beat after = e.beat();
+        assertEquals(-1, after.intervalNanos(), "an interval across a gap would be made up");
+        assertTrue(after.missedBeats());
+        assertEquals(5, after.lostRows());
+
+        e.row(row(100, "main", "frame", "frame.present", "#10"));
+        assertFalse(e.beat().missedBeats(), "the frame after that is measured again");
+        assertEquals(1_000_000, e.beat().intervalNanos());
+        e.row(row(110, "-", "stream", "lost", "12..12"));
+        assertEquals(6, e.beat().lostRows(), "gaps add up over a run");
+    }
+
+    @Test
+    void aGapDuringAParkEndsTheRestWithoutMeasuringIt() {
+        Log log = new Log();
+        Escapement e = new Escapement(log);
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(1, "main", "frame", "loop.park", "200ms"));
+        e.row(row(50, "-", "stream", "lost", "3..40"));
+        assertFalse(e.beat().resting(), "the park's end may be among the lost rows");
+        assertEquals(-1, e.beat().restedNanos());
+        e.row(row(60, "main", "frame", "wake", "mutation on Gui@1"));
+        assertEquals(List.of("tick #1 —", "rest 200ms", "lost 38"), log.events, "no rest to end, so no wake");
+    }
+
+    @Test
+    void aLostRangeCountsItsRows() {
+        assertEquals(3, Escapement.count("2..4"));
+        assertEquals(1, Escapement.count("7..7"));
+        assertEquals(1, Escapement.count("garbled"), "a gap of unknown size is still a gap");
     }
 
     @Test

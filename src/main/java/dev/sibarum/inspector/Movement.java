@@ -25,6 +25,8 @@ import sibarum.kronometer.anim.Ease;
  *       turn it round, so a burst of frames reads as a shudder, which is what it is.</li>
  *   <li><b>A park is a rest.</b> Between beats the wheel stands where its last swing left it, and the plaque names
  *       the park's budget ({@code 200ms}, {@code forever}).</li>
+ *   <li><b>A gap is not made up.</b> When the stream loses rows, the frames in them are not swung after the fact;
+ *       the first frame after the gap swings once, and the plaque says {@code MISSED BEATS} until the next.</li>
  * </ul>
  *
  * <p>Nothing else moves. There is no idle sway: a wheel that moved while the loop was parked would be lying.
@@ -130,7 +132,8 @@ final class Movement {
             plaque.text(beat.restsForever() ? "AT REST · UNTIL WOKEN" : "AT REST · " + beat.budget())
                     .textColor(resting).border(Length.dp(1), Parts.GOLD_SHADE);
         } else {
-            plaque.text("TICK · #" + (beat.frame() >= 0 ? beat.frame() : beat.frames())).textColor(ticking)
+            String frame = "#" + (beat.frame() >= 0 ? beat.frame() : beat.frames());
+            plaque.text(beat.missedBeats() ? "MISSED BEATS · " + frame : "TICK · " + frame).textColor(ticking)
                     .border(Length.dp(1), Parts.PLATE_EDGE);
         }
     }

@@ -22,6 +22,7 @@ final class Landmarks {
     static final String PARK = "readout.park";
     static final String WAKE = "readout.wake";
     static final String WAKER = "readout.waker";
+    static final String LOST = "readout.lost";
 
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";

@@ -16,7 +16,7 @@ import java.util.Objects;
  * <p>It opens the stream on the {@code frame} lane only, which is everything the escapement reads, and maps each of
  * the link's rows onto a {@link Row}, frame stamp included, so {@link Row#presentedFrame()} reads the stamp rather
  * than a {@code frame.present} detail. A range of rows the application lost before a batch arrives as one row of its
- * own, lane {@code stream}, kind {@code lost}, detail {@code a..b}; the escapement does not read that lane yet.
+ * own, lane {@code stream}, kind {@code lost}, detail {@code a..b}, which the escapement counts.
  *
  * <h2>Threads</h2>
  *
@@ -29,6 +29,9 @@ public final class LinkSource implements RowSource {
 
     /** The lane read: the escapement's. M2 widens this. */
     static final List<String> LANES = List.of("frame");
+
+    /** The lane of the row that stands for rows the application lost: the stream's own, not the target's. */
+    public static final String STREAM = "stream";
 
     /** The kind of the row that stands for rows the application lost. */
     public static final String LOST = "lost";
@@ -100,7 +103,7 @@ public final class LinkSource implements RowSource {
         }
         if (batch.lost()) {
             long at = batch.rows().isEmpty() ? 0 : batch.rows().getFirst().tMonoNs();
-            sink.row(new Row(batch.lostFrom(), at, "-", "-", "stream", LOST,
+            sink.row(new Row(batch.lostFrom(), at, "-", "-", STREAM, LOST,
                     batch.lostFrom() + ".." + batch.lostTo(), Row.NO_FRAME));
         }
         for (dev.vexelray.gui.inspector.link.Row r : batch.rows()) {

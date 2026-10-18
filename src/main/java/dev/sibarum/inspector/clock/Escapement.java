@@ -1,5 +1,6 @@
 package dev.sibarum.inspector.clock;
 
+import dev.sibarum.inspector.rows.LinkSource;
 import dev.sibarum.inspector.rows.Row;
 import dev.sibarum.inspector.rows.RowSink;
 
@@ -16,7 +17,9 @@ import dev.sibarum.inspector.rows.RowSink;
  * the wake when there is one and the next frame's first stage when the budget simply ran out. The {@code wake.*}
  * rows ({@code wake.post}, {@code wake.wired}) say how a wake was delivered, and are not one.
  *
- * <p>Every other lane is ignored here; it is for the other mechanisms.
+ * <p>The one other row read is the stream's own {@code stream}/{@code lost}: rows the target wrote and the
+ * Inspector never saw. It is counted, and nothing is measured across it. Every other lane is ignored here; it is for
+ * the other mechanisms.
  *
  * <p>Called on the source's thread, one row at a time; the listener is called on that thread too, after the
  * state changed, with the whole new {@link Beat}.
@@ -34,6 +37,9 @@ public final class Escapement implements RowSink {
 
         /** The rest ended; {@code beat.wake()} says why if a wake row said so. */
         void wake(Beat beat);
+
+        /** The stream lost rows: {@code beat.lostRows()} has grown, and the next frame missed beats before it. */
+        void lost(Beat beat);
 
         /** A run began ({@code origin}), or ended ({@code why}); the view says so. */
         void source(String state);
@@ -71,6 +77,10 @@ public final class Escapement implements RowSink {
 
     @Override
     public void row(Row row) {
+        if (row.is(LinkSource.STREAM, LinkSource.LOST)) {
+            lost(row);
+            return;
+        }
         String kind = row.kind();
         if (!row.lane().equals("frame") || kind.startsWith("wake.")) {
             return;                     // wake.post, wake.wired: how a wake was delivered, not that one happened
@@ -96,15 +106,41 @@ public final class Escapement implements RowSink {
             long interval = lastPresent < 0 ? -1 : row.monoNanos() - lastPresent;
             lastPresent = row.monoNanos();
             beat = new Beat(beat.frames() + 1, row.presentedFrame(), spanNanos, interval, false, beat.budget(),
-                    beat.restedNanos(), beat.wake(), beat.waker(), row.monoNanos());
+                    beat.restedNanos(), beat.wake(), beat.waker(), row.monoNanos(), beat.lostRows());
             spanNanos = -1;
             listener.tick(beat);
         }
     }
 
+    /**
+     * Rows the stream lost ({@code a..b}): count them, and forget everything that would otherwise be measured across
+     * the gap. The frame before, a span begun and a park under way may each have ended inside it, so the next
+     * interval and rest are unknown rather than made up.
+     */
+    private void lost(Row row) {
+        lastPresent = -1;
+        spanNanos = -1;
+        parkedAt = -1;
+        beat = new Beat(beat.frames(), beat.frame(), beat.frameNanos(), beat.intervalNanos(), false, beat.budget(),
+                -1, "", "", row.monoNanos(), beat.lostRows() + count(row.detail()));
+        listener.lost(beat);
+    }
+
+    /** {@code 2..4} is three rows; text that is not a range counts as one gap of unknown size, so as one row. */
+    static long count(String range) {
+        int dots = range.indexOf("..");
+        try {
+            long n = Long.parseLong(range.substring(dots + 2).trim()) - Long.parseLong(range.substring(0, dots).trim())
+                    + 1;
+            return Math.max(1, n);
+        } catch (RuntimeException e) {
+            return 1;
+        }
+    }
+
     private Beat with(boolean resting, String budget, long rested, String wake, String waker, Row row) {
         return new Beat(beat.frames(), beat.frame(), beat.frameNanos(), beat.intervalNanos(), resting, budget,
-                rested, wake, waker, row.monoNanos());
+                rested, wake, waker, row.monoNanos(), beat.lostRows());
     }
 
     /** {@code mutation on Gui@7823a2f9} is a mutation: which tree is noise at this altitude. */

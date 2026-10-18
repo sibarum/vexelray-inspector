@@ -1,0 +1,26 @@
+{
+  "id": "inspector",
+  "name": "VexelRay Inspector",
+  "publisher": "sibarum",
+  "description": "DevTools for VexelRay applications, drawn as clockwork: attach to a running app and watch its frame loop beat, park and stall.",
+  "version": "0.1.1-SNAPSHOT",
+
+  "repo": "sibarum/vexelray-dist",
+  "branch": "main",
+  "repoPath": "apps/inspector",
+  "releasesRepo": "sibarum/vexelray-dist",
+  "tagFormat": "inspector-v{version}",
+
+  "windows": {
+    "binaries": [
+      {
+        "name": "vexelray-inspector",
+        "source": "target/vexelray-inspector.exe",
+        "icon": "src/main/rc/vexelray-inspector.ico",
+        "addToPath": true,
+        "shortcuts": { "desktop": true, "startMenu": true, "label": "VexelRay Inspector" }
+      },
+      { "name": "notices", "source": "THIRD-PARTY-NOTICES.txt" }
+    ]
+  }
+}

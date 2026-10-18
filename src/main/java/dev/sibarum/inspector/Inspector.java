@@ -22,7 +22,9 @@ import dev.vexelray.framework.shell.VexelApplication;
  * <pre>
  * Inspector --replay=run.csv      play a probe CSV at its recorded pace, looping (see docs/roadmap.md, M1)
  * Inspector --replay.speed=4      four times as fast; --replay.loop=false plays it once
- * Inspector                       nothing to inspect yet, and the window says so
+ * Inspector --attach=demo         a running application, live, through its Inspector link
+ * Inspector --attach=pid:18292    one process, when several share a name
+ * Inspector                       the picker: every application running with its automation socket on
  * Inspector --key=value           override a setting for this launch
  * </pre>
  *

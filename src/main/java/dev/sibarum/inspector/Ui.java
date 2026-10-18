@@ -27,6 +27,8 @@ final class Ui implements Escapement.Listener {
     private final TitleBar titleBar;
     private final StatusBar status;
     private final Movement movement;
+    private final Node inspecting;
+    private final Picker picker;
     private final Node frame;
     private final Node frameTime;
     private final Node interval;
@@ -34,9 +36,10 @@ final class Ui implements Escapement.Listener {
     private final Node wake;
     private final Node waker;
 
-    Ui(Gui gui, KronoGui krono, TitleBar titleBar) {
+    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker) {
         this.titleBar = titleBar;
         this.movement = new Movement(gui, krono);
+        this.picker = picker;
 
         Node readouts = gui.column()
                 .width(Length.rem(17))
@@ -53,11 +56,17 @@ final class Ui implements Escapement.Listener {
         wake = readout(gui, readouts, "Last rest ended by", Landmarks.WAKE);
         waker = readout(gui, readouts, "On the thread", Landmarks.WAKER);
 
-        Node body = gui.row()
-                .width(Length.FILL).height(Length.grow(1f))
+        // Two faces of one area: the movement while something is being inspected, the picker while nothing is. Shown
+        // and hidden rather than swapped, so each keeps its state (and the picker its entries) between turns.
+        inspecting = gui.row()
                 .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
                 .gap(Length.rem(2.5f))
                 .children(movement.node(), readouts);
+        picker.node().visible(false);
+        Node body = gui.row()
+                .width(Length.FILL).height(Length.grow(1f))
+                .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
+                .children(inspecting, picker.node());
 
         status = new StatusBar(gui).slot(Landmarks.STATUS_SOURCE, StatusBar.Side.LEFT, "");
         gui.landmark(Landmarks.STATUS, status.node());
@@ -117,5 +126,11 @@ final class Ui implements Escapement.Listener {
     /** The window's title says what is being inspected. */
     void title(String source) {
         titleBar.title(source + " — " + Inspector.TITLE);
+    }
+
+    /** Show the picker (nothing is being inspected) or the movement (something is). Any thread: writes are queued. */
+    void picking(boolean picking) {
+        inspecting.visible(!picking);
+        picker.node().visible(picking);
     }
 }

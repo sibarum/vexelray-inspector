@@ -209,6 +209,11 @@ it. All of this works before the Inspector draws anything.
 - On screen: a balance wheel that ticks in step with the target's frames, plus frame time and park reason.
 - The recorder's own cost is shown from day one, so its overhead is measured, not assumed.
 
+**Mostly landed 2026-10-17.** The picker over the discovery folder, `--attach=<app|pid:n>`, and the live source over
+`LinkClient` all work. Choosing the gui demo set the wheel ticking on its real frame numbers, and the picker came back
+when the demo was killed. Two parts are still open (docs/TODO.md): attaching by launching, and the recorder's own
+cost.
+
 ### M2 — The escapement
 
 - The full main-loop breakdown: frame stages, dirty flags (layout, geometry, draw), wake reasons, park budget against

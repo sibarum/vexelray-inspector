@@ -11,9 +11,10 @@ changing anything, and `Recipes.java` before adding a part.
   is generated from it by an annotation processor while the project compiles. Nobody writes it, so never create
   or edit a file of that name. After a build it is in `target/generated-sources/annotations/`, and it shows what is
   built in which phase.
-- **The flow is source → escapement → window.** `rows/` is where rows come from (`RowSource`, the seam the live
-  stream will plug into), `clock/` turns them into state (`Escapement` → `Beat`, one immutable value), and `Ui.java`
-  shows that state and holds none of its own.
+- **The flow is source → escapement → window.** `rows/` is where rows come from (`RowSource`: a replay or a live
+  `LinkSource`, behind `Sources`, the one place the source changes), `clock/` turns them into state (`Escapement` →
+  `Beat`, one immutable value), and `Ui.java` shows that state and holds none of its own. The picker (`Picker.java`)
+  is how a running application is chosen.
 - **Code with no `Gui` in it** goes in a sub-package with public types (as `rows/` and `clock/` do), so it can be
   unit tested without a window.
 - **Every visual element means something.** A part that moves does so because a row said so; nothing sways for

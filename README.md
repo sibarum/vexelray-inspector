@@ -18,15 +18,17 @@ parked with a 200 ms budget, so the balance wheel rests and the plaque says so.*
 
 ## Status
 
-**Milestone 1, first light: the app half.** It is built ahead of the live stream, from recordings.
+**Milestone 1, first light.** It inspects a running VexelRay application live, through the application's Inspector
+link, or it plays a recording.
 
 | Works | Not yet |
 | --- | --- |
 | The **escapement**: the balance wheel swings one beat per `frame.present`, the fork snaps across and the escape wheel steps half a tooth | Frame stages in the swing (INPUT, CLOCK, APP, SETTLE): M2 |
 | A **park is a rest**: the wheel stands still, and the plaque names the park's budget (`200ms`, `until woken`) | Judging a gap no park covers as a stall |
 | Readouts: frame number, frame time (its `frame` span), the time since the frame before, the park and how long the last rest lasted, and what ended it (`mutation`, `injected input`, the budget running out) on which thread | The recorder's own cost |
-| **Replay** of a probe CSV at its recorded pace, looping, faster or slower | Attaching: `--launch <command>` and the live `stream` verb (the seam is `RowSource`) |
-| 20 tests, none of which needs a window; one builds the real tree headless | |
+| **Live**: the picker lists the running applications from their discovery files; choosing one, or `--attach=<app>`, streams its `frame` lane over its link; when it goes away the picker comes back | Attaching by launching: `--launch <command>` |
+| **Replay** of a probe CSV at its recorded pace, looping, faster or slower | Reading the other lanes (M2 on) |
+| 30 tests, none of which needs a window; one builds the real tree headless, one streams from a real link | |
 
 ## Run it
 
@@ -35,9 +37,12 @@ mvn compile exec:exec "-Dapp.args=--replay=samples/calculator.csv"
 ```
 
 `exec:exec` rather than `exec:java`, so native access can be enabled for Panama FFM. Without `--replay` the window
-opens with nothing to inspect, and the status line says so.
+opens on the picker. The picker lists every VexelRay application running with its automation socket on, read from
+the discovery files in `~/.vexelray/automation/`. Choose one, and the escapement follows it live.
 
 ```
+mvn compile exec:exec "-Dapp.args=--attach=calculator-vexel-demo"         # straight to a running application
+mvn compile exec:exec "-Dapp.args=--attach=pid:18292"                      # one process, when several share a name
 mvn compile exec:exec "-Dapp.args=--replay=run.csv --replay.speed=0.25"   # a quarter of the recorded pace
 mvn compile exec:exec "-Dapp.args=--replay=run.csv --replay.loop=false"   # once, then rest
 mvn compile exec:exec -Dautomation=0                                       # a driving socket on a free port
@@ -63,8 +68,9 @@ The flow is one line: **source → escapement → window**.
 
 | File | What belongs in it |
 | --- | --- |
-| `Recipes.java` | **what this application builds**, one `@Provides` per part: the row source, the window, the escapement, and the start. `InspectorAppWiring` is generated from it. |
-| `rows/` | **the rows, with no `Gui` in them.** `Row` is the `correlations.csv` schema plus the stream's `frame` column. `RowFormat` reads a line (RFC 4180 quoting, a header row naming the columns, torn lines skipped and counted). `RowSource` is the seam: `ReplaySource` plays a file at its recorded pace on its own thread, and the live stream will be the second implementation (its javadoc says exactly what it will do). |
+| `Recipes.java` | **what this application builds**, one `@Provides` per part: the first source, the switch in front of it, the picker, the window, the escapement, and the start. `InspectorAppWiring` is generated from it. |
+| `rows/` | **the rows, with no `Gui` in them.** `Row` is the `correlations.csv` schema plus the stream's `frame` column. `RowFormat` reads a line (RFC 4180 quoting, a header row naming the columns, torn lines skipped and counted). `RowSource` is the seam: `ReplaySource` plays a file at its recorded pace, and `LinkSource` streams a running application over its Inspector link (`LinkClient`, from `vexelray-gui-inspector-link`). `Sources` stands in front of whichever is current, and is the one place the source changes. `Attach` says which running applications `--attach` and the picker offer, from `Discovery.live()`. |
+| `Picker.java` | the running applications to choose from, read from the discovery folder every second on the offload lane, while nothing is being inspected. |
 | `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. |
 | `Ui.java` | the window: the movement beside its readouts, and a status line. The escapement's listener, so everything shown is derived from one `Beat`. |
 | `Movement.java` | the escapement on screen, and its animation. |
@@ -85,10 +91,16 @@ colours rather than theme roles: a movement is gold, steel and ruby in any theme
 
 ### Threads
 
-`ReplaySource` delivers on its own platform thread, `inspector-replay`, which spends nearly all its time parked; the
-escapement and the window's listener run there. A prop written off the GUI thread is applied by the next drain, and
-the swing is moved onto the timeline (`KronoGui.onTimeline`), so the angles are only ever touched there. Nothing runs
-inside the frame loop.
+Whichever source is current delivers on a thread of its own, and the escapement and the window's listener run there.
+
+- **A replay** delivers on `inspector-replay`, a platform thread that spends nearly all its time parked.
+- **A live source** connects on `inspector-link`, which ends once the stream is open. The rows then arrive on
+  elektro-Q's receive thread for that connection: one thread, one call at a time, in the application's order, which
+  is what `RowSink` asks for. The end of a run, when the application goes away, comes on that thread too.
+- **The picker** reads the discovery folder on the offload lane, asked by a one-second timer on the timeline.
+
+A prop written off the GUI thread is applied by the next drain. The swing is moved onto the timeline
+(`KronoGui.onTimeline`), so the angles are only ever touched there. Nothing runs inside the frame loop.
 
 ## Taking a screenshot
 

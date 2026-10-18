@@ -1,10 +1,13 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.clock.Escapement;
+import dev.sibarum.inspector.rows.Attach;
 import dev.sibarum.inspector.rows.Pacer;
 import dev.sibarum.inspector.rows.ReplaySource;
 import dev.sibarum.inspector.rows.RowSink;
 import dev.sibarum.inspector.rows.RowSource;
+import dev.sibarum.inspector.rows.Sources;
+import dev.vexelray.gui.automation.Discovery;
 import dev.vexelray.framework.api.Configuration;
 import dev.vexelray.framework.api.Provides;
 import dev.vexelray.framework.api.Setting;
@@ -44,18 +47,44 @@ final class Recipes {
     }
 
     /**
-     * Where the rows come from: {@code --replay=<file>}, a probe CSV played at its recorded pace, faster with
-     * {@code --replay.speed=4}, once with {@code --replay.loop=false}. With no replay there is nothing to inspect
-     * yet, and the window says so; the live stream will be the other source here (see {@link RowSource}).
+     * Where the rows come from first:
+     * <ul>
+     *   <li>{@code --replay=<file>}: a probe CSV played at its recorded pace, faster with {@code --replay.speed=4},
+     *       once with {@code --replay.loop=false};</li>
+     *   <li>{@code --attach=<app>} or {@code --attach=pid:<n>}: a running application, live, through its Inspector
+     *       link, found in the discovery folder ({@link Attach});</li>
+     *   <li>neither: nothing yet, and the window shows the picker.</li>
+     * </ul>
      */
     @Provides
     RowSource source(@Setting("replay") String replay,
                      @Setting(value = "replay.speed", def = "1") float speed,
-                     @Setting(value = "replay.loop", def = "true") boolean loop) {
-        if (replay.isBlank()) {
-            return RowSource.none("nothing to inspect: start with --replay=<probe.csv>");
+                     @Setting(value = "replay.loop", def = "true") boolean loop,
+                     @Setting("attach") String attach) {
+        if (!replay.isBlank()) {
+            return new ReplaySource(Path.of(replay), speed, loop, Pacer.SYSTEM);
         }
-        return new ReplaySource(Path.of(replay), speed, loop, Pacer.SYSTEM);
+        if (!attach.isBlank()) {
+            return Attach.initial(Discovery.live(), attach);
+        }
+        return RowSource.none("choose an application to inspect");
+    }
+
+    /** The source being read now, starting with {@link #source}: the picker switches it, and nothing else does. */
+    @Provides
+    Sources sources(RowSource source) {
+        return Sources.of(source);
+    }
+
+    /**
+     * The running applications to choose from. Choosing one attaches to it. {@code --attach} naming several shows
+     * only those.
+     */
+    @Provides
+    Picker picker(Gui gui, KronoGui krono, Sources sources, @Setting("attach") String attach) {
+        Picker picker = new Picker(gui, krono, app -> sources.attach(Attach.source(app)));
+        picker.filter(attach);
+        return picker;
     }
 
     /**
@@ -63,9 +92,9 @@ final class Recipes {
      * the real tree headless ({@code VexelApplication.tree}).
      */
     @Provides
-    Ui ui(Gui gui, KronoGui krono, TitleBar titleBar, RowSource source) {
-        Ui ui = new Ui(gui, krono, titleBar);
-        ui.title(source.describe());
+    Ui ui(Gui gui, KronoGui krono, TitleBar titleBar, Sources sources, Picker picker) {
+        Ui ui = new Ui(gui, krono, titleBar, picker);
+        ui.title(sources.describe());
         zoomShortcuts(gui);
         return ui;
     }
@@ -77,12 +106,34 @@ final class Recipes {
     }
 
     /**
-     * Start the rows flowing. Takes the {@code Shell} to be last: a tree built headless for a test must not start a
-     * replay thread. A provider has to return something, hence {@link Started}.
+     * Start the rows flowing, and the picker reading the folder. Takes the {@code Shell} to be last: a tree built
+     * headless for a test must not start a replay thread or read the disk. A provider has to return something, hence
+     * {@link Started}.
+     *
+     * <p>The window shows the picker whenever nothing is flowing: at the start with nothing to inspect, and when a
+     * live application goes away or a replay ends for good. It shows the movement as soon as a run begins.
      */
     @Provides
-    Started start(Shell shell, RowSource source, RowSink escapement) {
-        source.start(escapement);
+    Started start(Shell shell, Sources sources, RowSink escapement, Ui ui, Picker picker) {
+        sources.listen(new Sources.Listener() {
+            @Override
+            public void attached(RowSource now) {
+                ui.title(now.describe());
+            }
+
+            @Override
+            public void began(String origin) {
+                ui.picking(false);
+            }
+
+            @Override
+            public void ended(String why) {
+                ui.title("nothing attached");
+                ui.picking(true);
+            }
+        });
+        picker.start();
+        sources.start(escapement);
         return new Started();
     }
 

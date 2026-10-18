@@ -23,6 +23,9 @@ final class Landmarks {
     static final String WAKE = "readout.wake";
     static final String WAKER = "readout.waker";
 
+    /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
+    static final String PICKER = "picker";
+
     /** The status line, and where the rows come from. */
     static final String STATUS = "status";
     static final String STATUS_SOURCE = "status.source";

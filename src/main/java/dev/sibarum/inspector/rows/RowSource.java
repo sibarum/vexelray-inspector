@@ -29,6 +29,14 @@ public interface RowSource extends AutoCloseable {
     /** What this source is, for people: a file name, a host and port. */
     String describe();
 
+    /**
+     * Whether an end of a run is followed by a new run on its own, as a looping replay's is. The window shows the
+     * picker after an end only when nothing will begin again by itself.
+     */
+    default boolean resumes() {
+        return false;
+    }
+
     /** Stop delivering. The sink may see one more row in flight; it never sees one after this returns. */
     @Override
     void close();

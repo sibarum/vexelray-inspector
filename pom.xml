@@ -90,6 +90,16 @@
             <version>${vexelray-gui.version}</version>
             <scope>${automation.scope}</scope>
         </dependency>
+        <!-- The Inspector's live source, in both editions: LinkClient dials an application's link (the recorder's rows
+             as typed records over elektro-Q), and Discovery.live() lists the applications running. It brings
+             vexelray-gui-automation with it; the release edition still names no AutomationStarter, so it opens no
+             socket of its own. Whether a release native image links cleanly with automation at test scope is not yet
+             checked (docs/TODO.md). -->
+        <dependency>
+            <groupId>dev.vexelray.gui</groupId>
+            <artifactId>vexelray-gui-inspector-link</artifactId>
+            <version>${vexelray-gui.version}</version>
+        </dependency>
         <!-- Input at the application edge: the tactroller->atchung bridge (brings tactroller-api and
              atchung-core transitively, which is where State and Committer come from). -->
         <dependency>

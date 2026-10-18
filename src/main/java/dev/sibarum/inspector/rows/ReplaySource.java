@@ -57,6 +57,11 @@ public final class ReplaySource implements RowSource {
     }
 
     @Override
+    public boolean resumes() {
+        return loop;
+    }
+
+    @Override
     public String describe() {
         String name = file.getFileName() == null ? file.toString() : file.getFileName().toString();
         return "replay " + name + (speed == 1 ? "" : " at " + speed + "x") + (loop ? ", looping" : "");

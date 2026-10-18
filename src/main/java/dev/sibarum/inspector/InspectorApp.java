@@ -15,8 +15,8 @@ import dev.vexelray.framework.automation.AutomationStarter;
  * processor generates {@code InspectorAppWiring} from this.
  *
  * <p>{@code icon} is the mark the window wears: the same file {@code src/main/rc/vexelray-inspector.rc} links into the
- * executable, which the pom puts on the class path. Draw your own, render it to an {@code .ico}, and replace that
- * one file; see the README, <i>The icon</i>.
+ * executable, which the pom puts on the class path: the suite canvas's Inspector mark, "Loupe on the works", whose
+ * source is {@code vexelray-inspector.svg} beside it (copied from {@code vexelray-icons/apps/inspector/}).
  */
 @VexelApp(name = Inspector.APP, title = Inspector.TITLE, width = Inspector.W, height = Inspector.H,
         icon = Inspector.ICON, starters = AutomationStarter.class)

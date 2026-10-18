@@ -130,6 +130,74 @@ class EscapementTest {
     }
 
     @Test
+    void aSilenceWithNoParkInItIsAStall() {
+        Escapement e = new Escapement(new Log());
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(5000, "main", "frame", "frame.present", "#2"));       // 500 ms, and nothing said it would sleep
+        assertTrue(e.beat().stalled());
+        assertEquals(500_000_000, e.beat().uncoveredNanos());
+        assertEquals(1, e.beat().stalls());
+        e.row(row(5160, "main", "frame", "frame.present", "#3"));       // 16 ms: a frame, not a stall
+        assertFalse(e.beat().stalled());
+        assertEquals(1, e.beat().stalls(), "stalls add up over a run");
+    }
+
+    @Test
+    void aRestThatEndsInTimeClearsTheStallBeforeIt() {
+        Escapement e = new Escapement(new Log());
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(5000, "main", "frame", "frame.present", "#2"));
+        e.row(row(5001, "main", "frame", "loop.park", "forever"));
+        e.row(row(9001, "main", "frame", "wake", "injected input on Gui@1"));
+        assertFalse(e.beat().stalled(), "the stall was the gap before #2, not this rest");
+        assertEquals(1, e.beat().stalls());
+    }
+
+    @Test
+    void aRestThatOutlastsItsBudgetIsAStallAsSoonAsItEnds() {
+        Log log = new Log();
+        Escapement e = new Escapement(log);
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(1, "main", "frame", "loop.park", "200ms"));
+        e.row(row(15001, "main", "frame", "before frame", "1.0ms"));     // 1.5 s on a 200 ms budget
+        assertTrue(e.beat().stalled(), "said at the wake, before the next frame");
+        assertEquals(1_300_000_000, e.beat().uncoveredNanos());
+        assertEquals(1, e.beat().stalls());
+        e.row(row(15011, "main", "frame", "frame.present", "#2"));
+        assertTrue(e.beat().stalled());
+        assertEquals(1, e.beat().stalls(), "one gap, one stall, though it was judged twice");
+        assertEquals(1_301_100_000, e.beat().uncoveredNanos(), "frame to frame, less the budget");
+    }
+
+    @Test
+    void aParkThatCoversTheGapIsNotAStall() {
+        Escapement e = new Escapement(new Log());
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(1, "main", "frame", "loop.park", "200ms"));
+        e.row(row(2601, "main", "frame", "frame.present", "#2"));       // 60 ms past the budget: under STALL
+        assertFalse(e.beat().stalled());
+        assertEquals(60_100_000, e.beat().uncoveredNanos());
+        e.row(row(2602, "main", "frame", "loop.park", "forever"));
+        e.row(row(302602, "main", "frame", "wake", "injected input on Gui@1"));  // 30 s: an unfocused nap
+        e.row(row(302610, "main", "frame", "frame.present", "#3"));
+        assertFalse(e.beat().stalled());
+        assertEquals(0, e.beat().stalls());
+    }
+
+    @Test
+    void aGapTheStreamLostIsNeverAStall() {
+        Escapement e = new Escapement(new Log());
+        e.row(row(0, "main", "frame", "frame.present", "#1"));
+        e.row(row(1, "main", "frame", "loop.park", "0ms"));
+        e.row(row(100, "-", "stream", "lost", "3..900"));
+        e.row(row(20000, "main", "frame", "frame.present", "#300"));    // 2 s, but the rows inside it are gone
+        assertFalse(e.beat().stalled());
+        assertTrue(e.beat().missedBeats());
+        assertEquals(-1, e.beat().uncoveredNanos());
+        assertEquals(0, e.beat().stalls());
+    }
+
+    @Test
     void aLostRangeCountsItsRows() {
         assertEquals(3, Escapement.count("2..4"));
         assertEquals(1, Escapement.count("7..7"));
@@ -156,6 +224,7 @@ class EscapementTest {
         assertEquals(43, e.beat().frame());
         assertTrue(e.beat().resting());
         assertTrue(e.beat().restsForever());
+        assertEquals(0, e.beat().stalls(), "its slow startup frames are slow frames, not stalls");
         assertTrue(log.events.stream().anyMatch(s -> s.startsWith("wake mutation")), "a caret blink wakes it");
         assertTrue(log.events.stream().anyMatch(s -> s.startsWith("wake injected input")), "and so does a key");
     }

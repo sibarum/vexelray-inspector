@@ -17,6 +17,10 @@ import dev.sibarum.inspector.rows.RowSink;
  * the wake when there is one and the next frame's first stage when the budget simply ran out. The {@code wake.*}
  * rows ({@code wake.post}, {@code wake.wired}) say how a wake was delivered, and are not one.
  *
+ * <p>Each interval between two frames is judged as {@code csvview --gaps} judges it: the part the park inside it does
+ * not cover (all of it with no park, none of it under {@code forever}) is a stall when it is over {@link Beat#STALL}.
+ * A rest that outlasts its budget by that much is said at its wake, without waiting for the frame.
+ *
  * <p>The one other row read is the stream's own {@code stream}/{@code lost}: rows the target wrote and the
  * Inspector never saw. It is counted, and nothing is measured across it. Every other lane is ignored here; it is for
  * the other mechanisms.
@@ -51,6 +55,8 @@ public final class Escapement implements RowSink {
     private long lastPresent = -1;
     private long spanNanos = -1;
     private long parkedAt = -1;
+    private long coverNanos = -1;       // the budget parked for since the last frame, or -1 if the loop did not park
+    private boolean stallSaid;          // this interval's stall was already counted, at a late wake
 
     public Escapement(Listener listener) {
         this.listener = listener;
@@ -67,6 +73,8 @@ public final class Escapement implements RowSink {
         lastPresent = -1;
         spanNanos = -1;
         parkedAt = -1;
+        coverNanos = -1;
+        stallSaid = false;
         listener.source(origin);
     }
 
@@ -87,7 +95,9 @@ public final class Escapement implements RowSink {
         }
         if (kind.equals(Row.LOOP_PARK)) {
             parkedAt = row.monoNanos();
-            beat = with(true, row.detail().trim(), beat.restedNanos(), beat.wake(), beat.waker(), row);
+            coverNanos = cover(coverNanos, Math.max(0, Durations.nanos(row.detail())));
+            beat = with(true, row.detail().trim(), beat.restedNanos(), beat.wake(), beat.waker(), row,
+                    beat.uncoveredNanos(), beat.stalls());
             listener.rest(beat);
             return;
         }
@@ -97,32 +107,49 @@ public final class Escapement implements RowSink {
             parkedAt = -1;
             String why = woken ? reason(row.detail()) : Durations.nanos(beat.budget()) == 0 ? "no rest: a 0ms park"
                     : "budget spent";
-            beat = with(false, beat.budget(), rested, why, woken ? row.thread() : "", row);
+            // The rest is the gap judged now: one that ended within its budget clears a stall shown from before it.
+            long overrun = coverNanos == Long.MAX_VALUE ? 0 : Math.max(0, rested - coverNanos);
+            boolean late = overrun > Beat.STALL;
+            beat = with(false, beat.budget(), rested, why, woken ? row.thread() : "", row,
+                    overrun, beat.stalls() + (late && !stallSaid ? 1 : 0));
+            stallSaid |= late;
             listener.wake(beat);
         }
         if (kind.equals(Row.FRAME_SPAN)) {
             spanNanos = Durations.nanos(row.detail());
         } else if (kind.equals(Row.FRAME_PRESENT)) {
             long interval = lastPresent < 0 ? -1 : row.monoNanos() - lastPresent;
+            long uncovered = interval < 0 ? -1 : coverNanos < 0 ? interval : Math.max(0, interval - coverNanos);
+            boolean stall = uncovered > Beat.STALL && !stallSaid;
             lastPresent = row.monoNanos();
             beat = new Beat(beat.frames() + 1, row.presentedFrame(), spanNanos, interval, false, beat.budget(),
-                    beat.restedNanos(), beat.wake(), beat.waker(), row.monoNanos(), beat.lostRows());
+                    beat.restedNanos(), beat.wake(), beat.waker(), row.monoNanos(), beat.lostRows(), uncovered,
+                    beat.stalls() + (stall ? 1 : 0));
             spanNanos = -1;
+            coverNanos = -1;
+            stallSaid = false;
             listener.tick(beat);
         }
+    }
+
+    /** Two parks in one interval cover both their budgets; {@code forever} covers everything. */
+    private static long cover(long sofar, long budget) {
+        return sofar < 0 ? budget : sofar > Long.MAX_VALUE - budget ? Long.MAX_VALUE : sofar + budget;
     }
 
     /**
      * Rows the stream lost ({@code a..b}): count them, and forget everything that would otherwise be measured across
      * the gap. The frame before, a span begun and a park under way may each have ended inside it, so the next
-     * interval and rest are unknown rather than made up.
+     * interval and rest are unknown rather than made up, and an unknown interval is never judged a stall.
      */
     private void lost(Row row) {
         lastPresent = -1;
         spanNanos = -1;
         parkedAt = -1;
+        coverNanos = -1;
+        stallSaid = false;
         beat = new Beat(beat.frames(), beat.frame(), beat.frameNanos(), beat.intervalNanos(), false, beat.budget(),
-                -1, "", "", row.monoNanos(), beat.lostRows() + count(row.detail()));
+                -1, "", "", row.monoNanos(), beat.lostRows() + count(row.detail()), -1, beat.stalls());
         listener.lost(beat);
     }
 
@@ -138,9 +165,10 @@ public final class Escapement implements RowSink {
         }
     }
 
-    private Beat with(boolean resting, String budget, long rested, String wake, String waker, Row row) {
+    private Beat with(boolean resting, String budget, long rested, String wake, String waker, Row row,
+                      long uncovered, long stalls) {
         return new Beat(beat.frames(), beat.frame(), beat.frameNanos(), beat.intervalNanos(), resting, budget,
-                rested, wake, waker, row.monoNanos(), beat.lostRows());
+                rested, wake, waker, row.monoNanos(), beat.lostRows(), uncovered, stalls);
     }
 
     /** {@code mutation on Gui@7823a2f9} is a mutation: which tree is noise at this altitude. */

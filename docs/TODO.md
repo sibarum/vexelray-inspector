@@ -13,5 +13,3 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       a `mvn` wrapper's grandchild) on close.
 - [ ] **The recorder's own cost**, shown from day one (roadmap M1). The link's `Snap` carries the loop and ring
       counters but no cost yet, and `LinkSource` does not read snapshots: both ends need it.
-- [ ] **A gap no park covers** is a stall (automation.md §4, *Reading it*). The escapement knows the budget and the
-      rest; when a rest outlasts its budget by more than a frame, the wheel should say so rather than just rest.

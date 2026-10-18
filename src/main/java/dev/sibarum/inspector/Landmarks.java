@@ -12,7 +12,10 @@ final class Landmarks {
     /** The balance wheel's box. It turns; its box does not. */
     static final String BALANCE = "balance";
 
-    /** What the loop is doing, on the movement: {@code TICK · #12}, {@code AT REST · 200ms}. */
+    /**
+     * What the loop is doing, on the movement: {@code TICK · #12}, {@code AT REST · 200ms},
+     * {@code STALL · #9 · 1.20 s}.
+     */
     static final String PLAQUE = "plaque";
 
     /** The readouts beside the movement. */
@@ -23,6 +26,7 @@ final class Landmarks {
     static final String WAKE = "readout.wake";
     static final String WAKER = "readout.waker";
     static final String LOST = "readout.lost";
+    static final String STALLS = "readout.stalls";
 
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";

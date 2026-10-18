@@ -36,6 +36,7 @@ final class Ui implements Escapement.Listener {
     private final Node wake;
     private final Node waker;
     private final Node lost;
+    private final Node stalls;
 
     Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker) {
         this.titleBar = titleBar;
@@ -57,6 +58,7 @@ final class Ui implements Escapement.Listener {
         wake = readout(gui, readouts, "Last rest ended by", Landmarks.WAKE);
         waker = readout(gui, readouts, "On the thread", Landmarks.WAKER);
         lost = readout(gui, readouts, "Rows lost", Landmarks.LOST);
+        stalls = readout(gui, readouts, "Stalls", Landmarks.STALLS);
 
         // Two faces of one area: the movement while something is being inspected, the picker while nothing is. Shown
         // and hidden rather than swapped, so each keeps its state (and the picker its entries) between turns.
@@ -129,6 +131,8 @@ final class Ui implements Escapement.Listener {
         wake.text(beat.wake().isEmpty() ? "—" : beat.wake());
         waker.text(beat.waker().isEmpty() ? "—" : beat.waker());
         lost.text(beat.lostRows() == 0 ? "none" : beat.lostRows() == 1 ? "1 row" : beat.lostRows() + " rows");
+        stalls.text((beat.stalls() == 0 ? "none" : String.valueOf(beat.stalls()))
+                + (beat.stalled() ? " · now " + Durations.text(beat.uncoveredNanos()) : ""));
     }
 
     /** The window's title says what is being inspected. */

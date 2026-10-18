@@ -1,6 +1,7 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.clock.Beat;
+import dev.sibarum.inspector.clock.Durations;
 import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
@@ -27,6 +28,9 @@ import sibarum.kronometer.anim.Ease;
  *       the park's budget ({@code 200ms}, {@code forever}).</li>
  *   <li><b>A gap is not made up.</b> When the stream loses rows, the frames in them are not swung after the fact;
  *       the first frame after the gap swings once, and the plaque says {@code MISSED BEATS} until the next.</li>
+ *   <li><b>A gap no park covers is a stall.</b> When the loop was silent for longer than {@link Beat#STALL}
+ *       beyond the budget it parked on, the plaque says {@code STALL}, the frame and how long, in ruby, until the
+ *       next frame or rest.</li>
  * </ul>
  *
  * <p>Nothing else moves. There is no idle sway: a wheel that moved while the loop was parked would be lying.
@@ -127,15 +131,25 @@ final class Movement {
     /** Say what the loop is doing on the plaque. */
     void show(Beat beat) {
         if (beat.frames() == 0 && !beat.resting()) {
-            plaque.text("WAITING FOR A FRAME").textColor(ticking).border(Length.dp(1), Parts.PLATE_EDGE);
+            plaque(ticking, Parts.PLATE_EDGE, "WAITING FOR A FRAME");
         } else if (beat.resting() && !beat.restsNotAtAll()) {
-            plaque.text(beat.restsForever() ? "AT REST · UNTIL WOKEN" : "AT REST · " + beat.budget())
-                    .textColor(resting).border(Length.dp(1), Parts.GOLD_SHADE);
+            plaque(resting, Parts.GOLD_SHADE,
+                    beat.restsForever() ? "AT REST · UNTIL WOKEN" : "AT REST · " + beat.budget());
+        } else if (beat.stalled()) {
+            plaque(Parts.RUBY_LIGHT, Parts.RUBY,
+                    "STALL · " + frame(beat) + " · " + Durations.text(beat.uncoveredNanos()));
         } else {
-            String frame = "#" + (beat.frame() >= 0 ? beat.frame() : beat.frames());
-            plaque.text(beat.missedBeats() ? "MISSED BEATS · " + frame : "TICK · " + frame).textColor(ticking)
-                    .border(Length.dp(1), Parts.PLATE_EDGE);
+            plaque(ticking, Parts.PLATE_EDGE,
+                    beat.missedBeats() ? "MISSED BEATS · " + frame(beat) : "TICK · " + frame(beat));
         }
+    }
+
+    private void plaque(Color ink, Color edge, String text) {
+        plaque.textColor(ink).border(Length.dp(1), edge).text(text);
+    }
+
+    private static String frame(Beat beat) {
+        return "#" + (beat.frame() >= 0 ? beat.frame() : beat.frames());
     }
 
     /** On the timeline: swing to the other side, interrupting a swing still under way. */

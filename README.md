@@ -24,12 +24,13 @@ link, or it plays a recording.
 | Works | Not yet |
 | --- | --- |
 | The **escapement**: the balance wheel swings one beat per `frame.present`, the fork snaps across and the escape wheel steps half a tooth | Frame stages in the swing (INPUT, CLOCK, APP, SETTLE): M2 |
-| A **park is a rest**: the wheel stands still, and the plaque names the park's budget (`200ms`, `until woken`) | Judging a gap no park covers as a stall |
+| A **park is a rest**: the wheel stands still, and the plaque names the park's budget (`200ms`, `until woken`) | Saying a stall while it is still going on: the Inspector learns of one only when a row ends it |
 | Readouts: frame number, frame time (its `frame` span), the time since the frame before, the park and how long the last rest lasted, and what ended it (`mutation`, `injected input`, the budget running out) on which thread, and how many rows the stream lost | The recorder's own cost |
 | **Live**: the picker lists the running applications from their discovery files; choosing one, or `--attach=<app>`, streams its `frame` lane over its link; when it goes away the picker comes back | Attaching by launching: `--launch <command>` |
 | **A gap is not made up**: rows the stream lost are counted, nothing is measured across them, and the first frame after says `MISSED BEATS` | |
+| **A gap no park covers is a stall**: when the loop was silent more than 100 ms beyond the park's budget (`csvview --gaps`' rule), the plaque says `STALL · #7 · 1.50 s` in ruby and the readouts count them; a gap the stream lost is never one | |
 | **Replay** of a probe CSV at its recorded pace, looping, faster or slower | Reading the other lanes (M2 on) |
-| 33 tests, none of which needs a window; one builds the real tree headless, one streams from a real link | |
+| 38 tests, none of which needs a window; one builds the real tree headless, one streams from a real link | |
 
 ## Run it
 

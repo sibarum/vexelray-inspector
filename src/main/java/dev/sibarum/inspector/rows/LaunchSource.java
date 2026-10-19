@@ -269,6 +269,12 @@ public final class LaunchSource implements RowSource {
     }
 
     @Override
+    public Optional<String> busGraph() {
+        LinkSource l = link;
+        return l == null ? Optional.empty() : l.busGraph();
+    }
+
+    @Override
     public String describe() {
         LinkSource l = link;
         return l != null ? l.describe() : command.getFirst();

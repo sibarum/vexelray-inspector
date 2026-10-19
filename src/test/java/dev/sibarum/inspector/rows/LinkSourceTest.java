@@ -129,6 +129,19 @@ class LinkSourceTest {
     }
 
     @Test
+    void theApplicationsBusGraphIsAskedBeforeTheRunBegins() throws Exception {
+        dir = Files.createTempDirectory("ls");
+        String graph = "# vexelray bus graph 1\ncomponent a.B lane=x";
+        link = InspectorLink.start(dir.resolve("a.sock"), new Recorder(64, () -> 7), null,
+                line -> line.equals("bus graph") ? "ok bus graph lines=2\n" + graph : "ok " + line);
+        Heard heard = new Heard();
+        source = new LinkSource(link.endpoint(), "demo (pid 1)");
+        source.start(heard);
+        await(() -> !heard.events.isEmpty(), "the run to begin");
+        assertEquals(graph, source.busGraph().orElseThrow(), "known by the time it began");
+    }
+
+    @Test
     void anEndpointNobodyListensOnEndsTheRunWithTheReason() throws Exception {
         dir = Files.createTempDirectory("ls");
         Heard heard = new Heard();

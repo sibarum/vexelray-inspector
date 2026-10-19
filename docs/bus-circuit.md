@@ -98,5 +98,7 @@ then reads the `bus` lane as it does now:
 - a `drop` is a spark at the pin;
 - a topic that is not in the graph is the framework chip's.
 
-Until the upstream half lands, it reads a hand-written graph (`samples/witness-graph.txt`, the framework's acceptance
-witnesses) and a replay that writes these rows (`samples/witness-bus.csv`).
+**Landed 2026-10-19** in all three repositories. The Inspector asks `bus graph` over the link when a run begins, and a
+replay reads a hand-written graph from `--bus.graph=<file>` (`samples/witness-graph.txt`, the framework's components
+witness; `samples/circuit-graph.txt` with `samples/circuit-bus.csv`, made up). As emitted: single spaces between
+fields, nested classes with dots, and a coalescing mailbox shows its declared capacity rather than the 1 atchung uses.

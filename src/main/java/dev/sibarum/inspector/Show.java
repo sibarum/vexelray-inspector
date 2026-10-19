@@ -82,7 +82,6 @@ final class Show implements RowSink {
         frames = 0;
         busRows = 0;
         hinted = false;
-        bus.hint("");
         pending.marker(new Pending.Marker(true, origin));
         arm();
     }

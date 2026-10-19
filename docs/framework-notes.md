@@ -136,5 +136,5 @@ a running application:
 
 **What the stack is doing about it:** the contract in docs/bus-circuit.md. The processor emits the graph (`BUS_GRAPH`,
 handed to `BusGraph.declare`), atchung names pumped mailboxes and writes `enqueue`, `deliver` and `drop` rows for
-named ones, and vexelray-gui serves the graph as `bus graph`. Started 2026-10-19 in sessions in each repository.
-Until it lands, the Inspector draws a hand-written graph.
+named ones, and vexelray-gui serves the graph as `bus graph`. Landed 2026-10-19: atchung `9f17ce2`, vexelray-gui `6a1a52e`, vexelray-framework `0e8f79f` and `c1140fa`. The
+Inspector asks `bus graph` over the link when a run begins; a replay uses `--bus.graph=<file>`.

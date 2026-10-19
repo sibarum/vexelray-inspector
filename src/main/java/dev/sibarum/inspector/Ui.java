@@ -48,8 +48,8 @@ final class Ui implements Escapement.Listener {
         this.picker = picker;
 
         // Two columns of four, so the panel is no taller than the movement and the circuit fits under them.
-        Node left = gui.column().width(Length.rem(12)).gap(Length.rem(0.6f));
-        Node right = gui.column().width(Length.rem(12)).gap(Length.rem(0.6f));
+        Node left = gui.column().width(Length.rem(13.5f)).gap(Length.rem(0.6f));
+        Node right = gui.column().width(Length.rem(14.5f)).gap(Length.rem(0.6f));
         Node readouts = gui.column()
                 .gap(Length.rem(0.6f))
                 .padding(Length.rem(1.0f))

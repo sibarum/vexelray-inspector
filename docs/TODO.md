@@ -13,9 +13,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## The bus (M3)
 
-- [ ] **The graph over the link**: on attaching, ask `bus graph` (docs/bus-circuit.md §4) and lay the circuit out from
-      the answer, instead of `--bus.graph=<file>`. Needs the vexelray-gui and framework halves; the board is built with
-      the window today, so a graph per attach means rebuilding its pins and paths on the timeline.
+- [ ] **See a declared graph live**: no application declares `@Subscribe`/`@Publishes` yet, so the circuit has only
+      been seen live with the framework chip (the calculator). The framework's components witness answers `bus graph`,
+      but vexelray-framework's acceptance harness is broken on develop (its own TODO); once it runs, launch the witness
+      under `--launch` and look.
 - [ ] **A real-time scale on the board**: a tick every 1 or 10 ms of the target's time, spread apart while a burst is
       stretched and bunched while the clock catches up, so a stretched burst still reads as its true length.
 - [ ] **Records per build**: keep each run's biggest burst in the history, so `NEW RECORD` can mean "bigger than any

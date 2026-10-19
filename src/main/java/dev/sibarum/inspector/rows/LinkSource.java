@@ -45,6 +45,7 @@ public final class LinkSource implements RowSource {
     private volatile LinkClient client;
     private volatile boolean closed;
     private volatile Thread thread;
+    private volatile String busGraph;
 
     /**
      * @param endpoint where the link listens: {@code uds:<path>} or {@code tcp:<port>}, from a discovery file
@@ -91,6 +92,7 @@ public final class LinkSource implements RowSource {
             c.close();
             return;
         }
+        busGraph = graph(c);
         sink.begin(who + ", live");
         c.onClose(() -> {
             if (!closed) {
@@ -109,6 +111,29 @@ public final class LinkSource implements RowSource {
         if (opened.err().isPresent() && !closed) {
             sink.end(who + " refused the stream: " + opened.err().get());
         }
+    }
+
+    /**
+     * The application's declared bus graph, asked once before the run begins: the reply's lines after its first, or
+     * null when it has none or is too old to know the verb.
+     */
+    private static String graph(LinkClient c) {
+        try {
+            dev.vexelray.gui.inspector.link.QueryReply r = c.query("bus graph");
+            String text = r.text();
+            if (!r.ok() || !text.startsWith("ok ")) {
+                return null;
+            }
+            int nl = text.indexOf('\n');
+            return nl < 0 ? null : text.substring(nl + 1);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public java.util.Optional<String> busGraph() {
+        return java.util.Optional.ofNullable(busGraph);
     }
 
     /** One batch: the gap before it, if any, then its rows. */

@@ -45,6 +45,15 @@ public interface RowSource extends AutoCloseable {
         return java.util.Optional.empty();
     }
 
+    /**
+     * The bus graph the application declares, as text (docs/bus-circuit.md §1), when the source can ask: a live
+     * application answers {@code bus graph} over its link. Known once the run has begun; empty when the source
+     * cannot ask or the application did not say.
+     */
+    default java.util.Optional<String> busGraph() {
+        return java.util.Optional.empty();
+    }
+
     /** Stop delivering. The sink may see one more row in flight; it never sees one after this returns. */
     @Override
     void close();

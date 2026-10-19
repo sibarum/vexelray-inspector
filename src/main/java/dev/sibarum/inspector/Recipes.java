@@ -158,7 +158,9 @@ final class Recipes {
      * live application goes away or a replay ends for good. It shows the movement as soon as a run begins.
      */
     @Provides
-    Started start(Shell shell, Sources sources, RowSink escapement, Ui ui, Picker picker, Runs runs) {
+    Started start(Shell shell, Sources sources, RowSink escapement, Ui ui, Picker picker, Runs runs,
+                  @Setting("bus.graph") String graphFile) {
+        BusGraph fallback = busGraph(graphFile);
         sources.listen(new Sources.Listener() {
             @Override
             public void attached(RowSource now) {
@@ -176,6 +178,8 @@ final class Recipes {
                 ui.title(now.describe());
                 now.build().ifPresent(runs::look);
                 runs.begin(now.build().orElse(null));
+                // The circuit: the graph the application declares, when it said; else the hand-written one.
+                ui.bus().graph(now.busGraph().map(text -> declared(text, ui)).orElse(fallback));
             }
 
             @Override
@@ -190,6 +194,16 @@ final class Recipes {
         picker.start();
         sources.start(escapement);
         return new Started();
+    }
+
+    /** An application's declared graph; one that cannot be read is said beside the governor, and none is drawn. */
+    private static BusGraph declared(String text, Ui ui) {
+        try {
+            return BusGraph.parse(text);
+        } catch (BusGraph.Refused e) {
+            ui.bus().hint("its bus graph was refused: " + e.getMessage());
+            return BusGraph.NONE;
+        }
     }
 
     /** That {@link #start} has run. */

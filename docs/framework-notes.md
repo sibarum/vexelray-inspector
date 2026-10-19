@@ -119,3 +119,22 @@ transform and does not fade. Twice the nodes for the beads.
 
 **What the framework could do:** let a node opt out of paint motion (`node.paintMotion(false)`, or a `Role` that
 cuts), for a part whose colour is data rather than state.
+
+## FN-6 · Nothing at runtime says who sent a message or who received it 🔬
+
+The bus circuit (docs/bus-circuit.md) draws components as chips and topics as traces from publishers to mailboxes,
+and each message as an electron along them. Only declared wiring is drawn. Measured on 2026-10-19, none of it reaches
+a running application:
+
+- **The graph stays in the processor.** `Channels` builds the declared component → topic → mailbox graph to check
+  T4.1, T4.4 and T4.7, and the generated wiring keeps only the mailbox registrations. threading.md T4.5: exposing it
+  "is additive and not built". `@Publishes` on a non-component (a `Ui`) is dropped from the edges.
+- **A subscription has no name.** atchung's `Reg`, `PumpedReg` and `Pump.subscribe` carry no owner. There is no
+  topic or subscriber enumeration and no tap. A `Placement` is named for its lane, which several components share.
+- **The probe names a publish's topic and thread, and no receiver.** Pumped mailboxes report depth, drops and batches
+  keyed by topic alone; inline and async deliveries write nothing.
+
+**What the stack is doing about it:** the contract in docs/bus-circuit.md. The processor emits the graph (`BUS_GRAPH`,
+handed to `BusGraph.declare`), atchung names pumped mailboxes and writes `enqueue`, `deliver` and `drop` rows for
+named ones, and vexelray-gui serves the graph as `bus graph`. Started 2026-10-19 in sessions in each repository.
+Until it lands, the Inspector draws a hand-written graph.

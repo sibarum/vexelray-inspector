@@ -27,7 +27,7 @@ final class Ui implements Escapement.Listener {
     private final TitleBar titleBar;
     private final StatusBar status;
     private final Movement movement;
-    private final BusView bus;
+    private final CircuitView bus;
     private final Node inspecting;
     private final Picker picker;
     private final Node history;
@@ -41,28 +41,31 @@ final class Ui implements Escapement.Listener {
     private final Node lost;
     private final Node stalls;
 
-    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker) {
+    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker, dev.sibarum.inspector.circuit.BusGraph graph) {
         this.titleBar = titleBar;
         this.movement = new Movement(gui, krono);
-        this.bus = new BusView(gui);
+        this.bus = new CircuitView(gui, graph);
         this.picker = picker;
 
+        // Two columns of four, so the panel is no taller than the movement and the circuit fits under them.
+        Node left = gui.column().width(Length.rem(12)).gap(Length.rem(0.6f));
+        Node right = gui.column().width(Length.rem(12)).gap(Length.rem(0.6f));
         Node readouts = gui.column()
-                .width(Length.rem(17))
                 .gap(Length.rem(0.6f))
                 .padding(Length.rem(1.0f))
                 .background(gui.theme().color(Role.PANEL))
                 .corner(Length.rem(0.5f));
         Node heading = gui.text("THE MAIN LOOP").textSize(Length.rem(0.8f)).textColor(gui.theme().color(Role.ACCENT));
         readouts.append(heading);
-        frame = readout(gui, readouts, "Frame", Landmarks.FRAME);
-        frameTime = readout(gui, readouts, "Frame time", Landmarks.FRAME_TIME);
-        interval = readout(gui, readouts, "Since the frame before", Landmarks.INTERVAL);
-        park = readout(gui, readouts, "Park", Landmarks.PARK);
-        wake = readout(gui, readouts, "Last rest ended by", Landmarks.WAKE);
-        waker = readout(gui, readouts, "On the thread", Landmarks.WAKER);
-        lost = readout(gui, readouts, "Rows lost", Landmarks.LOST);
-        stalls = readout(gui, readouts, "Stalls", Landmarks.STALLS);
+        readouts.append(gui.row().gap(Length.rem(1.2f)).children(left, right));
+        frame = readout(gui, left, "Frame", Landmarks.FRAME);
+        frameTime = readout(gui, left, "Frame time", Landmarks.FRAME_TIME);
+        interval = readout(gui, left, "Since the frame before", Landmarks.INTERVAL);
+        stalls = readout(gui, left, "Stalls", Landmarks.STALLS);
+        park = readout(gui, right, "Park", Landmarks.PARK);
+        wake = readout(gui, right, "Last rest ended by", Landmarks.WAKE);
+        waker = readout(gui, right, "On the thread", Landmarks.WAKER);
+        lost = readout(gui, right, "Rows lost", Landmarks.LOST);
 
         // Two faces of one area: the movement while something is being inspected, the picker while nothing is. Shown
         // and hidden rather than swapped, so each keeps its state (and the picker its entries) between turns.
@@ -108,7 +111,7 @@ final class Ui implements Escapement.Listener {
     }
 
     /** The bus panel, which {@link Show} moves. */
-    BusView bus() {
+    CircuitView bus() {
         return bus;
     }
 

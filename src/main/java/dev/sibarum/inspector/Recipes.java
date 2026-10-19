@@ -1,5 +1,6 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.circuit.BusGraph;
 import dev.sibarum.inspector.clock.Escapement;
 import dev.sibarum.inspector.history.History;
 import dev.sibarum.inspector.history.Recorder;
@@ -83,6 +84,22 @@ final class Recipes {
         return RowSource.none("choose an application to inspect");
     }
 
+    /**
+     * The bus graph the circuit is drawn from (docs/bus-circuit.md): {@code --bus.graph=<file>}, a hand-written graph
+     * until applications declare theirs over the link. None draws the framework chip alone. A file that is not a
+     * graph stops the start, naming the line.
+     */
+    private static BusGraph busGraph(String file) {
+        if (file.isBlank()) {
+            return BusGraph.NONE;
+        }
+        try {
+            return BusGraph.parse(java.nio.file.Files.readString(Path.of(file)));
+        } catch (java.io.IOException e) {
+            throw new IllegalArgumentException("--bus.graph=" + file + ": " + e.getMessage(), e);
+        }
+    }
+
     /** The source being read now, starting with {@link #source}: the picker switches it, and nothing else does. */
     @Provides
     Sources sources(RowSource source) {
@@ -105,8 +122,9 @@ final class Recipes {
      * the real tree headless ({@code VexelApplication.tree}).
      */
     @Provides
-    Ui ui(Gui gui, KronoGui krono, TitleBar titleBar, Sources sources, Picker picker) {
-        Ui ui = new Ui(gui, krono, titleBar, picker);
+    Ui ui(Gui gui, KronoGui krono, TitleBar titleBar, Sources sources, Picker picker,
+          @Setting("bus.graph") String graph) {
+        Ui ui = new Ui(gui, krono, titleBar, picker, busGraph(graph));
         ui.title(sources.describe());
         zoomShortcuts(gui);
         return ui;

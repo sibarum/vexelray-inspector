@@ -1,0 +1,3350 @@
+seq,t_mono_ns,t_wall,thread,lane,kind,detail
+1,0,-,main,frame,frame,1.9ms
+2,1234,-,main,bus,vexelray.gui.mutations,7us
+3,5000,-,main,frame,frame.present,#1
+4,9000,-,main,frame,loop.park,16ms
+5,16000000,-,main,frame,frame,1.9ms
+6,16005000,-,main,frame,frame.present,#2
+7,16009000,-,main,frame,loop.park,16ms
+8,32000000,-,main,frame,frame,1.9ms
+9,32005000,-,main,frame,frame.present,#3
+10,32009000,-,main,frame,loop.park,16ms
+11,48000000,-,main,frame,frame,1.9ms
+12,48005000,-,main,frame,frame.present,#4
+13,48009000,-,main,frame,loop.park,16ms
+14,50001234,-,main,bus,vexelray.gui.mutations,7us
+15,64000000,-,main,frame,frame,1.9ms
+16,64005000,-,main,frame,frame.present,#5
+17,64009000,-,main,frame,loop.park,16ms
+18,80000000,-,main,frame,frame,1.9ms
+19,80005000,-,main,frame,frame.present,#6
+20,80009000,-,main,frame,loop.park,16ms
+21,96000000,-,main,frame,frame,1.9ms
+22,96005000,-,main,frame,frame.present,#7
+23,96009000,-,main,frame,loop.park,16ms
+24,100001234,-,main,bus,vexelray.gui.mutations,7us
+25,112000000,-,main,frame,frame,1.9ms
+26,112005000,-,main,frame,frame.present,#8
+27,112009000,-,main,frame,loop.park,16ms
+28,128000000,-,main,frame,frame,1.9ms
+29,128005000,-,main,frame,frame.present,#9
+30,128009000,-,main,frame,loop.park,16ms
+31,144000000,-,main,frame,frame,1.9ms
+32,144005000,-,main,frame,frame.present,#10
+33,144009000,-,main,frame,loop.park,16ms
+34,150001234,-,main,bus,vexelray.gui.mutations,7us
+35,160000000,-,main,frame,frame,1.9ms
+36,160005000,-,main,frame,frame.present,#11
+37,160009000,-,main,frame,loop.park,16ms
+38,176000000,-,main,frame,frame,1.9ms
+39,176005000,-,main,frame,frame.present,#12
+40,176009000,-,main,frame,loop.park,16ms
+41,192000000,-,main,frame,frame,1.9ms
+42,192005000,-,main,frame,frame.present,#13
+43,192009000,-,main,frame,loop.park,16ms
+44,200001234,-,main,bus,vexelray.gui.mutations,7us
+45,208000000,-,main,frame,frame,1.9ms
+46,208005000,-,main,frame,frame.present,#14
+47,208009000,-,main,frame,loop.park,16ms
+48,224000000,-,main,frame,frame,1.9ms
+49,224005000,-,main,frame,frame.present,#15
+50,224009000,-,main,frame,loop.park,16ms
+51,240000000,-,main,frame,frame,1.9ms
+52,240005000,-,main,frame,frame.present,#16
+53,240009000,-,main,frame,loop.park,16ms
+54,250001234,-,main,bus,vexelray.gui.mutations,7us
+55,256000000,-,main,frame,frame,1.9ms
+56,256005000,-,main,frame,frame.present,#17
+57,256009000,-,main,frame,loop.park,16ms
+58,272000000,-,main,frame,frame,1.9ms
+59,272005000,-,main,frame,frame.present,#18
+60,272009000,-,main,frame,loop.park,16ms
+61,288000000,-,main,frame,frame,1.9ms
+62,288005000,-,main,frame,frame.present,#19
+63,288009000,-,main,frame,loop.park,16ms
+64,300000000,-,main,bus,enqueue,demo.Parser#edit 1
+65,300000100,-,main,bus,enqueue,demo.Logger#edit 1
+66,300000200,-,main,bus,enqueue,demo.Autosave#edit 1
+67,300000300,-,main,bus,doc.edit,4us
+68,300001234,-,main,bus,vexelray.gui.mutations,7us
+69,302000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+70,303000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+71,303000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+72,303000200,-,vexel-component-parse,bus,doc.parsed,6us
+73,303000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+74,303000500,-,vexel-component-parse,bus,log.line,2us
+75,304000000,-,main,frame,frame,1.9ms
+76,304005000,-,main,frame,frame.present,#20
+77,304009000,-,main,frame,loop.park,16ms
+78,306000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+79,307000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+80,307000100,-,vexel-component-index,bus,search.hits,3us
+81,307000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+82,307000400,-,vexel-component-index,bus,log.line,2us
+83,309000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+84,310000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+85,310000100,-,vexel-component-<default>,bus,log.line,2us
+86,312000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+87,320000000,-,main,frame,frame,1.9ms
+88,320005000,-,main,frame,frame.present,#21
+89,320009000,-,main,frame,loop.park,16ms
+90,336000000,-,main,frame,frame,1.9ms
+91,336005000,-,main,frame,frame.present,#22
+92,336009000,-,main,frame,loop.park,16ms
+93,350001234,-,main,bus,vexelray.gui.mutations,7us
+94,352000000,-,main,frame,frame,1.9ms
+95,352005000,-,main,frame,frame.present,#23
+96,352009000,-,main,frame,loop.park,16ms
+97,368000000,-,main,frame,frame,1.9ms
+98,368005000,-,main,frame,frame.present,#24
+99,368009000,-,main,frame,loop.park,16ms
+100,384000000,-,main,frame,frame,1.9ms
+101,384005000,-,main,frame,frame.present,#25
+102,384009000,-,main,frame,loop.park,16ms
+103,400000000,-,main,frame,frame,1.9ms
+104,400001234,-,main,bus,vexelray.gui.mutations,7us
+105,400005000,-,main,frame,frame.present,#26
+106,400009000,-,main,frame,loop.park,16ms
+107,416000000,-,main,frame,frame,1.9ms
+108,416005000,-,main,frame,frame.present,#27
+109,416009000,-,main,frame,loop.park,16ms
+110,420000000,-,main,bus,enqueue,demo.Parser#edit 1
+111,420000100,-,main,bus,enqueue,demo.Logger#edit 1
+112,420000200,-,main,bus,enqueue,demo.Autosave#edit 1
+113,420000300,-,main,bus,doc.edit,4us
+114,422000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+115,423000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+116,423000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+117,423000200,-,vexel-component-parse,bus,doc.parsed,6us
+118,423000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+119,423000500,-,vexel-component-parse,bus,log.line,2us
+120,426000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+121,427000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+122,427000100,-,vexel-component-index,bus,search.hits,3us
+123,427000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+124,427000400,-,vexel-component-index,bus,log.line,2us
+125,429000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+126,430000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+127,430000100,-,vexel-component-<default>,bus,log.line,2us
+128,432000000,-,main,frame,frame,1.9ms
+129,432000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+130,432005000,-,main,frame,frame.present,#28
+131,432009000,-,main,frame,loop.park,16ms
+132,448000000,-,main,frame,frame,1.9ms
+133,448005000,-,main,frame,frame.present,#29
+134,448009000,-,main,frame,loop.park,16ms
+135,450001234,-,main,bus,vexelray.gui.mutations,7us
+136,464000000,-,main,frame,frame,1.9ms
+137,464005000,-,main,frame,frame.present,#30
+138,464009000,-,main,frame,loop.park,16ms
+139,480000000,-,main,frame,frame,1.9ms
+140,480005000,-,main,frame,frame.present,#31
+141,480009000,-,main,frame,loop.park,16ms
+142,496000000,-,main,frame,frame,1.9ms
+143,496005000,-,main,frame,frame.present,#32
+144,496009000,-,main,frame,loop.park,16ms
+145,500001234,-,main,bus,vexelray.gui.mutations,7us
+146,512000000,-,main,frame,frame,1.9ms
+147,512005000,-,main,frame,frame.present,#33
+148,512009000,-,main,frame,loop.park,16ms
+149,528000000,-,main,frame,frame,1.9ms
+150,528005000,-,main,frame,frame.present,#34
+151,528009000,-,main,frame,loop.park,16ms
+152,540000000,-,main,bus,enqueue,demo.Parser#edit 1
+153,540000100,-,main,bus,enqueue,demo.Logger#edit 1
+154,540000200,-,main,bus,enqueue,demo.Autosave#edit 1
+155,540000300,-,main,bus,doc.edit,4us
+156,542000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+157,543000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+158,543000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+159,543000200,-,vexel-component-parse,bus,doc.parsed,6us
+160,543000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+161,543000500,-,vexel-component-parse,bus,log.line,2us
+162,544000000,-,main,frame,frame,1.9ms
+163,544005000,-,main,frame,frame.present,#35
+164,544009000,-,main,frame,loop.park,16ms
+165,546000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+166,547000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+167,547000100,-,vexel-component-index,bus,search.hits,3us
+168,547000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+169,547000400,-,vexel-component-index,bus,log.line,2us
+170,549000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+171,550000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+172,550000100,-,vexel-component-<default>,bus,log.line,2us
+173,550001234,-,main,bus,vexelray.gui.mutations,7us
+174,552000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+175,560000000,-,main,frame,frame,1.9ms
+176,560005000,-,main,frame,frame.present,#36
+177,560009000,-,main,frame,loop.park,16ms
+178,576000000,-,main,frame,frame,1.9ms
+179,576005000,-,main,frame,frame.present,#37
+180,576009000,-,main,frame,loop.park,16ms
+181,592000000,-,main,frame,frame,1.9ms
+182,592005000,-,main,frame,frame.present,#38
+183,592009000,-,main,frame,loop.park,16ms
+184,600001234,-,main,bus,vexelray.gui.mutations,7us
+185,608000000,-,main,frame,frame,1.9ms
+186,608005000,-,main,frame,frame.present,#39
+187,608009000,-,main,frame,loop.park,16ms
+188,624000000,-,main,frame,frame,1.9ms
+189,624005000,-,main,frame,frame.present,#40
+190,624009000,-,main,frame,loop.park,16ms
+191,640000000,-,main,frame,frame,1.9ms
+192,640005000,-,main,frame,frame.present,#41
+193,640009000,-,main,frame,loop.park,16ms
+194,650001234,-,main,bus,vexelray.gui.mutations,7us
+195,656000000,-,main,frame,frame,1.9ms
+196,656005000,-,main,frame,frame.present,#42
+197,656009000,-,main,frame,loop.park,16ms
+198,660000000,-,main,bus,enqueue,demo.Parser#edit 1
+199,660000100,-,main,bus,enqueue,demo.Logger#edit 1
+200,660000200,-,main,bus,enqueue,demo.Autosave#edit 1
+201,660000300,-,main,bus,doc.edit,4us
+202,662000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+203,663000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+204,663000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+205,663000200,-,vexel-component-parse,bus,doc.parsed,6us
+206,663000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+207,663000500,-,vexel-component-parse,bus,log.line,2us
+208,666000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+209,667000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+210,667000100,-,vexel-component-index,bus,search.hits,3us
+211,667000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+212,667000400,-,vexel-component-index,bus,log.line,2us
+213,669000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+214,670000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+215,670000100,-,vexel-component-<default>,bus,log.line,2us
+216,672000000,-,main,frame,frame,1.9ms
+217,672000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+218,672005000,-,main,frame,frame.present,#43
+219,672009000,-,main,frame,loop.park,16ms
+220,688000000,-,main,frame,frame,1.9ms
+221,688005000,-,main,frame,frame.present,#44
+222,688009000,-,main,frame,loop.park,16ms
+223,700001234,-,main,bus,vexelray.gui.mutations,7us
+224,704000000,-,main,frame,frame,1.9ms
+225,704005000,-,main,frame,frame.present,#45
+226,704009000,-,main,frame,loop.park,16ms
+227,720000000,-,main,frame,frame,1.9ms
+228,720005000,-,main,frame,frame.present,#46
+229,720009000,-,main,frame,loop.park,16ms
+230,736000000,-,main,frame,frame,1.9ms
+231,736005000,-,main,frame,frame.present,#47
+232,736009000,-,main,frame,loop.park,16ms
+233,750001234,-,main,bus,vexelray.gui.mutations,7us
+234,752000000,-,main,frame,frame,1.9ms
+235,752005000,-,main,frame,frame.present,#48
+236,752009000,-,main,frame,loop.park,16ms
+237,768000000,-,main,frame,frame,1.9ms
+238,768005000,-,main,frame,frame.present,#49
+239,768009000,-,main,frame,loop.park,16ms
+240,780000000,-,main,bus,enqueue,demo.Parser#edit 1
+241,780000100,-,main,bus,enqueue,demo.Logger#edit 1
+242,780000200,-,main,bus,enqueue,demo.Autosave#edit 1
+243,780000300,-,main,bus,doc.edit,4us
+244,782000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+245,783000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+246,783000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+247,783000200,-,vexel-component-parse,bus,doc.parsed,6us
+248,783000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+249,783000500,-,vexel-component-parse,bus,log.line,2us
+250,784000000,-,main,frame,frame,1.9ms
+251,784005000,-,main,frame,frame.present,#50
+252,784009000,-,main,frame,loop.park,16ms
+253,786000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+254,787000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+255,787000100,-,vexel-component-index,bus,search.hits,3us
+256,787000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+257,787000400,-,vexel-component-index,bus,log.line,2us
+258,789000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+259,790000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+260,790000100,-,vexel-component-<default>,bus,log.line,2us
+261,792000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+262,800000000,-,main,frame,frame,1.9ms
+263,800001234,-,main,bus,vexelray.gui.mutations,7us
+264,800005000,-,main,frame,frame.present,#51
+265,800009000,-,main,frame,loop.park,16ms
+266,816000000,-,main,frame,frame,1.9ms
+267,816005000,-,main,frame,frame.present,#52
+268,816009000,-,main,frame,loop.park,16ms
+269,832000000,-,main,frame,frame,1.9ms
+270,832005000,-,main,frame,frame.present,#53
+271,832009000,-,main,frame,loop.park,16ms
+272,848000000,-,main,frame,frame,1.9ms
+273,848005000,-,main,frame,frame.present,#54
+274,848009000,-,main,frame,loop.park,16ms
+275,850001234,-,main,bus,vexelray.gui.mutations,7us
+276,864000000,-,main,frame,frame,1.9ms
+277,864005000,-,main,frame,frame.present,#55
+278,864009000,-,main,frame,loop.park,16ms
+279,880000000,-,main,frame,frame,1.9ms
+280,880005000,-,main,frame,frame.present,#56
+281,880009000,-,main,frame,loop.park,16ms
+282,896000000,-,main,frame,frame,1.9ms
+283,896005000,-,main,frame,frame.present,#57
+284,896009000,-,main,frame,loop.park,16ms
+285,900000000,-,main,bus,enqueue,demo.Parser#edit 1
+286,900000100,-,main,bus,enqueue,demo.Logger#edit 1
+287,900000200,-,main,bus,enqueue,demo.Autosave#edit 1
+288,900000300,-,main,bus,doc.edit,4us
+289,900001234,-,main,bus,vexelray.gui.mutations,7us
+290,902000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+291,903000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+292,903000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+293,903000200,-,vexel-component-parse,bus,doc.parsed,6us
+294,903000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+295,903000500,-,vexel-component-parse,bus,log.line,2us
+296,906000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+297,907000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+298,907000100,-,vexel-component-index,bus,search.hits,3us
+299,907000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+300,907000400,-,vexel-component-index,bus,log.line,2us
+301,909000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+302,910000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+303,910000100,-,vexel-component-<default>,bus,log.line,2us
+304,912000000,-,main,frame,frame,1.9ms
+305,912000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+306,912005000,-,main,frame,frame.present,#58
+307,912009000,-,main,frame,loop.park,16ms
+308,928000000,-,main,frame,frame,1.9ms
+309,928005000,-,main,frame,frame.present,#59
+310,928009000,-,main,frame,loop.park,16ms
+311,944000000,-,main,frame,frame,1.9ms
+312,944005000,-,main,frame,frame.present,#60
+313,944009000,-,main,frame,loop.park,16ms
+314,950001234,-,main,bus,vexelray.gui.mutations,7us
+315,960000000,-,main,frame,frame,1.9ms
+316,960005000,-,main,frame,frame.present,#61
+317,960009000,-,main,frame,loop.park,16ms
+318,976000000,-,main,frame,frame,1.9ms
+319,976005000,-,main,frame,frame.present,#62
+320,976009000,-,main,frame,loop.park,16ms
+321,992000000,-,main,frame,frame,1.9ms
+322,992005000,-,main,frame,frame.present,#63
+323,992009000,-,main,frame,loop.park,16ms
+324,1000000000,-,vexel-component-disk,bus,enqueue,demo.Renderer#parsed 1
+325,1000001234,-,main,bus,vexelray.gui.mutations,7us
+326,1000002000,-,vexel-component-disk,bus,doc.parsed,3us
+327,1008000000,-,main,frame,frame,1.9ms
+328,1008005000,-,main,frame,frame.present,#64
+329,1008009000,-,main,frame,loop.park,16ms
+330,1020000000,-,main,bus,enqueue,demo.Parser#edit 1
+331,1020000100,-,main,bus,enqueue,demo.Logger#edit 1
+332,1020000200,-,main,bus,enqueue,demo.Autosave#edit 1
+333,1020000300,-,main,bus,doc.edit,4us
+334,1022000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+335,1023000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+336,1023000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+337,1023000200,-,vexel-component-parse,bus,doc.parsed,6us
+338,1023000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+339,1023000500,-,vexel-component-parse,bus,log.line,2us
+340,1024000000,-,main,frame,frame,1.9ms
+341,1024005000,-,main,frame,frame.present,#65
+342,1024009000,-,main,frame,loop.park,16ms
+343,1026000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+344,1027000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+345,1027000100,-,vexel-component-index,bus,search.hits,3us
+346,1027000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+347,1027000400,-,vexel-component-index,bus,log.line,2us
+348,1029000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+349,1030000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+350,1030000100,-,vexel-component-<default>,bus,log.line,2us
+351,1032000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+352,1040000000,-,main,frame,frame,1.9ms
+353,1040005000,-,main,frame,frame.present,#66
+354,1040009000,-,main,frame,loop.park,16ms
+355,1050001234,-,main,bus,vexelray.gui.mutations,7us
+356,1056000000,-,main,frame,frame,1.9ms
+357,1056005000,-,main,frame,frame.present,#67
+358,1056009000,-,main,frame,loop.park,16ms
+359,1072000000,-,main,frame,frame,1.9ms
+360,1072005000,-,main,frame,frame.present,#68
+361,1072009000,-,main,frame,loop.park,16ms
+362,1088000000,-,main,frame,frame,1.9ms
+363,1088005000,-,main,frame,frame.present,#69
+364,1088009000,-,main,frame,loop.park,16ms
+365,1100001234,-,main,bus,vexelray.gui.mutations,7us
+366,1104000000,-,main,frame,frame,1.9ms
+367,1104005000,-,main,frame,frame.present,#70
+368,1104009000,-,main,frame,loop.park,16ms
+369,1120000000,-,main,frame,frame,1.9ms
+370,1120005000,-,main,frame,frame.present,#71
+371,1120009000,-,main,frame,loop.park,16ms
+372,1136000000,-,main,frame,frame,1.9ms
+373,1136005000,-,main,frame,frame.present,#72
+374,1136009000,-,main,frame,loop.park,16ms
+375,1140000000,-,main,bus,enqueue,demo.Parser#edit 1
+376,1140000100,-,main,bus,enqueue,demo.Logger#edit 1
+377,1140000200,-,main,bus,enqueue,demo.Autosave#edit 1
+378,1140000300,-,main,bus,doc.edit,4us
+379,1142000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+380,1143000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+381,1143000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+382,1143000200,-,vexel-component-parse,bus,doc.parsed,6us
+383,1143000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+384,1143000500,-,vexel-component-parse,bus,log.line,2us
+385,1146000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+386,1147000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+387,1147000100,-,vexel-component-index,bus,search.hits,3us
+388,1147000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+389,1147000400,-,vexel-component-index,bus,log.line,2us
+390,1149000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+391,1150000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+392,1150000100,-,vexel-component-<default>,bus,log.line,2us
+393,1150001234,-,main,bus,vexelray.gui.mutations,7us
+394,1152000000,-,main,frame,frame,1.9ms
+395,1152000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+396,1152005000,-,main,frame,frame.present,#73
+397,1152009000,-,main,frame,loop.park,16ms
+398,1168000000,-,main,frame,frame,1.9ms
+399,1168005000,-,main,frame,frame.present,#74
+400,1168009000,-,main,frame,loop.park,16ms
+401,1184000000,-,main,frame,frame,1.9ms
+402,1184005000,-,main,frame,frame.present,#75
+403,1184009000,-,main,frame,loop.park,16ms
+404,1200000000,-,main,frame,frame,1.9ms
+405,1200001234,-,main,bus,vexelray.gui.mutations,7us
+406,1200005000,-,main,frame,frame.present,#76
+407,1200009000,-,main,frame,loop.park,16ms
+408,1216000000,-,main,frame,frame,1.9ms
+409,1216005000,-,main,frame,frame.present,#77
+410,1216009000,-,main,frame,loop.park,16ms
+411,1232000000,-,main,frame,frame,1.9ms
+412,1232005000,-,main,frame,frame.present,#78
+413,1232009000,-,main,frame,loop.park,16ms
+414,1248000000,-,main,frame,frame,1.9ms
+415,1248005000,-,main,frame,frame.present,#79
+416,1248009000,-,main,frame,loop.park,16ms
+417,1250001234,-,main,bus,vexelray.gui.mutations,7us
+418,1260000000,-,main,bus,enqueue,demo.Parser#edit 1
+419,1260000100,-,main,bus,enqueue,demo.Logger#edit 1
+420,1260000200,-,main,bus,enqueue,demo.Autosave#edit 1
+421,1260000300,-,main,bus,doc.edit,4us
+422,1262000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+423,1263000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+424,1263000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+425,1263000200,-,vexel-component-parse,bus,doc.parsed,6us
+426,1263000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+427,1263000500,-,vexel-component-parse,bus,log.line,2us
+428,1264000000,-,main,frame,frame,1.9ms
+429,1264005000,-,main,frame,frame.present,#80
+430,1264009000,-,main,frame,loop.park,16ms
+431,1266000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+432,1267000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+433,1267000100,-,vexel-component-index,bus,search.hits,3us
+434,1267000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+435,1267000400,-,vexel-component-index,bus,log.line,2us
+436,1269000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+437,1270000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+438,1270000100,-,vexel-component-<default>,bus,log.line,2us
+439,1272000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+440,1280000000,-,main,frame,frame,1.9ms
+441,1280005000,-,main,frame,frame.present,#81
+442,1280009000,-,main,frame,loop.park,16ms
+443,1296000000,-,main,frame,frame,1.9ms
+444,1296005000,-,main,frame,frame.present,#82
+445,1296009000,-,main,frame,loop.park,16ms
+446,1300001234,-,main,bus,vexelray.gui.mutations,7us
+447,1312000000,-,main,frame,frame,1.9ms
+448,1312005000,-,main,frame,frame.present,#83
+449,1312009000,-,main,frame,loop.park,16ms
+450,1328000000,-,main,frame,frame,1.9ms
+451,1328005000,-,main,frame,frame.present,#84
+452,1328009000,-,main,frame,loop.park,16ms
+453,1344000000,-,main,frame,frame,1.9ms
+454,1344005000,-,main,frame,frame.present,#85
+455,1344009000,-,main,frame,loop.park,16ms
+456,1350001234,-,main,bus,vexelray.gui.mutations,7us
+457,1360000000,-,main,frame,frame,1.9ms
+458,1360005000,-,main,frame,frame.present,#86
+459,1360009000,-,main,frame,loop.park,16ms
+460,1376000000,-,main,frame,frame,1.9ms
+461,1376005000,-,main,frame,frame.present,#87
+462,1376009000,-,main,frame,loop.park,16ms
+463,1380000000,-,main,bus,enqueue,demo.Parser#edit 1
+464,1380000100,-,main,bus,enqueue,demo.Logger#edit 1
+465,1380000200,-,main,bus,enqueue,demo.Autosave#edit 1
+466,1380000300,-,main,bus,doc.edit,4us
+467,1382000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+468,1383000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+469,1383000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+470,1383000200,-,vexel-component-parse,bus,doc.parsed,6us
+471,1383000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+472,1383000500,-,vexel-component-parse,bus,log.line,2us
+473,1386000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+474,1387000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+475,1387000100,-,vexel-component-index,bus,search.hits,3us
+476,1387000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+477,1387000400,-,vexel-component-index,bus,log.line,2us
+478,1389000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+479,1390000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+480,1390000100,-,vexel-component-<default>,bus,log.line,2us
+481,1392000000,-,main,frame,frame,1.9ms
+482,1392000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+483,1392005000,-,main,frame,frame.present,#88
+484,1392009000,-,main,frame,loop.park,16ms
+485,1400001234,-,main,bus,vexelray.gui.mutations,7us
+486,1408000000,-,main,frame,frame,1.9ms
+487,1408005000,-,main,frame,frame.present,#89
+488,1408009000,-,main,frame,loop.park,16ms
+489,1424000000,-,main,frame,frame,1.9ms
+490,1424005000,-,main,frame,frame.present,#90
+491,1424009000,-,main,frame,loop.park,16ms
+492,1440000000,-,main,frame,frame,1.9ms
+493,1440005000,-,main,frame,frame.present,#91
+494,1440009000,-,main,frame,loop.park,16ms
+495,1450001234,-,main,bus,vexelray.gui.mutations,7us
+496,1456000000,-,main,frame,frame,1.9ms
+497,1456005000,-,main,frame,frame.present,#92
+498,1456009000,-,main,frame,loop.park,16ms
+499,1472000000,-,main,frame,frame,1.9ms
+500,1472005000,-,main,frame,frame.present,#93
+501,1472009000,-,main,frame,loop.park,16ms
+502,1488000000,-,main,frame,frame,1.9ms
+503,1488005000,-,main,frame,frame.present,#94
+504,1488009000,-,main,frame,loop.park,16ms
+505,1500000000,-,main,bus,enqueue,demo.Parser#edit 1
+506,1500000100,-,main,bus,enqueue,demo.Logger#edit 1
+507,1500000200,-,main,bus,enqueue,demo.Autosave#edit 1
+508,1500000300,-,main,bus,doc.edit,4us
+509,1500001234,-,main,bus,vexelray.gui.mutations,7us
+510,1502000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+511,1503000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+512,1503000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+513,1503000200,-,vexel-component-parse,bus,doc.parsed,6us
+514,1503000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+515,1503000500,-,vexel-component-parse,bus,log.line,2us
+516,1504000000,-,main,frame,frame,1.9ms
+517,1504005000,-,main,frame,frame.present,#95
+518,1504009000,-,main,frame,loop.park,16ms
+519,1506000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+520,1507000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+521,1507000100,-,vexel-component-index,bus,search.hits,3us
+522,1507000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+523,1507000400,-,vexel-component-index,bus,log.line,2us
+524,1509000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+525,1510000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+526,1510000100,-,vexel-component-<default>,bus,log.line,2us
+527,1512000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+528,1520000000,-,main,frame,frame,1.9ms
+529,1520005000,-,main,frame,frame.present,#96
+530,1520009000,-,main,frame,loop.park,16ms
+531,1536000000,-,main,frame,frame,1.9ms
+532,1536005000,-,main,frame,frame.present,#97
+533,1536009000,-,main,frame,loop.park,16ms
+534,1550001234,-,main,bus,vexelray.gui.mutations,7us
+535,1552000000,-,main,frame,frame,1.9ms
+536,1552005000,-,main,frame,frame.present,#98
+537,1552009000,-,main,frame,loop.park,16ms
+538,1568000000,-,main,frame,frame,1.9ms
+539,1568005000,-,main,frame,frame.present,#99
+540,1568009000,-,main,frame,loop.park,16ms
+541,1584000000,-,main,frame,frame,1.9ms
+542,1584005000,-,main,frame,frame.present,#100
+543,1584009000,-,main,frame,loop.park,16ms
+544,1600000000,-,main,frame,frame,1.9ms
+545,1600001234,-,main,bus,vexelray.gui.mutations,7us
+546,1600005000,-,main,frame,frame.present,#101
+547,1600009000,-,main,frame,loop.park,16ms
+548,1616000000,-,main,frame,frame,1.9ms
+549,1616005000,-,main,frame,frame.present,#102
+550,1616009000,-,main,frame,loop.park,16ms
+551,1620000000,-,main,bus,enqueue,demo.Parser#edit 1
+552,1620000100,-,main,bus,enqueue,demo.Logger#edit 1
+553,1620000200,-,main,bus,enqueue,demo.Autosave#edit 1
+554,1620000300,-,main,bus,doc.edit,4us
+555,1622000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+556,1623000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+557,1623000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+558,1623000200,-,vexel-component-parse,bus,doc.parsed,6us
+559,1623000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+560,1623000500,-,vexel-component-parse,bus,log.line,2us
+561,1626000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+562,1627000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+563,1627000100,-,vexel-component-index,bus,search.hits,3us
+564,1627000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+565,1627000400,-,vexel-component-index,bus,log.line,2us
+566,1629000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+567,1630000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+568,1630000100,-,vexel-component-<default>,bus,log.line,2us
+569,1632000000,-,main,frame,frame,1.9ms
+570,1632000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+571,1632005000,-,main,frame,frame.present,#103
+572,1632009000,-,main,frame,loop.park,16ms
+573,1648000000,-,main,frame,frame,1.9ms
+574,1648005000,-,main,frame,frame.present,#104
+575,1648009000,-,main,frame,loop.park,16ms
+576,1650001234,-,main,bus,vexelray.gui.mutations,7us
+577,1664000000,-,main,frame,frame,1.9ms
+578,1664005000,-,main,frame,frame.present,#105
+579,1664009000,-,main,frame,loop.park,16ms
+580,1680000000,-,main,frame,frame,1.9ms
+581,1680005000,-,main,frame,frame.present,#106
+582,1680009000,-,main,frame,loop.park,16ms
+583,1696000000,-,main,frame,frame,1.9ms
+584,1696005000,-,main,frame,frame.present,#107
+585,1696009000,-,main,frame,loop.park,16ms
+586,1700001234,-,main,bus,vexelray.gui.mutations,7us
+587,1712000000,-,main,frame,frame,1.9ms
+588,1712005000,-,main,frame,frame.present,#108
+589,1712009000,-,main,frame,loop.park,16ms
+590,1728000000,-,main,frame,frame,1.9ms
+591,1728005000,-,main,frame,frame.present,#109
+592,1728009000,-,main,frame,loop.park,16ms
+593,1740000000,-,main,bus,enqueue,demo.Parser#edit 1
+594,1740000100,-,main,bus,enqueue,demo.Logger#edit 1
+595,1740000200,-,main,bus,enqueue,demo.Autosave#edit 1
+596,1740000300,-,main,bus,doc.edit,4us
+597,1742000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+598,1743000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+599,1743000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+600,1743000200,-,vexel-component-parse,bus,doc.parsed,6us
+601,1743000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+602,1743000500,-,vexel-component-parse,bus,log.line,2us
+603,1744000000,-,main,frame,frame,1.9ms
+604,1744005000,-,main,frame,frame.present,#110
+605,1744009000,-,main,frame,loop.park,16ms
+606,1746000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+607,1747000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+608,1747000100,-,vexel-component-index,bus,search.hits,3us
+609,1747000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+610,1747000400,-,vexel-component-index,bus,log.line,2us
+611,1749000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+612,1750000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+613,1750000100,-,vexel-component-<default>,bus,log.line,2us
+614,1750001234,-,main,bus,vexelray.gui.mutations,7us
+615,1752000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+616,1760000000,-,main,frame,frame,1.9ms
+617,1760005000,-,main,frame,frame.present,#111
+618,1760009000,-,main,frame,loop.park,16ms
+619,1776000000,-,main,frame,frame,1.9ms
+620,1776005000,-,main,frame,frame.present,#112
+621,1776009000,-,main,frame,loop.park,16ms
+622,1792000000,-,main,frame,frame,1.9ms
+623,1792005000,-,main,frame,frame.present,#113
+624,1792009000,-,main,frame,loop.park,16ms
+625,1800001234,-,main,bus,vexelray.gui.mutations,7us
+626,1808000000,-,main,frame,frame,1.9ms
+627,1808005000,-,main,frame,frame.present,#114
+628,1808009000,-,main,frame,loop.park,16ms
+629,1824000000,-,main,frame,frame,1.9ms
+630,1824005000,-,main,frame,frame.present,#115
+631,1824009000,-,main,frame,loop.park,16ms
+632,1840000000,-,main,frame,frame,1.9ms
+633,1840005000,-,main,frame,frame.present,#116
+634,1840009000,-,main,frame,loop.park,16ms
+635,1850001234,-,main,bus,vexelray.gui.mutations,7us
+636,1856000000,-,main,frame,frame,1.9ms
+637,1856005000,-,main,frame,frame.present,#117
+638,1856009000,-,main,frame,loop.park,16ms
+639,1860000000,-,main,bus,enqueue,demo.Parser#edit 1
+640,1860000100,-,main,bus,enqueue,demo.Logger#edit 1
+641,1860000200,-,main,bus,enqueue,demo.Autosave#edit 1
+642,1860000300,-,main,bus,doc.edit,4us
+643,1862000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+644,1863000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+645,1863000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+646,1863000200,-,vexel-component-parse,bus,doc.parsed,6us
+647,1863000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+648,1863000500,-,vexel-component-parse,bus,log.line,2us
+649,1866000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+650,1867000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+651,1867000100,-,vexel-component-index,bus,search.hits,3us
+652,1867000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+653,1867000400,-,vexel-component-index,bus,log.line,2us
+654,1869000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+655,1870000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+656,1870000100,-,vexel-component-<default>,bus,log.line,2us
+657,1872000000,-,main,frame,frame,1.9ms
+658,1872000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+659,1872005000,-,main,frame,frame.present,#118
+660,1872009000,-,main,frame,loop.park,16ms
+661,1888000000,-,main,frame,frame,1.9ms
+662,1888005000,-,main,frame,frame.present,#119
+663,1888009000,-,main,frame,loop.park,16ms
+664,1900001234,-,main,bus,vexelray.gui.mutations,7us
+665,1904000000,-,main,frame,frame,1.9ms
+666,1904005000,-,main,frame,frame.present,#120
+667,1904009000,-,main,frame,loop.park,16ms
+668,1920000000,-,main,frame,frame,1.9ms
+669,1920005000,-,main,frame,frame.present,#121
+670,1920009000,-,main,frame,loop.park,16ms
+671,1936000000,-,main,frame,frame,1.9ms
+672,1936005000,-,main,frame,frame.present,#122
+673,1936009000,-,main,frame,loop.park,16ms
+674,1950001234,-,main,bus,vexelray.gui.mutations,7us
+675,1952000000,-,main,frame,frame,1.9ms
+676,1952005000,-,main,frame,frame.present,#123
+677,1952009000,-,main,frame,loop.park,16ms
+678,1968000000,-,main,frame,frame,1.9ms
+679,1968005000,-,main,frame,frame.present,#124
+680,1968009000,-,main,frame,loop.park,16ms
+681,1980000000,-,main,bus,enqueue,demo.Parser#edit 1
+682,1980000100,-,main,bus,enqueue,demo.Logger#edit 1
+683,1980000200,-,main,bus,enqueue,demo.Autosave#edit 1
+684,1980000300,-,main,bus,doc.edit,4us
+685,1982000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+686,1983000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+687,1983000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+688,1983000200,-,vexel-component-parse,bus,doc.parsed,6us
+689,1983000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+690,1983000500,-,vexel-component-parse,bus,log.line,2us
+691,1984000000,-,main,frame,frame,1.9ms
+692,1984005000,-,main,frame,frame.present,#125
+693,1984009000,-,main,frame,loop.park,16ms
+694,1986000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+695,1987000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+696,1987000100,-,vexel-component-index,bus,search.hits,3us
+697,1987000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+698,1987000400,-,vexel-component-index,bus,log.line,2us
+699,1989000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+700,1990000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+701,1990000100,-,vexel-component-<default>,bus,log.line,2us
+702,1992000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+703,2000000000,-,main,frame,frame,1.9ms
+704,2000001234,-,main,bus,vexelray.gui.mutations,7us
+705,2000005000,-,main,frame,frame.present,#126
+706,2000009000,-,main,frame,loop.park,16ms
+707,2016000000,-,main,frame,frame,1.9ms
+708,2016005000,-,main,frame,frame.present,#127
+709,2016009000,-,main,frame,loop.park,16ms
+710,2032000000,-,main,frame,frame,1.9ms
+711,2032005000,-,main,frame,frame.present,#128
+712,2032009000,-,main,frame,loop.park,16ms
+713,2048000000,-,main,frame,frame,1.9ms
+714,2048005000,-,main,frame,frame.present,#129
+715,2048009000,-,main,frame,loop.park,16ms
+716,2050001234,-,main,bus,vexelray.gui.mutations,7us
+717,2064000000,-,main,frame,frame,1.9ms
+718,2064005000,-,main,frame,frame.present,#130
+719,2064009000,-,main,frame,loop.park,16ms
+720,2080000000,-,main,frame,frame,1.9ms
+721,2080005000,-,main,frame,frame.present,#131
+722,2080009000,-,main,frame,loop.park,16ms
+723,2096000000,-,main,frame,frame,1.9ms
+724,2096005000,-,main,frame,frame.present,#132
+725,2096009000,-,main,frame,loop.park,16ms
+726,2100000000,-,main,bus,enqueue,demo.Parser#edit 1
+727,2100000100,-,main,bus,enqueue,demo.Logger#edit 1
+728,2100000200,-,main,bus,enqueue,demo.Autosave#edit 1
+729,2100000300,-,main,bus,doc.edit,4us
+730,2100001234,-,main,bus,vexelray.gui.mutations,7us
+731,2102000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+732,2103000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+733,2103000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+734,2103000200,-,vexel-component-parse,bus,doc.parsed,6us
+735,2103000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+736,2103000500,-,vexel-component-parse,bus,log.line,2us
+737,2106000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+738,2107000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+739,2107000100,-,vexel-component-index,bus,search.hits,3us
+740,2107000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+741,2107000400,-,vexel-component-index,bus,log.line,2us
+742,2109000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+743,2110000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+744,2110000100,-,vexel-component-<default>,bus,log.line,2us
+745,2112000000,-,main,frame,frame,1.9ms
+746,2112000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+747,2112005000,-,main,frame,frame.present,#133
+748,2112009000,-,main,frame,loop.park,16ms
+749,2128000000,-,main,frame,frame,1.9ms
+750,2128005000,-,main,frame,frame.present,#134
+751,2128009000,-,main,frame,loop.park,16ms
+752,2144000000,-,main,frame,frame,1.9ms
+753,2144005000,-,main,frame,frame.present,#135
+754,2144009000,-,main,frame,loop.park,16ms
+755,2150001234,-,main,bus,vexelray.gui.mutations,7us
+756,2160000000,-,main,frame,frame,1.9ms
+757,2160005000,-,main,frame,frame.present,#136
+758,2160009000,-,main,frame,loop.park,16ms
+759,2176000000,-,main,frame,frame,1.9ms
+760,2176005000,-,main,frame,frame.present,#137
+761,2176009000,-,main,frame,loop.park,16ms
+762,2192000000,-,main,frame,frame,1.9ms
+763,2192005000,-,main,frame,frame.present,#138
+764,2192009000,-,main,frame,loop.park,16ms
+765,2200001234,-,main,bus,vexelray.gui.mutations,7us
+766,2208000000,-,main,frame,frame,1.9ms
+767,2208005000,-,main,frame,frame.present,#139
+768,2208009000,-,main,frame,loop.park,16ms
+769,2220000000,-,main,bus,enqueue,demo.Parser#edit 1
+770,2220000100,-,main,bus,enqueue,demo.Logger#edit 1
+771,2220000200,-,main,bus,enqueue,demo.Autosave#edit 1
+772,2220000300,-,main,bus,doc.edit,4us
+773,2222000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+774,2223000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+775,2223000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+776,2223000200,-,vexel-component-parse,bus,doc.parsed,6us
+777,2223000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+778,2223000500,-,vexel-component-parse,bus,log.line,2us
+779,2224000000,-,main,frame,frame,1.9ms
+780,2224005000,-,main,frame,frame.present,#140
+781,2224009000,-,main,frame,loop.park,16ms
+782,2226000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+783,2227000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+784,2227000100,-,vexel-component-index,bus,search.hits,3us
+785,2227000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+786,2227000400,-,vexel-component-index,bus,log.line,2us
+787,2229000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+788,2230000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+789,2230000100,-,vexel-component-<default>,bus,log.line,2us
+790,2232000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+791,2240000000,-,main,frame,frame,1.9ms
+792,2240005000,-,main,frame,frame.present,#141
+793,2240009000,-,main,frame,loop.park,16ms
+794,2250001234,-,main,bus,vexelray.gui.mutations,7us
+795,2256000000,-,main,frame,frame,1.9ms
+796,2256005000,-,main,frame,frame.present,#142
+797,2256009000,-,main,frame,loop.park,16ms
+798,2272000000,-,main,frame,frame,1.9ms
+799,2272005000,-,main,frame,frame.present,#143
+800,2272009000,-,main,frame,loop.park,16ms
+801,2288000000,-,main,frame,frame,1.9ms
+802,2288005000,-,main,frame,frame.present,#144
+803,2288009000,-,main,frame,loop.park,16ms
+804,2300001234,-,main,bus,vexelray.gui.mutations,7us
+805,2304000000,-,main,frame,frame,1.9ms
+806,2304005000,-,main,frame,frame.present,#145
+807,2304009000,-,main,frame,loop.park,16ms
+808,2320000000,-,main,frame,frame,1.9ms
+809,2320005000,-,main,frame,frame.present,#146
+810,2320009000,-,main,frame,loop.park,16ms
+811,2336000000,-,main,frame,frame,1.9ms
+812,2336005000,-,main,frame,frame.present,#147
+813,2336009000,-,main,frame,loop.park,16ms
+814,2340000000,-,main,bus,enqueue,demo.Parser#edit 1
+815,2340000100,-,main,bus,enqueue,demo.Logger#edit 1
+816,2340000200,-,main,bus,enqueue,demo.Autosave#edit 1
+817,2340000300,-,main,bus,doc.edit,4us
+818,2342000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+819,2343000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+820,2343000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+821,2343000200,-,vexel-component-parse,bus,doc.parsed,6us
+822,2343000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+823,2343000500,-,vexel-component-parse,bus,log.line,2us
+824,2346000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+825,2347000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+826,2347000100,-,vexel-component-index,bus,search.hits,3us
+827,2347000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+828,2347000400,-,vexel-component-index,bus,log.line,2us
+829,2349000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+830,2350000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+831,2350000100,-,vexel-component-<default>,bus,log.line,2us
+832,2350001234,-,main,bus,vexelray.gui.mutations,7us
+833,2352000000,-,main,frame,frame,1.9ms
+834,2352000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+835,2352005000,-,main,frame,frame.present,#148
+836,2352009000,-,main,frame,loop.park,16ms
+837,2368000000,-,main,frame,frame,1.9ms
+838,2368005000,-,main,frame,frame.present,#149
+839,2368009000,-,main,frame,loop.park,16ms
+840,2384000000,-,main,frame,frame,1.9ms
+841,2384005000,-,main,frame,frame.present,#150
+842,2384009000,-,main,frame,loop.park,16ms
+843,2400000000,-,main,frame,frame,1.9ms
+844,2400001234,-,main,bus,vexelray.gui.mutations,7us
+845,2400005000,-,main,frame,frame.present,#151
+846,2400009000,-,main,frame,loop.park,16ms
+847,2416000000,-,main,frame,frame,1.9ms
+848,2416005000,-,main,frame,frame.present,#152
+849,2416009000,-,main,frame,loop.park,16ms
+850,2432000000,-,main,frame,frame,1.9ms
+851,2432005000,-,main,frame,frame.present,#153
+852,2432009000,-,main,frame,loop.park,16ms
+853,2448000000,-,main,frame,frame,1.9ms
+854,2448005000,-,main,frame,frame.present,#154
+855,2448009000,-,main,frame,loop.park,16ms
+856,2450001234,-,main,bus,vexelray.gui.mutations,7us
+857,2460000000,-,main,bus,enqueue,demo.Parser#edit 1
+858,2460000100,-,main,bus,enqueue,demo.Logger#edit 1
+859,2460000200,-,main,bus,enqueue,demo.Autosave#edit 1
+860,2460000300,-,main,bus,doc.edit,4us
+861,2462000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+862,2463000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+863,2463000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+864,2463000200,-,vexel-component-parse,bus,doc.parsed,6us
+865,2463000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+866,2463000500,-,vexel-component-parse,bus,log.line,2us
+867,2464000000,-,main,frame,frame,1.9ms
+868,2464005000,-,main,frame,frame.present,#155
+869,2464009000,-,main,frame,loop.park,16ms
+870,2466000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+871,2467000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+872,2467000100,-,vexel-component-index,bus,search.hits,3us
+873,2467000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+874,2467000400,-,vexel-component-index,bus,log.line,2us
+875,2469000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+876,2470000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+877,2470000100,-,vexel-component-<default>,bus,log.line,2us
+878,2472000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+879,2480000000,-,main,frame,frame,1.9ms
+880,2480005000,-,main,frame,frame.present,#156
+881,2480009000,-,main,frame,loop.park,16ms
+882,2496000000,-,main,frame,frame,1.9ms
+883,2496005000,-,main,frame,frame.present,#157
+884,2496009000,-,main,frame,loop.park,16ms
+885,2500000000,-,vexel-component-disk,bus,enqueue,demo.Renderer#parsed 1
+886,2500001234,-,main,bus,vexelray.gui.mutations,7us
+887,2500002000,-,vexel-component-disk,bus,doc.parsed,3us
+888,2512000000,-,main,frame,frame,1.9ms
+889,2512005000,-,main,frame,frame.present,#158
+890,2512009000,-,main,frame,loop.park,16ms
+891,2528000000,-,main,frame,frame,1.9ms
+892,2528005000,-,main,frame,frame.present,#159
+893,2528009000,-,main,frame,loop.park,16ms
+894,2544000000,-,main,frame,frame,1.9ms
+895,2544005000,-,main,frame,frame.present,#160
+896,2544009000,-,main,frame,loop.park,16ms
+897,2550001234,-,main,bus,vexelray.gui.mutations,7us
+898,2560000000,-,main,frame,frame,1.9ms
+899,2560005000,-,main,frame,frame.present,#161
+900,2560009000,-,main,frame,loop.park,16ms
+901,2576000000,-,main,frame,frame,1.9ms
+902,2576005000,-,main,frame,frame.present,#162
+903,2576009000,-,main,frame,loop.park,16ms
+904,2592000000,-,main,frame,frame,1.9ms
+905,2592005000,-,main,frame,frame.present,#163
+906,2592009000,-,main,frame,loop.park,16ms
+907,2600001234,-,main,bus,vexelray.gui.mutations,7us
+908,2608000000,-,main,frame,frame,1.9ms
+909,2608005000,-,main,frame,frame.present,#164
+910,2608009000,-,main,frame,loop.park,16ms
+911,2624000000,-,main,frame,frame,1.9ms
+912,2624005000,-,main,frame,frame.present,#165
+913,2624009000,-,main,frame,loop.park,16ms
+914,2640000000,-,main,frame,frame,1.9ms
+915,2640005000,-,main,frame,frame.present,#166
+916,2640009000,-,main,frame,loop.park,16ms
+917,2650001234,-,main,bus,vexelray.gui.mutations,7us
+918,2656000000,-,main,frame,frame,1.9ms
+919,2656005000,-,main,frame,frame.present,#167
+920,2656009000,-,main,frame,loop.park,16ms
+921,2672000000,-,main,frame,frame,1.9ms
+922,2672005000,-,main,frame,frame.present,#168
+923,2672009000,-,main,frame,loop.park,16ms
+924,2688000000,-,main,frame,frame,1.9ms
+925,2688005000,-,main,frame,frame.present,#169
+926,2688009000,-,main,frame,loop.park,16ms
+927,2700001234,-,main,bus,vexelray.gui.mutations,7us
+928,2704000000,-,main,frame,frame,1.9ms
+929,2704005000,-,main,frame,frame.present,#170
+930,2704009000,-,main,frame,loop.park,16ms
+931,2720000000,-,main,frame,frame,1.9ms
+932,2720005000,-,main,frame,frame.present,#171
+933,2720009000,-,main,frame,loop.park,16ms
+934,2736000000,-,main,frame,frame,1.9ms
+935,2736005000,-,main,frame,frame.present,#172
+936,2736009000,-,main,frame,loop.park,16ms
+937,2750001234,-,main,bus,vexelray.gui.mutations,7us
+938,2752000000,-,main,frame,frame,1.9ms
+939,2752005000,-,main,frame,frame.present,#173
+940,2752009000,-,main,frame,loop.park,16ms
+941,2768000000,-,main,frame,frame,1.9ms
+942,2768005000,-,main,frame,frame.present,#174
+943,2768009000,-,main,frame,loop.park,16ms
+944,2784000000,-,main,frame,frame,1.9ms
+945,2784005000,-,main,frame,frame.present,#175
+946,2784009000,-,main,frame,loop.park,16ms
+947,2800000000,-,main,frame,frame,1.9ms
+948,2800001234,-,main,bus,vexelray.gui.mutations,7us
+949,2800005000,-,main,frame,frame.present,#176
+950,2800009000,-,main,frame,loop.park,16ms
+951,2816000000,-,main,frame,frame,1.9ms
+952,2816005000,-,main,frame,frame.present,#177
+953,2816009000,-,main,frame,loop.park,16ms
+954,2832000000,-,main,frame,frame,1.9ms
+955,2832005000,-,main,frame,frame.present,#178
+956,2832009000,-,main,frame,loop.park,16ms
+957,2848000000,-,main,frame,frame,1.9ms
+958,2848005000,-,main,frame,frame.present,#179
+959,2848009000,-,main,frame,loop.park,16ms
+960,2850001234,-,main,bus,vexelray.gui.mutations,7us
+961,2864000000,-,main,frame,frame,1.9ms
+962,2864005000,-,main,frame,frame.present,#180
+963,2864009000,-,main,frame,loop.park,16ms
+964,2880000000,-,main,frame,frame,1.9ms
+965,2880005000,-,main,frame,frame.present,#181
+966,2880009000,-,main,frame,loop.park,16ms
+967,2896000000,-,main,frame,frame,1.9ms
+968,2896005000,-,main,frame,frame.present,#182
+969,2896009000,-,main,frame,loop.park,16ms
+970,2900001234,-,main,bus,vexelray.gui.mutations,7us
+971,2912000000,-,main,frame,frame,1.9ms
+972,2912005000,-,main,frame,frame.present,#183
+973,2912009000,-,main,frame,loop.park,16ms
+974,2928000000,-,main,frame,frame,1.9ms
+975,2928005000,-,main,frame,frame.present,#184
+976,2928009000,-,main,frame,loop.park,16ms
+977,2944000000,-,main,frame,frame,1.9ms
+978,2944005000,-,main,frame,frame.present,#185
+979,2944009000,-,main,frame,loop.park,16ms
+980,2950001234,-,main,bus,vexelray.gui.mutations,7us
+981,2960000000,-,main,frame,frame,1.9ms
+982,2960005000,-,main,frame,frame.present,#186
+983,2960009000,-,main,frame,loop.park,16ms
+984,2976000000,-,main,frame,frame,1.9ms
+985,2976005000,-,main,frame,frame.present,#187
+986,2976009000,-,main,frame,loop.park,16ms
+987,2992000000,-,main,frame,frame,1.9ms
+988,2992005000,-,main,frame,frame.present,#188
+989,2992009000,-,main,frame,loop.park,16ms
+990,3000000000,-,main,bus,enqueue,demo.Parser#edit 20
+991,3000000100,-,main,bus,enqueue,demo.Logger#edit 1
+992,3000000300,-,main,bus,doc.edit,4us
+993,3000001234,-,main,bus,vexelray.gui.mutations,7us
+994,3000100000,-,main,bus,enqueue,demo.Parser#edit 21
+995,3000100100,-,main,bus,enqueue,demo.Logger#edit 1
+996,3000100300,-,main,bus,doc.edit,4us
+997,3000200000,-,main,bus,enqueue,demo.Parser#edit 22
+998,3000200100,-,main,bus,enqueue,demo.Logger#edit 1
+999,3000200300,-,main,bus,doc.edit,4us
+1000,3000300000,-,main,bus,enqueue,demo.Parser#edit 23
+1001,3000300100,-,main,bus,enqueue,demo.Logger#edit 1
+1002,3000300300,-,main,bus,doc.edit,4us
+1003,3000400000,-,main,bus,enqueue,demo.Parser#edit 24
+1004,3000400100,-,main,bus,enqueue,demo.Logger#edit 1
+1005,3000400300,-,main,bus,doc.edit,4us
+1006,3000500000,-,main,bus,enqueue,demo.Parser#edit 25
+1007,3000500100,-,main,bus,enqueue,demo.Logger#edit 1
+1008,3000500300,-,main,bus,doc.edit,4us
+1009,3000600000,-,main,bus,enqueue,demo.Parser#edit 26
+1010,3000600100,-,main,bus,enqueue,demo.Logger#edit 1
+1011,3000600200,-,main,bus,enqueue,demo.Autosave#edit 1
+1012,3000600300,-,main,bus,doc.edit,4us
+1013,3000700000,-,main,bus,enqueue,demo.Parser#edit 27
+1014,3000700100,-,main,bus,enqueue,demo.Logger#edit 1
+1015,3000700300,-,main,bus,doc.edit,4us
+1016,3000800000,-,main,bus,enqueue,demo.Parser#edit 28
+1017,3000800100,-,main,bus,enqueue,demo.Logger#edit 1
+1018,3000800300,-,main,bus,doc.edit,4us
+1019,3000900000,-,main,bus,enqueue,demo.Parser#edit 29
+1020,3000900100,-,main,bus,enqueue,demo.Logger#edit 1
+1021,3000900300,-,main,bus,doc.edit,4us
+1022,3001000000,-,main,bus,enqueue,demo.Parser#edit 30
+1023,3001000100,-,main,bus,enqueue,demo.Logger#edit 1
+1024,3001000300,-,main,bus,doc.edit,4us
+1025,3001100000,-,main,bus,enqueue,demo.Parser#edit 31
+1026,3001100100,-,main,bus,enqueue,demo.Logger#edit 1
+1027,3001100300,-,main,bus,doc.edit,4us
+1028,3001200000,-,main,bus,enqueue,demo.Parser#edit 32
+1029,3001200100,-,main,bus,enqueue,demo.Logger#edit 1
+1030,3001200300,-,main,bus,doc.edit,4us
+1031,3001300000,-,main,bus,enqueue,demo.Parser#edit 1
+1032,3001300100,-,main,bus,enqueue,demo.Logger#edit 1
+1033,3001300300,-,main,bus,doc.edit,4us
+1034,3001400000,-,main,bus,enqueue,demo.Parser#edit 2
+1035,3001400100,-,main,bus,enqueue,demo.Logger#edit 1
+1036,3001400300,-,main,bus,doc.edit,4us
+1037,3001500000,-,main,bus,enqueue,demo.Parser#edit 3
+1038,3001500100,-,main,bus,enqueue,demo.Logger#edit 1
+1039,3001500300,-,main,bus,doc.edit,4us
+1040,3001600000,-,main,bus,enqueue,demo.Parser#edit 4
+1041,3001600100,-,main,bus,enqueue,demo.Logger#edit 1
+1042,3001600300,-,main,bus,doc.edit,4us
+1043,3001700000,-,main,bus,enqueue,demo.Parser#edit 5
+1044,3001700100,-,main,bus,enqueue,demo.Logger#edit 1
+1045,3001700300,-,main,bus,doc.edit,4us
+1046,3001800000,-,main,bus,enqueue,demo.Parser#edit 6
+1047,3001800100,-,main,bus,enqueue,demo.Logger#edit 1
+1048,3001800300,-,main,bus,doc.edit,4us
+1049,3001900000,-,main,bus,enqueue,demo.Parser#edit 7
+1050,3001900100,-,main,bus,enqueue,demo.Logger#edit 1
+1051,3001900300,-,main,bus,doc.edit,4us
+1052,3002000000,-,main,bus,enqueue,demo.Parser#edit 8
+1053,3002000100,-,main,bus,enqueue,demo.Logger#edit 1
+1054,3002000300,-,main,bus,doc.edit,4us
+1055,3002100000,-,main,bus,enqueue,demo.Parser#edit 9
+1056,3002100100,-,main,bus,enqueue,demo.Logger#edit 1
+1057,3002100300,-,main,bus,doc.edit,4us
+1058,3002200000,-,main,bus,enqueue,demo.Parser#edit 10
+1059,3002200100,-,main,bus,enqueue,demo.Logger#edit 1
+1060,3002200300,-,main,bus,doc.edit,4us
+1061,3002300000,-,main,bus,enqueue,demo.Parser#edit 11
+1062,3002300100,-,main,bus,enqueue,demo.Logger#edit 1
+1063,3002300300,-,main,bus,doc.edit,4us
+1064,3002400000,-,main,bus,enqueue,demo.Parser#edit 12
+1065,3002400100,-,main,bus,enqueue,demo.Logger#edit 1
+1066,3002400300,-,main,bus,doc.edit,4us
+1067,3002500000,-,main,bus,enqueue,demo.Parser#edit 13
+1068,3002500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1069,3002500100,-,main,bus,enqueue,demo.Logger#edit 1
+1070,3002500300,-,main,bus,doc.edit,4us
+1071,3002600000,-,main,bus,enqueue,demo.Parser#edit 14
+1072,3002600100,-,main,bus,enqueue,demo.Logger#edit 1
+1073,3002600300,-,main,bus,doc.edit,4us
+1074,3002700000,-,main,bus,enqueue,demo.Parser#edit 15
+1075,3002700100,-,main,bus,enqueue,demo.Logger#edit 1
+1076,3002700300,-,main,bus,doc.edit,4us
+1077,3002800000,-,main,bus,enqueue,demo.Parser#edit 16
+1078,3002800100,-,main,bus,enqueue,demo.Logger#edit 1
+1079,3002800300,-,main,bus,doc.edit,4us
+1080,3002900000,-,main,bus,enqueue,demo.Parser#edit 17
+1081,3002900100,-,main,bus,enqueue,demo.Logger#edit 1
+1082,3002900300,-,main,bus,doc.edit,4us
+1083,3003000000,-,main,bus,enqueue,demo.Parser#edit 18
+1084,3003000100,-,main,bus,enqueue,demo.Logger#edit 1
+1085,3003000300,-,main,bus,doc.edit,4us
+1086,3003100000,-,main,bus,enqueue,demo.Parser#edit 19
+1087,3003100100,-,main,bus,enqueue,demo.Logger#edit 1
+1088,3003100200,-,main,bus,enqueue,demo.Autosave#edit 1
+1089,3003100300,-,main,bus,doc.edit,4us
+1090,3003200000,-,main,bus,enqueue,demo.Parser#edit 20
+1091,3003200100,-,main,bus,enqueue,demo.Logger#edit 1
+1092,3003200300,-,main,bus,doc.edit,4us
+1093,3003300000,-,main,bus,enqueue,demo.Parser#edit 21
+1094,3003300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1095,3003300100,-,main,bus,enqueue,demo.Logger#edit 1
+1096,3003300300,-,main,bus,doc.edit,4us
+1097,3003400000,-,main,bus,enqueue,demo.Parser#edit 22
+1098,3003400100,-,main,bus,enqueue,demo.Logger#edit 1
+1099,3003400300,-,main,bus,doc.edit,4us
+1100,3003500000,-,main,bus,enqueue,demo.Parser#edit 23
+1101,3003500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1102,3003500100,-,main,bus,enqueue,demo.Logger#edit 1
+1103,3003500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1104,3003500200,-,vexel-component-parse,bus,doc.parsed,6us
+1105,3003500300,-,main,bus,doc.edit,4us
+1106,3003500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1107,3003500500,-,vexel-component-parse,bus,log.line,2us
+1108,3003600000,-,main,bus,enqueue,demo.Parser#edit 24
+1109,3003600100,-,main,bus,enqueue,demo.Logger#edit 1
+1110,3003600300,-,main,bus,doc.edit,4us
+1111,3003700000,-,main,bus,enqueue,demo.Parser#edit 25
+1112,3003700100,-,main,bus,enqueue,demo.Logger#edit 1
+1113,3003700300,-,main,bus,doc.edit,4us
+1114,3003800000,-,main,bus,enqueue,demo.Parser#edit 26
+1115,3003800100,-,main,bus,enqueue,demo.Logger#edit 1
+1116,3003800300,-,main,bus,doc.edit,4us
+1117,3003900000,-,main,bus,enqueue,demo.Parser#edit 27
+1118,3003900100,-,main,bus,enqueue,demo.Logger#edit 1
+1119,3003900300,-,main,bus,doc.edit,4us
+1120,3004000000,-,main,bus,enqueue,demo.Parser#edit 28
+1121,3004000100,-,main,bus,enqueue,demo.Logger#edit 1
+1122,3004000300,-,main,bus,doc.edit,4us
+1123,3004100000,-,main,bus,enqueue,demo.Parser#edit 29
+1124,3004100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1125,3004100100,-,main,bus,enqueue,demo.Logger#edit 1
+1126,3004100300,-,main,bus,doc.edit,4us
+1127,3004200000,-,main,bus,enqueue,demo.Parser#edit 30
+1128,3004200100,-,main,bus,enqueue,demo.Logger#edit 1
+1129,3004200300,-,main,bus,doc.edit,4us
+1130,3004300000,-,main,bus,enqueue,demo.Parser#edit 31
+1131,3004300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1132,3004300050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1133,3004300100,-,main,bus,enqueue,demo.Logger#edit 1
+1134,3004300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1135,3004300200,-,vexel-component-parse,bus,doc.parsed,6us
+1136,3004300300,-,main,bus,doc.edit,4us
+1137,3004300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1138,3004300500,-,vexel-component-parse,bus,log.line,2us
+1139,3004400000,-,main,bus,enqueue,demo.Parser#edit 32
+1140,3004400100,-,main,bus,enqueue,demo.Logger#edit 1
+1141,3004400300,-,main,bus,doc.edit,4us
+1142,3004500000,-,main,bus,enqueue,demo.Parser#edit 1
+1143,3004500100,-,main,bus,enqueue,demo.Logger#edit 1
+1144,3004500300,-,main,bus,doc.edit,4us
+1145,3004600000,-,main,bus,enqueue,demo.Parser#edit 2
+1146,3004600100,-,main,bus,enqueue,demo.Logger#edit 1
+1147,3004600300,-,main,bus,doc.edit,4us
+1148,3004700000,-,main,bus,enqueue,demo.Parser#edit 3
+1149,3004700100,-,main,bus,enqueue,demo.Logger#edit 1
+1150,3004700300,-,main,bus,doc.edit,4us
+1151,3004800000,-,main,bus,enqueue,demo.Parser#edit 4
+1152,3004800100,-,main,bus,enqueue,demo.Logger#edit 1
+1153,3004800300,-,main,bus,doc.edit,4us
+1154,3004900000,-,main,bus,enqueue,demo.Parser#edit 5
+1155,3004900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1156,3004900100,-,main,bus,enqueue,demo.Logger#edit 1
+1157,3004900300,-,main,bus,doc.edit,4us
+1158,3005000000,-,main,bus,enqueue,demo.Parser#edit 6
+1159,3005000100,-,main,bus,enqueue,demo.Logger#edit 1
+1160,3005000300,-,main,bus,doc.edit,4us
+1161,3005100000,-,main,bus,enqueue,demo.Parser#edit 7
+1162,3005100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1163,3005100100,-,main,bus,enqueue,demo.Logger#edit 1
+1164,3005100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1165,3005100200,-,vexel-component-parse,bus,doc.parsed,6us
+1166,3005100300,-,main,bus,doc.edit,4us
+1167,3005100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1168,3005100500,-,vexel-component-parse,bus,log.line,2us
+1169,3005200000,-,main,bus,enqueue,demo.Parser#edit 8
+1170,3005200100,-,main,bus,enqueue,demo.Logger#edit 1
+1171,3005200300,-,main,bus,doc.edit,4us
+1172,3005300000,-,main,bus,enqueue,demo.Parser#edit 9
+1173,3005300100,-,main,bus,enqueue,demo.Logger#edit 1
+1174,3005300300,-,main,bus,doc.edit,4us
+1175,3005400000,-,main,bus,enqueue,demo.Parser#edit 10
+1176,3005400100,-,main,bus,enqueue,demo.Logger#edit 1
+1177,3005400300,-,main,bus,doc.edit,4us
+1178,3005500000,-,main,bus,enqueue,demo.Parser#edit 11
+1179,3005500100,-,main,bus,enqueue,demo.Logger#edit 1
+1180,3005500300,-,main,bus,doc.edit,4us
+1181,3005600000,-,main,bus,enqueue,demo.Parser#edit 12
+1182,3005600100,-,main,bus,enqueue,demo.Logger#edit 1
+1183,3005600200,-,main,bus,enqueue,demo.Autosave#edit 1
+1184,3005600300,-,main,bus,doc.edit,4us
+1185,3005700000,-,main,bus,enqueue,demo.Parser#edit 13
+1186,3005700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1187,3005700100,-,main,bus,enqueue,demo.Logger#edit 1
+1188,3005700300,-,main,bus,doc.edit,4us
+1189,3005800000,-,main,bus,enqueue,demo.Parser#edit 14
+1190,3005800100,-,main,bus,enqueue,demo.Logger#edit 1
+1191,3005800300,-,main,bus,doc.edit,4us
+1192,3005900000,-,main,bus,enqueue,demo.Parser#edit 15
+1193,3005900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1194,3005900050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1195,3005900100,-,main,bus,enqueue,demo.Logger#edit 1
+1196,3005900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1197,3005900200,-,vexel-component-parse,bus,doc.parsed,6us
+1198,3005900300,-,main,bus,doc.edit,4us
+1199,3005900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1200,3005900500,-,vexel-component-parse,bus,log.line,2us
+1201,3006000000,-,main,bus,enqueue,demo.Parser#edit 16
+1202,3006000100,-,main,bus,enqueue,demo.Logger#edit 1
+1203,3006000300,-,main,bus,doc.edit,4us
+1204,3006100000,-,main,bus,enqueue,demo.Parser#edit 17
+1205,3006100100,-,main,bus,enqueue,demo.Logger#edit 1
+1206,3006100300,-,main,bus,doc.edit,4us
+1207,3006200000,-,main,bus,enqueue,demo.Parser#edit 18
+1208,3006200100,-,main,bus,enqueue,demo.Logger#edit 1
+1209,3006200300,-,main,bus,doc.edit,4us
+1210,3006300000,-,main,bus,enqueue,demo.Parser#edit 19
+1211,3006300100,-,main,bus,enqueue,demo.Logger#edit 1
+1212,3006300300,-,main,bus,doc.edit,4us
+1213,3006400000,-,main,bus,enqueue,demo.Parser#edit 20
+1214,3006400100,-,main,bus,enqueue,demo.Logger#edit 1
+1215,3006400300,-,main,bus,doc.edit,4us
+1216,3006500000,-,main,bus,enqueue,demo.Parser#edit 21
+1217,3006500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1218,3006500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1219,3006500100,-,main,bus,enqueue,demo.Logger#edit 1
+1220,3006500300,-,main,bus,doc.edit,4us
+1221,3006600000,-,main,bus,enqueue,demo.Parser#edit 22
+1222,3006600100,-,main,bus,enqueue,demo.Logger#edit 1
+1223,3006600300,-,main,bus,doc.edit,4us
+1224,3006700000,-,main,bus,enqueue,demo.Parser#edit 23
+1225,3006700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1226,3006700100,-,main,bus,enqueue,demo.Logger#edit 1
+1227,3006700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1228,3006700200,-,vexel-component-parse,bus,doc.parsed,6us
+1229,3006700300,-,main,bus,doc.edit,4us
+1230,3006700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1231,3006700500,-,vexel-component-parse,bus,log.line,2us
+1232,3006800000,-,main,bus,enqueue,demo.Parser#edit 24
+1233,3006800100,-,main,bus,enqueue,demo.Logger#edit 1
+1234,3006800300,-,main,bus,doc.edit,4us
+1235,3006900000,-,main,bus,enqueue,demo.Parser#edit 25
+1236,3006900100,-,main,bus,enqueue,demo.Logger#edit 1
+1237,3006900300,-,main,bus,doc.edit,4us
+1238,3007000000,-,main,bus,enqueue,demo.Parser#edit 26
+1239,3007000100,-,main,bus,enqueue,demo.Logger#edit 1
+1240,3007000300,-,main,bus,doc.edit,4us
+1241,3007100000,-,main,bus,enqueue,demo.Parser#edit 27
+1242,3007100100,-,main,bus,enqueue,demo.Logger#edit 1
+1243,3007100300,-,main,bus,doc.edit,4us
+1244,3007200000,-,main,bus,enqueue,demo.Parser#edit 28
+1245,3007200100,-,main,bus,enqueue,demo.Logger#edit 1
+1246,3007200300,-,main,bus,doc.edit,4us
+1247,3007300000,-,main,bus,enqueue,demo.Parser#edit 29
+1248,3007300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1249,3007300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1250,3007300100,-,main,bus,enqueue,demo.Logger#edit 1
+1251,3007300300,-,main,bus,doc.edit,4us
+1252,3007400000,-,main,bus,enqueue,demo.Parser#edit 30
+1253,3007400100,-,main,bus,enqueue,demo.Logger#edit 1
+1254,3007400300,-,main,bus,doc.edit,4us
+1255,3007500000,-,main,bus,enqueue,demo.Parser#edit 31
+1256,3007500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1257,3007500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1258,3007500050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1259,3007500100,-,main,bus,enqueue,demo.Logger#edit 1
+1260,3007500100,-,vexel-component-index,bus,search.hits,3us
+1261,3007500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1262,3007500200,-,vexel-component-parse,bus,doc.parsed,6us
+1263,3007500300,-,main,bus,doc.edit,4us
+1264,3007500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1265,3007500400,-,vexel-component-index,bus,log.line,2us
+1266,3007500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1267,3007500500,-,vexel-component-parse,bus,log.line,2us
+1268,3007600000,-,main,bus,enqueue,demo.Parser#edit 32
+1269,3007600100,-,main,bus,enqueue,demo.Logger#edit 1
+1270,3007600300,-,main,bus,doc.edit,4us
+1271,3007700000,-,main,bus,enqueue,demo.Parser#edit 1
+1272,3007700100,-,main,bus,enqueue,demo.Logger#edit 1
+1273,3007700300,-,main,bus,doc.edit,4us
+1274,3007800000,-,main,bus,enqueue,demo.Parser#edit 2
+1275,3007800100,-,main,bus,enqueue,demo.Logger#edit 1
+1276,3007800300,-,main,bus,doc.edit,4us
+1277,3007900000,-,main,bus,enqueue,demo.Parser#edit 3
+1278,3007900100,-,main,bus,enqueue,demo.Logger#edit 1
+1279,3007900300,-,main,bus,doc.edit,4us
+1280,3008000000,-,main,bus,enqueue,demo.Parser#edit 4
+1281,3008000000,-,main,frame,frame,1.9ms
+1282,3008000100,-,main,bus,enqueue,demo.Logger#edit 1
+1283,3008000300,-,main,bus,doc.edit,4us
+1284,3008005000,-,main,frame,frame.present,#189
+1285,3008009000,-,main,frame,loop.park,16ms
+1286,3008100000,-,main,bus,enqueue,demo.Parser#edit 5
+1287,3008100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1288,3008100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1289,3008100100,-,main,bus,enqueue,demo.Logger#edit 1
+1290,3008100200,-,main,bus,enqueue,demo.Autosave#edit 1
+1291,3008100300,-,main,bus,doc.edit,4us
+1292,3008200000,-,main,bus,enqueue,demo.Parser#edit 6
+1293,3008200100,-,main,bus,enqueue,demo.Logger#edit 1
+1294,3008200300,-,main,bus,doc.edit,4us
+1295,3008300000,-,main,bus,enqueue,demo.Parser#edit 7
+1296,3008300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1297,3008300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1298,3008300100,-,main,bus,enqueue,demo.Logger#edit 1
+1299,3008300100,-,vexel-component-index,bus,search.hits,3us
+1300,3008300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1301,3008300200,-,vexel-component-parse,bus,doc.parsed,6us
+1302,3008300300,-,main,bus,doc.edit,4us
+1303,3008300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1304,3008300400,-,vexel-component-index,bus,log.line,2us
+1305,3008300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1306,3008300500,-,vexel-component-parse,bus,log.line,2us
+1307,3008400000,-,main,bus,enqueue,demo.Parser#edit 8
+1308,3008400100,-,main,bus,enqueue,demo.Logger#edit 1
+1309,3008400300,-,main,bus,doc.edit,4us
+1310,3008500000,-,main,bus,enqueue,demo.Parser#edit 9
+1311,3008500100,-,main,bus,enqueue,demo.Logger#edit 1
+1312,3008500300,-,main,bus,doc.edit,4us
+1313,3008600000,-,main,bus,enqueue,demo.Parser#edit 10
+1314,3008600100,-,main,bus,enqueue,demo.Logger#edit 1
+1315,3008600300,-,main,bus,doc.edit,4us
+1316,3008700000,-,main,bus,enqueue,demo.Parser#edit 11
+1317,3008700100,-,main,bus,enqueue,demo.Logger#edit 1
+1318,3008700300,-,main,bus,doc.edit,4us
+1319,3008800000,-,main,bus,enqueue,demo.Parser#edit 12
+1320,3008800100,-,main,bus,enqueue,demo.Logger#edit 1
+1321,3008800300,-,main,bus,doc.edit,4us
+1322,3008900000,-,main,bus,enqueue,demo.Parser#edit 13
+1323,3008900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1324,3008900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1325,3008900100,-,main,bus,enqueue,demo.Logger#edit 1
+1326,3008900300,-,main,bus,doc.edit,4us
+1327,3009000000,-,main,bus,enqueue,demo.Parser#edit 14
+1328,3009000100,-,main,bus,enqueue,demo.Logger#edit 1
+1329,3009000300,-,main,bus,doc.edit,4us
+1330,3009100000,-,main,bus,enqueue,demo.Parser#edit 15
+1331,3009100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1332,3009100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1333,3009100050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1334,3009100100,-,main,bus,enqueue,demo.Logger#edit 1
+1335,3009100100,-,vexel-component-index,bus,search.hits,3us
+1336,3009100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1337,3009100200,-,vexel-component-parse,bus,doc.parsed,6us
+1338,3009100300,-,main,bus,doc.edit,4us
+1339,3009100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1340,3009100400,-,vexel-component-index,bus,log.line,2us
+1341,3009100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1342,3009100500,-,vexel-component-parse,bus,log.line,2us
+1343,3009200000,-,main,bus,enqueue,demo.Parser#edit 16
+1344,3009200100,-,main,bus,enqueue,demo.Logger#edit 1
+1345,3009200300,-,main,bus,doc.edit,4us
+1346,3009300000,-,main,bus,enqueue,demo.Parser#edit 17
+1347,3009300100,-,main,bus,enqueue,demo.Logger#edit 1
+1348,3009300300,-,main,bus,doc.edit,4us
+1349,3009400000,-,main,bus,enqueue,demo.Parser#edit 18
+1350,3009400100,-,main,bus,enqueue,demo.Logger#edit 1
+1351,3009400300,-,main,bus,doc.edit,4us
+1352,3009500000,-,main,bus,enqueue,demo.Parser#edit 19
+1353,3009500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1354,3009500100,-,main,bus,enqueue,demo.Logger#edit 1
+1355,3009500300,-,main,bus,doc.edit,4us
+1356,3009600000,-,main,bus,enqueue,demo.Parser#edit 20
+1357,3009600100,-,main,bus,enqueue,demo.Logger#edit 1
+1358,3009600300,-,main,bus,doc.edit,4us
+1359,3009700000,-,main,bus,enqueue,demo.Parser#edit 21
+1360,3009700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1361,3009700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1362,3009700100,-,main,bus,enqueue,demo.Logger#edit 1
+1363,3009700300,-,main,bus,doc.edit,4us
+1364,3009800000,-,main,bus,enqueue,demo.Parser#edit 22
+1365,3009800100,-,main,bus,enqueue,demo.Logger#edit 1
+1366,3009800300,-,main,bus,doc.edit,4us
+1367,3009900000,-,main,bus,enqueue,demo.Parser#edit 23
+1368,3009900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1369,3009900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1370,3009900100,-,main,bus,enqueue,demo.Logger#edit 1
+1371,3009900100,-,vexel-component-index,bus,search.hits,3us
+1372,3009900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1373,3009900200,-,vexel-component-parse,bus,doc.parsed,6us
+1374,3009900300,-,main,bus,doc.edit,4us
+1375,3009900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1376,3009900400,-,vexel-component-index,bus,log.line,2us
+1377,3009900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1378,3009900500,-,vexel-component-parse,bus,log.line,2us
+1379,3010000000,-,main,bus,enqueue,demo.Parser#edit 24
+1380,3010000100,-,main,bus,enqueue,demo.Logger#edit 1
+1381,3010000300,-,main,bus,doc.edit,4us
+1382,3010100000,-,main,bus,enqueue,demo.Parser#edit 25
+1383,3010100100,-,main,bus,enqueue,demo.Logger#edit 1
+1384,3010100300,-,main,bus,doc.edit,4us
+1385,3010200000,-,main,bus,enqueue,demo.Parser#edit 26
+1386,3010200100,-,main,bus,enqueue,demo.Logger#edit 1
+1387,3010200300,-,main,bus,doc.edit,4us
+1388,3010300000,-,main,bus,enqueue,demo.Parser#edit 27
+1389,3010300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1390,3010300100,-,main,bus,enqueue,demo.Logger#edit 1
+1391,3010300300,-,main,bus,doc.edit,4us
+1392,3010400000,-,main,bus,enqueue,demo.Parser#edit 28
+1393,3010400100,-,main,bus,enqueue,demo.Logger#edit 1
+1394,3010400300,-,main,bus,doc.edit,4us
+1395,3010500000,-,main,bus,enqueue,demo.Parser#edit 29
+1396,3010500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1397,3010500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1398,3010500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1399,3010500100,-,main,bus,enqueue,demo.Logger#edit 1
+1400,3010500100,-,vexel-component-<default>,bus,log.line,2us
+1401,3010500300,-,main,bus,doc.edit,4us
+1402,3010600000,-,main,bus,enqueue,demo.Parser#edit 30
+1403,3010600100,-,main,bus,enqueue,demo.Logger#edit 1
+1404,3010600200,-,main,bus,enqueue,demo.Autosave#edit 1
+1405,3010600300,-,main,bus,doc.edit,4us
+1406,3010700000,-,main,bus,enqueue,demo.Parser#edit 31
+1407,3010700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1408,3010700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1409,3010700050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1410,3010700100,-,main,bus,enqueue,demo.Logger#edit 1
+1411,3010700100,-,vexel-component-index,bus,search.hits,3us
+1412,3010700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1413,3010700200,-,vexel-component-parse,bus,doc.parsed,6us
+1414,3010700300,-,main,bus,doc.edit,4us
+1415,3010700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1416,3010700400,-,vexel-component-index,bus,log.line,2us
+1417,3010700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1418,3010700500,-,vexel-component-parse,bus,log.line,2us
+1419,3010800000,-,main,bus,enqueue,demo.Parser#edit 32
+1420,3010800100,-,main,bus,enqueue,demo.Logger#edit 1
+1421,3010800300,-,main,bus,doc.edit,4us
+1422,3010900000,-,main,bus,enqueue,demo.Parser#edit 1
+1423,3010900100,-,main,bus,enqueue,demo.Logger#edit 1
+1424,3010900300,-,main,bus,doc.edit,4us
+1425,3011000000,-,main,bus,enqueue,demo.Parser#edit 2
+1426,3011000100,-,main,bus,enqueue,demo.Logger#edit 1
+1427,3011000300,-,main,bus,doc.edit,4us
+1428,3011100000,-,main,bus,enqueue,demo.Parser#edit 3
+1429,3011100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1430,3011100100,-,main,bus,enqueue,demo.Logger#edit 1
+1431,3011100300,-,main,bus,doc.edit,4us
+1432,3011200000,-,main,bus,enqueue,demo.Parser#edit 4
+1433,3011200100,-,main,bus,enqueue,demo.Logger#edit 1
+1434,3011200300,-,main,bus,doc.edit,4us
+1435,3011300000,-,main,bus,enqueue,demo.Parser#edit 5
+1436,3011300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1437,3011300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1438,3011300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1439,3011300100,-,main,bus,enqueue,demo.Logger#edit 1
+1440,3011300100,-,vexel-component-<default>,bus,log.line,2us
+1441,3011300300,-,main,bus,doc.edit,4us
+1442,3011400000,-,main,bus,enqueue,demo.Parser#edit 6
+1443,3011400100,-,main,bus,enqueue,demo.Logger#edit 1
+1444,3011400300,-,main,bus,doc.edit,4us
+1445,3011500000,-,main,bus,enqueue,demo.Parser#edit 7
+1446,3011500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1447,3011500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1448,3011500100,-,main,bus,enqueue,demo.Logger#edit 1
+1449,3011500100,-,vexel-component-index,bus,search.hits,3us
+1450,3011500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1451,3011500200,-,vexel-component-parse,bus,doc.parsed,6us
+1452,3011500300,-,main,bus,doc.edit,4us
+1453,3011500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1454,3011500400,-,vexel-component-index,bus,log.line,2us
+1455,3011500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1456,3011500500,-,vexel-component-parse,bus,log.line,2us
+1457,3011600000,-,main,bus,enqueue,demo.Parser#edit 8
+1458,3011600100,-,main,bus,enqueue,demo.Logger#edit 1
+1459,3011600300,-,main,bus,doc.edit,4us
+1460,3011700000,-,main,bus,enqueue,demo.Parser#edit 9
+1461,3011700100,-,main,bus,enqueue,demo.Logger#edit 1
+1462,3011700300,-,main,bus,doc.edit,4us
+1463,3011800000,-,main,bus,enqueue,demo.Parser#edit 10
+1464,3011800100,-,main,bus,enqueue,demo.Logger#edit 1
+1465,3011800300,-,main,bus,doc.edit,4us
+1466,3011900000,-,main,bus,enqueue,demo.Parser#edit 11
+1467,3011900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1468,3011900100,-,main,bus,enqueue,demo.Logger#edit 1
+1469,3011900300,-,main,bus,doc.edit,4us
+1470,3012000000,-,main,bus,enqueue,demo.Parser#edit 12
+1471,3012000100,-,main,bus,enqueue,demo.Logger#edit 1
+1472,3012000300,-,main,bus,doc.edit,4us
+1473,3012100000,-,main,bus,enqueue,demo.Parser#edit 13
+1474,3012100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1475,3012100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1476,3012100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1477,3012100100,-,main,bus,enqueue,demo.Logger#edit 1
+1478,3012100100,-,vexel-component-<default>,bus,log.line,2us
+1479,3012100300,-,main,bus,doc.edit,4us
+1480,3012200000,-,main,bus,enqueue,demo.Parser#edit 14
+1481,3012200100,-,main,bus,enqueue,demo.Logger#edit 1
+1482,3012200300,-,main,bus,doc.edit,4us
+1483,3012300000,-,main,bus,enqueue,demo.Parser#edit 15
+1484,3012300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1485,3012300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1486,3012300050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1487,3012300100,-,main,bus,enqueue,demo.Logger#edit 1
+1488,3012300100,-,vexel-component-index,bus,search.hits,3us
+1489,3012300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1490,3012300200,-,vexel-component-parse,bus,doc.parsed,6us
+1491,3012300300,-,main,bus,doc.edit,4us
+1492,3012300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1493,3012300400,-,vexel-component-index,bus,log.line,2us
+1494,3012300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1495,3012300500,-,vexel-component-parse,bus,log.line,2us
+1496,3012400000,-,main,bus,enqueue,demo.Parser#edit 16
+1497,3012400100,-,main,bus,enqueue,demo.Logger#edit 1
+1498,3012400300,-,main,bus,doc.edit,4us
+1499,3012500000,-,main,bus,enqueue,demo.Parser#edit 17
+1500,3012500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1501,3012500100,-,main,bus,enqueue,demo.Logger#edit 1
+1502,3012500300,-,main,bus,doc.edit,4us
+1503,3012600000,-,main,bus,enqueue,demo.Parser#edit 18
+1504,3012600100,-,main,bus,enqueue,demo.Logger#edit 1
+1505,3012600300,-,main,bus,doc.edit,4us
+1506,3012700000,-,main,bus,enqueue,demo.Parser#edit 19
+1507,3012700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1508,3012700100,-,main,bus,enqueue,demo.Logger#edit 1
+1509,3012700300,-,main,bus,doc.edit,4us
+1510,3012800000,-,main,bus,enqueue,demo.Parser#edit 20
+1511,3012800100,-,main,bus,enqueue,demo.Logger#edit 1
+1512,3012800300,-,main,bus,doc.edit,4us
+1513,3012900000,-,main,bus,enqueue,demo.Parser#edit 21
+1514,3012900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1515,3012900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1516,3012900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1517,3012900100,-,main,bus,enqueue,demo.Logger#edit 1
+1518,3012900100,-,vexel-component-<default>,bus,log.line,2us
+1519,3012900300,-,main,bus,doc.edit,4us
+1520,3013000000,-,main,bus,enqueue,demo.Parser#edit 22
+1521,3013000100,-,main,bus,enqueue,demo.Logger#edit 1
+1522,3013000300,-,main,bus,doc.edit,4us
+1523,3013100000,-,main,bus,enqueue,demo.Parser#edit 23
+1524,3013100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1525,3013100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1526,3013100100,-,main,bus,enqueue,demo.Logger#edit 1
+1527,3013100100,-,vexel-component-index,bus,search.hits,3us
+1528,3013100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1529,3013100200,-,main,bus,enqueue,demo.Autosave#edit 1
+1530,3013100200,-,vexel-component-parse,bus,doc.parsed,6us
+1531,3013100300,-,main,bus,doc.edit,4us
+1532,3013100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1533,3013100400,-,vexel-component-index,bus,log.line,2us
+1534,3013100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1535,3013100500,-,vexel-component-parse,bus,log.line,2us
+1536,3013200000,-,main,bus,enqueue,demo.Parser#edit 24
+1537,3013200100,-,main,bus,enqueue,demo.Logger#edit 1
+1538,3013200300,-,main,bus,doc.edit,4us
+1539,3013300000,-,main,bus,enqueue,demo.Parser#edit 25
+1540,3013300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1541,3013300100,-,main,bus,enqueue,demo.Logger#edit 1
+1542,3013300300,-,main,bus,doc.edit,4us
+1543,3013400000,-,main,bus,enqueue,demo.Parser#edit 26
+1544,3013400100,-,main,bus,enqueue,demo.Logger#edit 1
+1545,3013400300,-,main,bus,doc.edit,4us
+1546,3013500000,-,main,bus,enqueue,demo.Parser#edit 27
+1547,3013500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1548,3013500100,-,main,bus,enqueue,demo.Logger#edit 1
+1549,3013500300,-,main,bus,doc.edit,4us
+1550,3013600000,-,main,bus,enqueue,demo.Parser#edit 28
+1551,3013600100,-,main,bus,enqueue,demo.Logger#edit 1
+1552,3013600300,-,main,bus,doc.edit,4us
+1553,3013700000,-,main,bus,enqueue,demo.Parser#edit 29
+1554,3013700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1555,3013700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1556,3013700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1557,3013700100,-,main,bus,enqueue,demo.Logger#edit 1
+1558,3013700100,-,vexel-component-<default>,bus,log.line,2us
+1559,3013700300,-,main,bus,doc.edit,4us
+1560,3013800000,-,main,bus,enqueue,demo.Parser#edit 30
+1561,3013800100,-,main,bus,enqueue,demo.Logger#edit 1
+1562,3013800300,-,main,bus,doc.edit,4us
+1563,3013900000,-,main,bus,enqueue,demo.Parser#edit 31
+1564,3013900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1565,3013900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1566,3013900050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1567,3013900100,-,main,bus,enqueue,demo.Logger#edit 1
+1568,3013900100,-,vexel-component-index,bus,search.hits,3us
+1569,3013900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1570,3013900200,-,vexel-component-parse,bus,doc.parsed,6us
+1571,3013900300,-,main,bus,doc.edit,4us
+1572,3013900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1573,3013900400,-,vexel-component-index,bus,log.line,2us
+1574,3013900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1575,3013900500,-,vexel-component-parse,bus,log.line,2us
+1576,3014000000,-,main,bus,enqueue,demo.Parser#edit 32
+1577,3014000100,-,main,bus,enqueue,demo.Logger#edit 1
+1578,3014000300,-,main,bus,doc.edit,4us
+1579,3014100000,-,main,bus,enqueue,demo.Parser#edit 1
+1580,3014100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1581,3014100100,-,main,bus,enqueue,demo.Logger#edit 1
+1582,3014100300,-,main,bus,doc.edit,4us
+1583,3014200000,-,main,bus,enqueue,demo.Parser#edit 2
+1584,3014200100,-,main,bus,enqueue,demo.Logger#edit 1
+1585,3014200300,-,main,bus,doc.edit,4us
+1586,3014300000,-,main,bus,enqueue,demo.Parser#edit 3
+1587,3014300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1588,3014300100,-,main,bus,enqueue,demo.Logger#edit 1
+1589,3014300300,-,main,bus,doc.edit,4us
+1590,3014400000,-,main,bus,enqueue,demo.Parser#edit 4
+1591,3014400100,-,main,bus,enqueue,demo.Logger#edit 1
+1592,3014400300,-,main,bus,doc.edit,4us
+1593,3014500000,-,main,bus,enqueue,demo.Parser#edit 5
+1594,3014500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1595,3014500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1596,3014500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1597,3014500100,-,main,bus,enqueue,demo.Logger#edit 1
+1598,3014500100,-,vexel-component-<default>,bus,log.line,2us
+1599,3014500300,-,main,bus,doc.edit,4us
+1600,3014600000,-,main,bus,enqueue,demo.Parser#edit 6
+1601,3014600100,-,main,bus,enqueue,demo.Logger#edit 1
+1602,3014600300,-,main,bus,doc.edit,4us
+1603,3014700000,-,main,bus,enqueue,demo.Parser#edit 7
+1604,3014700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1605,3014700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1606,3014700100,-,main,bus,enqueue,demo.Logger#edit 1
+1607,3014700100,-,vexel-component-index,bus,search.hits,3us
+1608,3014700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1609,3014700200,-,vexel-component-parse,bus,doc.parsed,6us
+1610,3014700300,-,main,bus,doc.edit,4us
+1611,3014700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1612,3014700400,-,vexel-component-index,bus,log.line,2us
+1613,3014700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1614,3014700500,-,vexel-component-parse,bus,log.line,2us
+1615,3014800000,-,main,bus,enqueue,demo.Parser#edit 8
+1616,3014800100,-,main,bus,enqueue,demo.Logger#edit 1
+1617,3014800300,-,main,bus,doc.edit,4us
+1618,3014900000,-,main,bus,enqueue,demo.Parser#edit 9
+1619,3014900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1620,3014900100,-,main,bus,enqueue,demo.Logger#edit 1
+1621,3014900300,-,main,bus,doc.edit,4us
+1622,3015000000,-,main,bus,enqueue,demo.Parser#edit 10
+1623,3015000100,-,main,bus,enqueue,demo.Logger#edit 1
+1624,3015000300,-,main,bus,doc.edit,4us
+1625,3015100000,-,main,bus,enqueue,demo.Parser#edit 11
+1626,3015100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1627,3015100100,-,main,bus,enqueue,demo.Logger#edit 1
+1628,3015100300,-,main,bus,doc.edit,4us
+1629,3015200000,-,main,bus,enqueue,demo.Parser#edit 12
+1630,3015200100,-,main,bus,enqueue,demo.Logger#edit 1
+1631,3015200300,-,main,bus,doc.edit,4us
+1632,3015300000,-,main,bus,enqueue,demo.Parser#edit 13
+1633,3015300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1634,3015300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1635,3015300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1636,3015300100,-,main,bus,enqueue,demo.Logger#edit 1
+1637,3015300100,-,vexel-component-<default>,bus,log.line,2us
+1638,3015300300,-,main,bus,doc.edit,4us
+1639,3015400000,-,main,bus,enqueue,demo.Parser#edit 14
+1640,3015400100,-,main,bus,enqueue,demo.Logger#edit 1
+1641,3015400300,-,main,bus,doc.edit,4us
+1642,3015500000,-,main,bus,enqueue,demo.Parser#edit 15
+1643,3015500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1644,3015500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1645,3015500050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1646,3015500100,-,main,bus,enqueue,demo.Logger#edit 1
+1647,3015500100,-,vexel-component-index,bus,search.hits,3us
+1648,3015500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1649,3015500200,-,vexel-component-parse,bus,doc.parsed,6us
+1650,3015500300,-,main,bus,doc.edit,4us
+1651,3015500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1652,3015500400,-,vexel-component-index,bus,log.line,2us
+1653,3015500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1654,3015500500,-,vexel-component-parse,bus,log.line,2us
+1655,3015600000,-,main,bus,enqueue,demo.Parser#edit 16
+1656,3015600100,-,main,bus,enqueue,demo.Logger#edit 1
+1657,3015600200,-,main,bus,enqueue,demo.Autosave#edit 1
+1658,3015600300,-,main,bus,doc.edit,4us
+1659,3015700000,-,main,bus,enqueue,demo.Parser#edit 17
+1660,3015700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1661,3015700100,-,main,bus,enqueue,demo.Logger#edit 1
+1662,3015700300,-,main,bus,doc.edit,4us
+1663,3015800000,-,main,bus,enqueue,demo.Parser#edit 18
+1664,3015800100,-,main,bus,enqueue,demo.Logger#edit 1
+1665,3015800300,-,main,bus,doc.edit,4us
+1666,3015900000,-,main,bus,enqueue,demo.Parser#edit 19
+1667,3015900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1668,3015900100,-,main,bus,enqueue,demo.Logger#edit 1
+1669,3015900300,-,main,bus,doc.edit,4us
+1670,3016000000,-,main,bus,enqueue,demo.Parser#edit 20
+1671,3016000100,-,main,bus,enqueue,demo.Logger#edit 1
+1672,3016000300,-,main,bus,doc.edit,4us
+1673,3016100000,-,main,bus,enqueue,demo.Parser#edit 21
+1674,3016100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1675,3016100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1676,3016100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1677,3016100100,-,main,bus,enqueue,demo.Logger#edit 1
+1678,3016100100,-,vexel-component-<default>,bus,log.line,2us
+1679,3016100300,-,main,bus,doc.edit,4us
+1680,3016200000,-,main,bus,enqueue,demo.Parser#edit 22
+1681,3016200100,-,main,bus,enqueue,demo.Logger#edit 1
+1682,3016200300,-,main,bus,doc.edit,4us
+1683,3016300000,-,main,bus,enqueue,demo.Parser#edit 23
+1684,3016300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1685,3016300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1686,3016300100,-,main,bus,enqueue,demo.Logger#edit 1
+1687,3016300100,-,vexel-component-index,bus,search.hits,3us
+1688,3016300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1689,3016300200,-,vexel-component-parse,bus,doc.parsed,6us
+1690,3016300300,-,main,bus,doc.edit,4us
+1691,3016300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1692,3016300400,-,vexel-component-index,bus,log.line,2us
+1693,3016300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1694,3016300500,-,vexel-component-parse,bus,log.line,2us
+1695,3016400000,-,main,bus,enqueue,demo.Parser#edit 24
+1696,3016400100,-,main,bus,enqueue,demo.Logger#edit 1
+1697,3016400300,-,main,bus,doc.edit,4us
+1698,3016500000,-,main,bus,enqueue,demo.Parser#edit 25
+1699,3016500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1700,3016500100,-,main,bus,enqueue,demo.Logger#edit 1
+1701,3016500300,-,main,bus,doc.edit,4us
+1702,3016600000,-,main,bus,enqueue,demo.Parser#edit 26
+1703,3016600100,-,main,bus,enqueue,demo.Logger#edit 1
+1704,3016600300,-,main,bus,doc.edit,4us
+1705,3016700000,-,main,bus,enqueue,demo.Parser#edit 27
+1706,3016700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1707,3016700100,-,main,bus,enqueue,demo.Logger#edit 1
+1708,3016700300,-,main,bus,doc.edit,4us
+1709,3016800000,-,main,bus,enqueue,demo.Parser#edit 28
+1710,3016800100,-,main,bus,enqueue,demo.Logger#edit 1
+1711,3016800300,-,main,bus,doc.edit,4us
+1712,3016900000,-,main,bus,enqueue,demo.Parser#edit 29
+1713,3016900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1714,3016900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1715,3016900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1716,3016900100,-,main,bus,enqueue,demo.Logger#edit 1
+1717,3016900100,-,vexel-component-<default>,bus,log.line,2us
+1718,3016900300,-,main,bus,doc.edit,4us
+1719,3017000000,-,main,bus,enqueue,demo.Parser#edit 30
+1720,3017000100,-,main,bus,enqueue,demo.Logger#edit 1
+1721,3017000300,-,main,bus,doc.edit,4us
+1722,3017100000,-,main,bus,enqueue,demo.Parser#edit 31
+1723,3017100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1724,3017100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1725,3017100050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1726,3017100100,-,main,bus,enqueue,demo.Logger#edit 1
+1727,3017100100,-,vexel-component-index,bus,search.hits,3us
+1728,3017100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1729,3017100200,-,vexel-component-parse,bus,doc.parsed,6us
+1730,3017100300,-,main,bus,doc.edit,4us
+1731,3017100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1732,3017100400,-,vexel-component-index,bus,log.line,2us
+1733,3017100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1734,3017100500,-,vexel-component-parse,bus,log.line,2us
+1735,3017200000,-,main,bus,enqueue,demo.Parser#edit 32
+1736,3017200100,-,main,bus,enqueue,demo.Logger#edit 1
+1737,3017200300,-,main,bus,doc.edit,4us
+1738,3017300000,-,main,bus,enqueue,demo.Parser#edit 1
+1739,3017300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1740,3017300100,-,main,bus,enqueue,demo.Logger#edit 1
+1741,3017300300,-,main,bus,doc.edit,4us
+1742,3017400000,-,main,bus,enqueue,demo.Parser#edit 2
+1743,3017400100,-,main,bus,enqueue,demo.Logger#edit 1
+1744,3017400300,-,main,bus,doc.edit,4us
+1745,3017500000,-,main,bus,enqueue,demo.Parser#edit 3
+1746,3017500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1747,3017500100,-,main,bus,enqueue,demo.Logger#edit 1
+1748,3017500300,-,main,bus,doc.edit,4us
+1749,3017600000,-,main,bus,enqueue,demo.Parser#edit 4
+1750,3017600100,-,main,bus,enqueue,demo.Logger#edit 1
+1751,3017600300,-,main,bus,doc.edit,4us
+1752,3017700000,-,main,bus,enqueue,demo.Parser#edit 5
+1753,3017700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1754,3017700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1755,3017700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1756,3017700100,-,main,bus,enqueue,demo.Logger#edit 1
+1757,3017700100,-,vexel-component-<default>,bus,log.line,2us
+1758,3017700300,-,main,bus,doc.edit,4us
+1759,3017800000,-,main,bus,enqueue,demo.Parser#edit 6
+1760,3017800100,-,main,bus,enqueue,demo.Logger#edit 1
+1761,3017800300,-,main,bus,doc.edit,4us
+1762,3017900000,-,main,bus,enqueue,demo.Parser#edit 7
+1763,3017900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1764,3017900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1765,3017900100,-,main,bus,enqueue,demo.Logger#edit 1
+1766,3017900100,-,vexel-component-index,bus,search.hits,3us
+1767,3017900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1768,3017900200,-,vexel-component-parse,bus,doc.parsed,6us
+1769,3017900300,-,main,bus,doc.edit,4us
+1770,3017900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1771,3017900400,-,vexel-component-index,bus,log.line,2us
+1772,3017900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1773,3017900500,-,vexel-component-parse,bus,log.line,2us
+1774,3018000000,-,main,bus,enqueue,demo.Parser#edit 8
+1775,3018000100,-,main,bus,enqueue,demo.Logger#edit 1
+1776,3018000300,-,main,bus,doc.edit,4us
+1777,3018100000,-,main,bus,enqueue,demo.Parser#edit 9
+1778,3018100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1779,3018100100,-,main,bus,enqueue,demo.Logger#edit 1
+1780,3018100200,-,main,bus,enqueue,demo.Autosave#edit 1
+1781,3018100300,-,main,bus,doc.edit,4us
+1782,3018200000,-,main,bus,enqueue,demo.Parser#edit 10
+1783,3018200100,-,main,bus,enqueue,demo.Logger#edit 1
+1784,3018200300,-,main,bus,doc.edit,4us
+1785,3018300000,-,main,bus,enqueue,demo.Parser#edit 11
+1786,3018300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1787,3018300100,-,main,bus,enqueue,demo.Logger#edit 1
+1788,3018300300,-,main,bus,doc.edit,4us
+1789,3018400000,-,main,bus,enqueue,demo.Parser#edit 12
+1790,3018400100,-,main,bus,enqueue,demo.Logger#edit 1
+1791,3018400300,-,main,bus,doc.edit,4us
+1792,3018500000,-,main,bus,enqueue,demo.Parser#edit 13
+1793,3018500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1794,3018500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1795,3018500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1796,3018500100,-,main,bus,enqueue,demo.Logger#edit 1
+1797,3018500100,-,vexel-component-<default>,bus,log.line,2us
+1798,3018500300,-,main,bus,doc.edit,4us
+1799,3018600000,-,main,bus,enqueue,demo.Parser#edit 14
+1800,3018600100,-,main,bus,enqueue,demo.Logger#edit 1
+1801,3018600300,-,main,bus,doc.edit,4us
+1802,3018700000,-,main,bus,enqueue,demo.Parser#edit 15
+1803,3018700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1804,3018700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1805,3018700050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1806,3018700100,-,main,bus,enqueue,demo.Logger#edit 1
+1807,3018700100,-,vexel-component-index,bus,search.hits,3us
+1808,3018700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1809,3018700200,-,vexel-component-parse,bus,doc.parsed,6us
+1810,3018700300,-,main,bus,doc.edit,4us
+1811,3018700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1812,3018700400,-,vexel-component-index,bus,log.line,2us
+1813,3018700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1814,3018700500,-,vexel-component-parse,bus,log.line,2us
+1815,3018800000,-,main,bus,enqueue,demo.Parser#edit 16
+1816,3018800100,-,main,bus,enqueue,demo.Logger#edit 1
+1817,3018800300,-,main,bus,doc.edit,4us
+1818,3018900000,-,main,bus,enqueue,demo.Parser#edit 17
+1819,3018900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1820,3018900100,-,main,bus,enqueue,demo.Logger#edit 1
+1821,3018900300,-,main,bus,doc.edit,4us
+1822,3019000000,-,main,bus,enqueue,demo.Parser#edit 18
+1823,3019000100,-,main,bus,enqueue,demo.Logger#edit 1
+1824,3019000300,-,main,bus,doc.edit,4us
+1825,3019100000,-,main,bus,enqueue,demo.Parser#edit 19
+1826,3019100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1827,3019100100,-,main,bus,enqueue,demo.Logger#edit 1
+1828,3019100300,-,main,bus,doc.edit,4us
+1829,3019200000,-,main,bus,enqueue,demo.Parser#edit 20
+1830,3019200100,-,main,bus,enqueue,demo.Logger#edit 1
+1831,3019200300,-,main,bus,doc.edit,4us
+1832,3019300000,-,main,bus,enqueue,demo.Parser#edit 21
+1833,3019300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1834,3019300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1835,3019300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1836,3019300100,-,main,bus,enqueue,demo.Logger#edit 1
+1837,3019300100,-,vexel-component-<default>,bus,log.line,2us
+1838,3019300300,-,main,bus,doc.edit,4us
+1839,3019400000,-,main,bus,enqueue,demo.Parser#edit 22
+1840,3019400100,-,main,bus,enqueue,demo.Logger#edit 1
+1841,3019400300,-,main,bus,doc.edit,4us
+1842,3019500000,-,main,bus,enqueue,demo.Parser#edit 23
+1843,3019500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1844,3019500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1845,3019500100,-,main,bus,enqueue,demo.Logger#edit 1
+1846,3019500100,-,vexel-component-index,bus,search.hits,3us
+1847,3019500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1848,3019500200,-,vexel-component-parse,bus,doc.parsed,6us
+1849,3019500300,-,main,bus,doc.edit,4us
+1850,3019500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1851,3019500400,-,vexel-component-index,bus,log.line,2us
+1852,3019500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1853,3019500500,-,vexel-component-parse,bus,log.line,2us
+1854,3019600000,-,main,bus,enqueue,demo.Parser#edit 24
+1855,3019600100,-,main,bus,enqueue,demo.Logger#edit 1
+1856,3019600300,-,main,bus,doc.edit,4us
+1857,3019700000,-,main,bus,enqueue,demo.Parser#edit 25
+1858,3019700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1859,3019700100,-,main,bus,enqueue,demo.Logger#edit 1
+1860,3019700300,-,main,bus,doc.edit,4us
+1861,3019800000,-,main,bus,enqueue,demo.Parser#edit 26
+1862,3019800100,-,main,bus,enqueue,demo.Logger#edit 1
+1863,3019800300,-,main,bus,doc.edit,4us
+1864,3019900000,-,main,bus,enqueue,demo.Parser#edit 27
+1865,3019900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1866,3019900100,-,main,bus,enqueue,demo.Logger#edit 1
+1867,3019900300,-,main,bus,doc.edit,4us
+1868,3020000000,-,main,bus,enqueue,demo.Parser#edit 28
+1869,3020000100,-,main,bus,enqueue,demo.Logger#edit 1
+1870,3020000300,-,main,bus,doc.edit,4us
+1871,3020100000,-,main,bus,enqueue,demo.Parser#edit 29
+1872,3020100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1873,3020100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1874,3020100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1875,3020100100,-,main,bus,enqueue,demo.Logger#edit 1
+1876,3020100100,-,vexel-component-<default>,bus,log.line,2us
+1877,3020100300,-,main,bus,doc.edit,4us
+1878,3020200000,-,main,bus,enqueue,demo.Parser#edit 30
+1879,3020200100,-,main,bus,enqueue,demo.Logger#edit 1
+1880,3020200300,-,main,bus,doc.edit,4us
+1881,3020300000,-,main,bus,enqueue,demo.Parser#edit 31
+1882,3020300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1883,3020300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1884,3020300050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1885,3020300100,-,main,bus,enqueue,demo.Logger#edit 1
+1886,3020300100,-,vexel-component-index,bus,search.hits,3us
+1887,3020300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1888,3020300200,-,vexel-component-parse,bus,doc.parsed,6us
+1889,3020300300,-,main,bus,doc.edit,4us
+1890,3020300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1891,3020300400,-,vexel-component-index,bus,log.line,2us
+1892,3020300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1893,3020300500,-,vexel-component-parse,bus,log.line,2us
+1894,3020400000,-,main,bus,enqueue,demo.Parser#edit 32
+1895,3020400100,-,main,bus,enqueue,demo.Logger#edit 1
+1896,3020400300,-,main,bus,doc.edit,4us
+1897,3020500000,-,main,bus,enqueue,demo.Parser#edit 1
+1898,3020500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1899,3020500100,-,main,bus,enqueue,demo.Logger#edit 1
+1900,3020500300,-,main,bus,doc.edit,4us
+1901,3020600000,-,main,bus,enqueue,demo.Parser#edit 2
+1902,3020600100,-,main,bus,enqueue,demo.Logger#edit 1
+1903,3020600200,-,main,bus,enqueue,demo.Autosave#edit 1
+1904,3020600300,-,main,bus,doc.edit,4us
+1905,3020700000,-,main,bus,enqueue,demo.Parser#edit 3
+1906,3020700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1907,3020700100,-,main,bus,enqueue,demo.Logger#edit 1
+1908,3020700300,-,main,bus,doc.edit,4us
+1909,3020800000,-,main,bus,enqueue,demo.Parser#edit 4
+1910,3020800100,-,main,bus,enqueue,demo.Logger#edit 1
+1911,3020800300,-,main,bus,doc.edit,4us
+1912,3020900000,-,main,bus,enqueue,demo.Parser#edit 5
+1913,3020900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1914,3020900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1915,3020900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1916,3020900100,-,main,bus,enqueue,demo.Logger#edit 1
+1917,3020900100,-,vexel-component-<default>,bus,log.line,2us
+1918,3020900300,-,main,bus,doc.edit,4us
+1919,3021000000,-,main,bus,enqueue,demo.Parser#edit 6
+1920,3021000100,-,main,bus,enqueue,demo.Logger#edit 1
+1921,3021000300,-,main,bus,doc.edit,4us
+1922,3021100000,-,main,bus,enqueue,demo.Parser#edit 7
+1923,3021100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1924,3021100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1925,3021100100,-,main,bus,enqueue,demo.Logger#edit 1
+1926,3021100100,-,vexel-component-index,bus,search.hits,3us
+1927,3021100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1928,3021100200,-,vexel-component-parse,bus,doc.parsed,6us
+1929,3021100300,-,main,bus,doc.edit,4us
+1930,3021100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1931,3021100400,-,vexel-component-index,bus,log.line,2us
+1932,3021100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1933,3021100500,-,vexel-component-parse,bus,log.line,2us
+1934,3021200000,-,main,bus,enqueue,demo.Parser#edit 8
+1935,3021200100,-,main,bus,enqueue,demo.Logger#edit 1
+1936,3021200300,-,main,bus,doc.edit,4us
+1937,3021300000,-,main,bus,enqueue,demo.Parser#edit 9
+1938,3021300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1939,3021300100,-,main,bus,enqueue,demo.Logger#edit 1
+1940,3021300300,-,main,bus,doc.edit,4us
+1941,3021400000,-,main,bus,enqueue,demo.Parser#edit 10
+1942,3021400100,-,main,bus,enqueue,demo.Logger#edit 1
+1943,3021400300,-,main,bus,doc.edit,4us
+1944,3021500000,-,main,bus,enqueue,demo.Parser#edit 11
+1945,3021500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1946,3021500100,-,main,bus,enqueue,demo.Logger#edit 1
+1947,3021500300,-,main,bus,doc.edit,4us
+1948,3021600000,-,main,bus,enqueue,demo.Parser#edit 12
+1949,3021600100,-,main,bus,enqueue,demo.Logger#edit 1
+1950,3021600300,-,main,bus,doc.edit,4us
+1951,3021700000,-,main,bus,enqueue,demo.Parser#edit 13
+1952,3021700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1953,3021700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1954,3021700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1955,3021700100,-,main,bus,enqueue,demo.Logger#edit 1
+1956,3021700100,-,vexel-component-<default>,bus,log.line,2us
+1957,3021700300,-,main,bus,doc.edit,4us
+1958,3021800000,-,main,bus,enqueue,demo.Parser#edit 14
+1959,3021800100,-,main,bus,enqueue,demo.Logger#edit 1
+1960,3021800300,-,main,bus,doc.edit,4us
+1961,3021900000,-,main,bus,enqueue,demo.Parser#edit 15
+1962,3021900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+1963,3021900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+1964,3021900050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+1965,3021900100,-,main,bus,enqueue,demo.Logger#edit 1
+1966,3021900100,-,vexel-component-index,bus,search.hits,3us
+1967,3021900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+1968,3021900200,-,vexel-component-parse,bus,doc.parsed,6us
+1969,3021900300,-,main,bus,doc.edit,4us
+1970,3021900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+1971,3021900400,-,vexel-component-index,bus,log.line,2us
+1972,3021900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+1973,3021900500,-,vexel-component-parse,bus,log.line,2us
+1974,3022000000,-,main,bus,enqueue,demo.Parser#edit 16
+1975,3022000100,-,main,bus,enqueue,demo.Logger#edit 1
+1976,3022000300,-,main,bus,doc.edit,4us
+1977,3022100000,-,main,bus,enqueue,demo.Parser#edit 17
+1978,3022100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+1979,3022100100,-,main,bus,enqueue,demo.Logger#edit 1
+1980,3022100300,-,main,bus,doc.edit,4us
+1981,3022200000,-,main,bus,enqueue,demo.Parser#edit 18
+1982,3022200100,-,main,bus,enqueue,demo.Logger#edit 1
+1983,3022200300,-,main,bus,doc.edit,4us
+1984,3022300000,-,main,bus,enqueue,demo.Parser#edit 19
+1985,3022300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+1986,3022300100,-,main,bus,enqueue,demo.Logger#edit 1
+1987,3022300300,-,main,bus,doc.edit,4us
+1988,3022400000,-,main,bus,enqueue,demo.Parser#edit 20
+1989,3022400100,-,main,bus,enqueue,demo.Logger#edit 1
+1990,3022400300,-,main,bus,doc.edit,4us
+1991,3022500000,-,main,bus,enqueue,demo.Parser#edit 21
+1992,3022500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+1993,3022500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+1994,3022500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+1995,3022500100,-,main,bus,enqueue,demo.Logger#edit 1
+1996,3022500100,-,vexel-component-<default>,bus,log.line,2us
+1997,3022500300,-,main,bus,doc.edit,4us
+1998,3022600000,-,main,bus,enqueue,demo.Parser#edit 22
+1999,3022600100,-,main,bus,enqueue,demo.Logger#edit 1
+2000,3022600300,-,main,bus,doc.edit,4us
+2001,3022700000,-,main,bus,enqueue,demo.Parser#edit 23
+2002,3022700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2003,3022700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2004,3022700100,-,main,bus,enqueue,demo.Logger#edit 1
+2005,3022700100,-,vexel-component-index,bus,search.hits,3us
+2006,3022700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2007,3022700200,-,vexel-component-parse,bus,doc.parsed,6us
+2008,3022700300,-,main,bus,doc.edit,4us
+2009,3022700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2010,3022700400,-,vexel-component-index,bus,log.line,2us
+2011,3022700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2012,3022700500,-,vexel-component-parse,bus,log.line,2us
+2013,3022800000,-,main,bus,enqueue,demo.Parser#edit 24
+2014,3022800100,-,main,bus,enqueue,demo.Logger#edit 1
+2015,3022800300,-,main,bus,doc.edit,4us
+2016,3022900000,-,main,bus,enqueue,demo.Parser#edit 25
+2017,3022900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2018,3022900100,-,main,bus,enqueue,demo.Logger#edit 1
+2019,3022900300,-,main,bus,doc.edit,4us
+2020,3023000000,-,main,bus,enqueue,demo.Parser#edit 26
+2021,3023000100,-,main,bus,enqueue,demo.Logger#edit 1
+2022,3023000300,-,main,bus,doc.edit,4us
+2023,3023100000,-,main,bus,enqueue,demo.Parser#edit 27
+2024,3023100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2025,3023100100,-,main,bus,enqueue,demo.Logger#edit 1
+2026,3023100200,-,main,bus,enqueue,demo.Autosave#edit 1
+2027,3023100300,-,main,bus,doc.edit,4us
+2028,3023200000,-,main,bus,enqueue,demo.Parser#edit 28
+2029,3023200100,-,main,bus,enqueue,demo.Logger#edit 1
+2030,3023200300,-,main,bus,doc.edit,4us
+2031,3023300000,-,main,bus,enqueue,demo.Parser#edit 29
+2032,3023300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2033,3023300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2034,3023300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2035,3023300100,-,main,bus,enqueue,demo.Logger#edit 1
+2036,3023300100,-,vexel-component-<default>,bus,log.line,2us
+2037,3023300300,-,main,bus,doc.edit,4us
+2038,3023400000,-,main,bus,enqueue,demo.Parser#edit 30
+2039,3023400100,-,main,bus,enqueue,demo.Logger#edit 1
+2040,3023400300,-,main,bus,doc.edit,4us
+2041,3023500000,-,main,bus,enqueue,demo.Parser#edit 31
+2042,3023500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2043,3023500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2044,3023500050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+2045,3023500100,-,main,bus,enqueue,demo.Logger#edit 1
+2046,3023500100,-,vexel-component-index,bus,search.hits,3us
+2047,3023500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2048,3023500200,-,vexel-component-parse,bus,doc.parsed,6us
+2049,3023500300,-,main,bus,doc.edit,4us
+2050,3023500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2051,3023500400,-,vexel-component-index,bus,log.line,2us
+2052,3023500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2053,3023500500,-,vexel-component-parse,bus,log.line,2us
+2054,3023600000,-,main,bus,enqueue,demo.Parser#edit 32
+2055,3023600100,-,main,bus,enqueue,demo.Logger#edit 1
+2056,3023600300,-,main,bus,doc.edit,4us
+2057,3023700000,-,main,bus,enqueue,demo.Parser#edit 1
+2058,3023700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2059,3023700100,-,main,bus,enqueue,demo.Logger#edit 1
+2060,3023700300,-,main,bus,doc.edit,4us
+2061,3023800000,-,main,bus,enqueue,demo.Parser#edit 2
+2062,3023800100,-,main,bus,enqueue,demo.Logger#edit 1
+2063,3023800300,-,main,bus,doc.edit,4us
+2064,3023900000,-,main,bus,enqueue,demo.Parser#edit 3
+2065,3023900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2066,3023900100,-,main,bus,enqueue,demo.Logger#edit 1
+2067,3023900300,-,main,bus,doc.edit,4us
+2068,3024000000,-,main,bus,enqueue,demo.Parser#edit 4
+2069,3024000000,-,main,frame,frame,1.9ms
+2070,3024000100,-,main,bus,enqueue,demo.Logger#edit 1
+2071,3024000300,-,main,bus,doc.edit,4us
+2072,3024005000,-,main,frame,frame.present,#190
+2073,3024009000,-,main,frame,loop.park,16ms
+2074,3024100000,-,main,bus,enqueue,demo.Parser#edit 5
+2075,3024100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2076,3024100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2077,3024100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2078,3024100100,-,main,bus,enqueue,demo.Logger#edit 1
+2079,3024100100,-,vexel-component-<default>,bus,log.line,2us
+2080,3024100300,-,main,bus,doc.edit,4us
+2081,3024200000,-,main,bus,enqueue,demo.Parser#edit 6
+2082,3024200100,-,main,bus,enqueue,demo.Logger#edit 1
+2083,3024200300,-,main,bus,doc.edit,4us
+2084,3024300000,-,main,bus,enqueue,demo.Parser#edit 7
+2085,3024300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2086,3024300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2087,3024300100,-,main,bus,enqueue,demo.Logger#edit 1
+2088,3024300100,-,vexel-component-index,bus,search.hits,3us
+2089,3024300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2090,3024300200,-,vexel-component-parse,bus,doc.parsed,6us
+2091,3024300300,-,main,bus,doc.edit,4us
+2092,3024300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2093,3024300400,-,vexel-component-index,bus,log.line,2us
+2094,3024300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2095,3024300500,-,vexel-component-parse,bus,log.line,2us
+2096,3024400000,-,main,bus,enqueue,demo.Parser#edit 8
+2097,3024400100,-,main,bus,enqueue,demo.Logger#edit 1
+2098,3024400300,-,main,bus,doc.edit,4us
+2099,3024500000,-,main,bus,enqueue,demo.Parser#edit 9
+2100,3024500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2101,3024500100,-,main,bus,enqueue,demo.Logger#edit 1
+2102,3024500300,-,main,bus,doc.edit,4us
+2103,3024600000,-,main,bus,enqueue,demo.Parser#edit 10
+2104,3024600100,-,main,bus,enqueue,demo.Logger#edit 1
+2105,3024600300,-,main,bus,doc.edit,4us
+2106,3024700000,-,main,bus,enqueue,demo.Parser#edit 11
+2107,3024700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2108,3024700100,-,main,bus,enqueue,demo.Logger#edit 1
+2109,3024700300,-,main,bus,doc.edit,4us
+2110,3024800000,-,main,bus,enqueue,demo.Parser#edit 12
+2111,3024800100,-,main,bus,enqueue,demo.Logger#edit 1
+2112,3024800300,-,main,bus,doc.edit,4us
+2113,3024900000,-,main,bus,enqueue,demo.Parser#edit 13
+2114,3024900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2115,3024900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2116,3024900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2117,3024900100,-,main,bus,enqueue,demo.Logger#edit 1
+2118,3024900100,-,vexel-component-<default>,bus,log.line,2us
+2119,3024900300,-,main,bus,doc.edit,4us
+2120,3025000000,-,main,bus,enqueue,demo.Parser#edit 14
+2121,3025000100,-,main,bus,enqueue,demo.Logger#edit 1
+2122,3025000300,-,main,bus,doc.edit,4us
+2123,3025100000,-,main,bus,enqueue,demo.Parser#edit 15
+2124,3025100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2125,3025100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2126,3025100050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+2127,3025100100,-,main,bus,enqueue,demo.Logger#edit 1
+2128,3025100100,-,vexel-component-index,bus,search.hits,3us
+2129,3025100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2130,3025100200,-,vexel-component-parse,bus,doc.parsed,6us
+2131,3025100300,-,main,bus,doc.edit,4us
+2132,3025100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2133,3025100400,-,vexel-component-index,bus,log.line,2us
+2134,3025100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2135,3025100500,-,vexel-component-parse,bus,log.line,2us
+2136,3025200000,-,main,bus,enqueue,demo.Parser#edit 16
+2137,3025200100,-,main,bus,enqueue,demo.Logger#edit 1
+2138,3025200300,-,main,bus,doc.edit,4us
+2139,3025300000,-,main,bus,enqueue,demo.Parser#edit 17
+2140,3025300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2141,3025300100,-,main,bus,enqueue,demo.Logger#edit 1
+2142,3025300300,-,main,bus,doc.edit,4us
+2143,3025400000,-,main,bus,enqueue,demo.Parser#edit 18
+2144,3025400100,-,main,bus,enqueue,demo.Logger#edit 1
+2145,3025400300,-,main,bus,doc.edit,4us
+2146,3025500000,-,main,bus,enqueue,demo.Parser#edit 19
+2147,3025500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2148,3025500100,-,main,bus,enqueue,demo.Logger#edit 1
+2149,3025500300,-,main,bus,doc.edit,4us
+2150,3025600000,-,main,bus,enqueue,demo.Parser#edit 20
+2151,3025600100,-,main,bus,enqueue,demo.Logger#edit 1
+2152,3025600200,-,main,bus,enqueue,demo.Autosave#edit 1
+2153,3025600300,-,main,bus,doc.edit,4us
+2154,3025700000,-,main,bus,enqueue,demo.Parser#edit 21
+2155,3025700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2156,3025700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2157,3025700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2158,3025700100,-,main,bus,enqueue,demo.Logger#edit 1
+2159,3025700100,-,vexel-component-<default>,bus,log.line,2us
+2160,3025700300,-,main,bus,doc.edit,4us
+2161,3025800000,-,main,bus,enqueue,demo.Parser#edit 22
+2162,3025800100,-,main,bus,enqueue,demo.Logger#edit 1
+2163,3025800300,-,main,bus,doc.edit,4us
+2164,3025900000,-,main,bus,enqueue,demo.Parser#edit 23
+2165,3025900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2166,3025900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2167,3025900100,-,main,bus,enqueue,demo.Logger#edit 1
+2168,3025900100,-,vexel-component-index,bus,search.hits,3us
+2169,3025900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2170,3025900200,-,vexel-component-parse,bus,doc.parsed,6us
+2171,3025900300,-,main,bus,doc.edit,4us
+2172,3025900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2173,3025900400,-,vexel-component-index,bus,log.line,2us
+2174,3025900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2175,3025900500,-,vexel-component-parse,bus,log.line,2us
+2176,3026000000,-,main,bus,enqueue,demo.Parser#edit 24
+2177,3026000100,-,main,bus,enqueue,demo.Logger#edit 1
+2178,3026000300,-,main,bus,doc.edit,4us
+2179,3026100000,-,main,bus,enqueue,demo.Parser#edit 25
+2180,3026100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2181,3026100100,-,main,bus,enqueue,demo.Logger#edit 1
+2182,3026100300,-,main,bus,doc.edit,4us
+2183,3026200000,-,main,bus,enqueue,demo.Parser#edit 26
+2184,3026200100,-,main,bus,enqueue,demo.Logger#edit 1
+2185,3026200300,-,main,bus,doc.edit,4us
+2186,3026300000,-,main,bus,enqueue,demo.Parser#edit 27
+2187,3026300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2188,3026300100,-,main,bus,enqueue,demo.Logger#edit 1
+2189,3026300300,-,main,bus,doc.edit,4us
+2190,3026400000,-,main,bus,enqueue,demo.Parser#edit 28
+2191,3026400100,-,main,bus,enqueue,demo.Logger#edit 1
+2192,3026400300,-,main,bus,doc.edit,4us
+2193,3026500000,-,main,bus,enqueue,demo.Parser#edit 29
+2194,3026500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2195,3026500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2196,3026500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2197,3026500100,-,main,bus,enqueue,demo.Logger#edit 1
+2198,3026500100,-,vexel-component-<default>,bus,log.line,2us
+2199,3026500300,-,main,bus,doc.edit,4us
+2200,3026600000,-,main,bus,enqueue,demo.Parser#edit 30
+2201,3026600100,-,main,bus,enqueue,demo.Logger#edit 1
+2202,3026600300,-,main,bus,doc.edit,4us
+2203,3026700000,-,main,bus,enqueue,demo.Parser#edit 31
+2204,3026700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2205,3026700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2206,3026700050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+2207,3026700100,-,main,bus,enqueue,demo.Logger#edit 1
+2208,3026700100,-,vexel-component-index,bus,search.hits,3us
+2209,3026700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2210,3026700200,-,vexel-component-parse,bus,doc.parsed,6us
+2211,3026700300,-,main,bus,doc.edit,4us
+2212,3026700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2213,3026700400,-,vexel-component-index,bus,log.line,2us
+2214,3026700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2215,3026700500,-,vexel-component-parse,bus,log.line,2us
+2216,3026800000,-,main,bus,enqueue,demo.Parser#edit 32
+2217,3026800100,-,main,bus,enqueue,demo.Logger#edit 1
+2218,3026800300,-,main,bus,doc.edit,4us
+2219,3026900000,-,main,bus,enqueue,demo.Parser#edit 1
+2220,3026900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2221,3026900100,-,main,bus,enqueue,demo.Logger#edit 1
+2222,3026900300,-,main,bus,doc.edit,4us
+2223,3027000000,-,main,bus,enqueue,demo.Parser#edit 2
+2224,3027000100,-,main,bus,enqueue,demo.Logger#edit 1
+2225,3027000300,-,main,bus,doc.edit,4us
+2226,3027100000,-,main,bus,enqueue,demo.Parser#edit 3
+2227,3027100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2228,3027100100,-,main,bus,enqueue,demo.Logger#edit 1
+2229,3027100300,-,main,bus,doc.edit,4us
+2230,3027200000,-,main,bus,enqueue,demo.Parser#edit 4
+2231,3027200100,-,main,bus,enqueue,demo.Logger#edit 1
+2232,3027200300,-,main,bus,doc.edit,4us
+2233,3027300000,-,main,bus,enqueue,demo.Parser#edit 5
+2234,3027300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2235,3027300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2236,3027300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2237,3027300100,-,main,bus,enqueue,demo.Logger#edit 1
+2238,3027300100,-,vexel-component-<default>,bus,log.line,2us
+2239,3027300300,-,main,bus,doc.edit,4us
+2240,3027400000,-,main,bus,enqueue,demo.Parser#edit 6
+2241,3027400100,-,main,bus,enqueue,demo.Logger#edit 1
+2242,3027400300,-,main,bus,doc.edit,4us
+2243,3027500000,-,main,bus,enqueue,demo.Parser#edit 7
+2244,3027500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2245,3027500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2246,3027500100,-,main,bus,enqueue,demo.Logger#edit 1
+2247,3027500100,-,vexel-component-index,bus,search.hits,3us
+2248,3027500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2249,3027500200,-,vexel-component-parse,bus,doc.parsed,6us
+2250,3027500300,-,main,bus,doc.edit,4us
+2251,3027500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2252,3027500400,-,vexel-component-index,bus,log.line,2us
+2253,3027500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2254,3027500500,-,vexel-component-parse,bus,log.line,2us
+2255,3027600000,-,main,bus,enqueue,demo.Parser#edit 8
+2256,3027600100,-,main,bus,enqueue,demo.Logger#edit 1
+2257,3027600300,-,main,bus,doc.edit,4us
+2258,3027700000,-,main,bus,enqueue,demo.Parser#edit 9
+2259,3027700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2260,3027700100,-,main,bus,enqueue,demo.Logger#edit 1
+2261,3027700300,-,main,bus,doc.edit,4us
+2262,3027800000,-,main,bus,enqueue,demo.Parser#edit 10
+2263,3027800100,-,main,bus,enqueue,demo.Logger#edit 1
+2264,3027800300,-,main,bus,doc.edit,4us
+2265,3027900000,-,main,bus,enqueue,demo.Parser#edit 11
+2266,3027900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2267,3027900100,-,main,bus,enqueue,demo.Logger#edit 1
+2268,3027900300,-,main,bus,doc.edit,4us
+2269,3028000000,-,main,bus,enqueue,demo.Parser#edit 12
+2270,3028000100,-,main,bus,enqueue,demo.Logger#edit 1
+2271,3028000300,-,main,bus,doc.edit,4us
+2272,3028100000,-,main,bus,enqueue,demo.Parser#edit 13
+2273,3028100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2274,3028100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2275,3028100000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2276,3028100100,-,main,bus,enqueue,demo.Logger#edit 1
+2277,3028100100,-,vexel-component-<default>,bus,log.line,2us
+2278,3028100200,-,main,bus,enqueue,demo.Autosave#edit 1
+2279,3028100300,-,main,bus,doc.edit,4us
+2280,3028200000,-,main,bus,enqueue,demo.Parser#edit 14
+2281,3028200100,-,main,bus,enqueue,demo.Logger#edit 1
+2282,3028200300,-,main,bus,doc.edit,4us
+2283,3028300000,-,main,bus,enqueue,demo.Parser#edit 15
+2284,3028300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2285,3028300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2286,3028300050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+2287,3028300100,-,main,bus,enqueue,demo.Logger#edit 1
+2288,3028300100,-,vexel-component-index,bus,search.hits,3us
+2289,3028300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2290,3028300200,-,vexel-component-parse,bus,doc.parsed,6us
+2291,3028300300,-,main,bus,doc.edit,4us
+2292,3028300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2293,3028300400,-,vexel-component-index,bus,log.line,2us
+2294,3028300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2295,3028300500,-,vexel-component-parse,bus,log.line,2us
+2296,3028400000,-,main,bus,enqueue,demo.Parser#edit 16
+2297,3028400100,-,main,bus,enqueue,demo.Logger#edit 1
+2298,3028400300,-,main,bus,doc.edit,4us
+2299,3028500000,-,main,bus,enqueue,demo.Parser#edit 17
+2300,3028500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2301,3028500100,-,main,bus,enqueue,demo.Logger#edit 1
+2302,3028500300,-,main,bus,doc.edit,4us
+2303,3028600000,-,main,bus,enqueue,demo.Parser#edit 18
+2304,3028600100,-,main,bus,enqueue,demo.Logger#edit 1
+2305,3028600300,-,main,bus,doc.edit,4us
+2306,3028700000,-,main,bus,enqueue,demo.Parser#edit 19
+2307,3028700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2308,3028700100,-,main,bus,enqueue,demo.Logger#edit 1
+2309,3028700300,-,main,bus,doc.edit,4us
+2310,3028800000,-,main,bus,enqueue,demo.Parser#edit 20
+2311,3028800100,-,main,bus,enqueue,demo.Logger#edit 1
+2312,3028800300,-,main,bus,doc.edit,4us
+2313,3028900000,-,main,bus,enqueue,demo.Parser#edit 21
+2314,3028900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2315,3028900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2316,3028900000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2317,3028900100,-,main,bus,enqueue,demo.Logger#edit 1
+2318,3028900100,-,vexel-component-<default>,bus,log.line,2us
+2319,3028900300,-,main,bus,doc.edit,4us
+2320,3029000000,-,main,bus,enqueue,demo.Parser#edit 22
+2321,3029000100,-,main,bus,enqueue,demo.Logger#edit 1
+2322,3029000300,-,main,bus,doc.edit,4us
+2323,3029100000,-,main,bus,enqueue,demo.Parser#edit 23
+2324,3029100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2325,3029100000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2326,3029100100,-,main,bus,enqueue,demo.Logger#edit 1
+2327,3029100100,-,vexel-component-index,bus,search.hits,3us
+2328,3029100100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2329,3029100200,-,vexel-component-parse,bus,doc.parsed,6us
+2330,3029100300,-,main,bus,doc.edit,4us
+2331,3029100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2332,3029100400,-,vexel-component-index,bus,log.line,2us
+2333,3029100400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2334,3029100500,-,vexel-component-parse,bus,log.line,2us
+2335,3029200000,-,main,bus,enqueue,demo.Parser#edit 24
+2336,3029200100,-,main,bus,enqueue,demo.Logger#edit 1
+2337,3029200300,-,main,bus,doc.edit,4us
+2338,3029300000,-,main,bus,enqueue,demo.Parser#edit 25
+2339,3029300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2340,3029300100,-,main,bus,enqueue,demo.Logger#edit 1
+2341,3029300300,-,main,bus,doc.edit,4us
+2342,3029400000,-,main,bus,enqueue,demo.Parser#edit 26
+2343,3029400100,-,main,bus,enqueue,demo.Logger#edit 1
+2344,3029400300,-,main,bus,doc.edit,4us
+2345,3029500000,-,main,bus,enqueue,demo.Parser#edit 27
+2346,3029500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2347,3029500100,-,main,bus,enqueue,demo.Logger#edit 1
+2348,3029500300,-,main,bus,doc.edit,4us
+2349,3029600000,-,main,bus,enqueue,demo.Parser#edit 28
+2350,3029600100,-,main,bus,enqueue,demo.Logger#edit 1
+2351,3029600300,-,main,bus,doc.edit,4us
+2352,3029700000,-,main,bus,enqueue,demo.Parser#edit 29
+2353,3029700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2354,3029700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2355,3029700000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2356,3029700100,-,main,bus,enqueue,demo.Logger#edit 1
+2357,3029700100,-,vexel-component-<default>,bus,log.line,2us
+2358,3029700300,-,main,bus,doc.edit,4us
+2359,3029800000,-,main,bus,enqueue,demo.Parser#edit 30
+2360,3029800100,-,main,bus,enqueue,demo.Logger#edit 1
+2361,3029800300,-,main,bus,doc.edit,4us
+2362,3029900000,-,main,bus,enqueue,demo.Parser#edit 31
+2363,3029900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2364,3029900000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2365,3029900050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+2366,3029900100,-,main,bus,enqueue,demo.Logger#edit 1
+2367,3029900100,-,vexel-component-index,bus,search.hits,3us
+2368,3029900100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2369,3029900200,-,vexel-component-parse,bus,doc.parsed,6us
+2370,3029900300,-,main,bus,doc.edit,4us
+2371,3029900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2372,3029900400,-,vexel-component-index,bus,log.line,2us
+2373,3029900400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2374,3029900500,-,vexel-component-parse,bus,log.line,2us
+2375,3030100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2376,3030300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2377,3030500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2378,3030500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2379,3030500000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2380,3030500100,-,vexel-component-<default>,bus,log.line,2us
+2381,3030700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2382,3030700000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2383,3030700100,-,vexel-component-index,bus,search.hits,3us
+2384,3030700100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2385,3030700200,-,vexel-component-parse,bus,doc.parsed,6us
+2386,3030700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2387,3030700400,-,vexel-component-index,bus,log.line,2us
+2388,3030700400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2389,3030700500,-,vexel-component-parse,bus,log.line,2us
+2390,3030900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2391,3031100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2392,3031300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2393,3031300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2394,3031300000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 8
+2395,3031300100,-,vexel-component-<default>,bus,log.line,2us
+2396,3031500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2397,3031500000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2398,3031500050,-,vexel-component-parse,bus,drop,demo.Indexer#parsed DROP_OLDEST
+2399,3031500100,-,vexel-component-index,bus,search.hits,3us
+2400,3031500100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2401,3031500200,-,vexel-component-parse,bus,doc.parsed,6us
+2402,3031500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2403,3031500400,-,vexel-component-index,bus,log.line,2us
+2404,3031500400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2405,3031500500,-,vexel-component-parse,bus,log.line,2us
+2406,3031700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2407,3031900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2408,3032100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2409,3032100000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2410,3032100100,-,vexel-component-<default>,bus,log.line,2us
+2411,3032300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2412,3032300000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2413,3032300100,-,vexel-component-index,bus,search.hits,3us
+2414,3032300100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2415,3032300200,-,vexel-component-parse,bus,doc.parsed,6us
+2416,3032300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2417,3032300400,-,vexel-component-index,bus,log.line,2us
+2418,3032300400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2419,3032300500,-,vexel-component-parse,bus,log.line,2us
+2420,3032500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2421,3032700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2422,3032900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2423,3032900000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2424,3032900100,-,vexel-component-<default>,bus,log.line,2us
+2425,3033100000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2426,3033100100,-,vexel-component-index,bus,search.hits,3us
+2427,3033100300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2428,3033100400,-,vexel-component-index,bus,log.line,2us
+2429,3033300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2430,3033500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2431,3033700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2432,3033700000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2433,3033700100,-,vexel-component-<default>,bus,log.line,2us
+2434,3033900000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2435,3033900100,-,vexel-component-index,bus,search.hits,3us
+2436,3033900300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2437,3033900400,-,vexel-component-index,bus,log.line,2us
+2438,3034100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2439,3034300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2440,3034500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2441,3034500000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2442,3034500100,-,vexel-component-<default>,bus,log.line,2us
+2443,3034700000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2444,3034700100,-,vexel-component-index,bus,search.hits,3us
+2445,3034700300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2446,3034700400,-,vexel-component-index,bus,log.line,2us
+2447,3034900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2448,3035100000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2449,3035300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2450,3035300000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2451,3035300100,-,vexel-component-<default>,bus,log.line,2us
+2452,3035500000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2453,3035500100,-,vexel-component-index,bus,search.hits,3us
+2454,3035500300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2455,3035500400,-,vexel-component-index,bus,log.line,2us
+2456,3035700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2457,3035900000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2458,3036100000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2459,3036100100,-,vexel-component-<default>,bus,log.line,2us
+2460,3036300000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2461,3036300100,-,vexel-component-index,bus,search.hits,3us
+2462,3036300300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2463,3036300400,-,vexel-component-index,bus,log.line,2us
+2464,3036500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2465,3036700000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2466,3036900000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2467,3036900100,-,vexel-component-<default>,bus,log.line,2us
+2468,3037300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2469,3037500000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2470,3037700000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2471,3037700100,-,vexel-component-<default>,bus,log.line,2us
+2472,3038100000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2473,3038300000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2474,3038500000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2475,3038500100,-,vexel-component-<default>,bus,log.line,2us
+2476,3038900000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2477,3039300000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2478,3039300100,-,vexel-component-<default>,bus,log.line,2us
+2479,3039700000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2480,3040000000,-,main,frame,frame,1.9ms
+2481,3040005000,-,main,frame,frame.present,#191
+2482,3040009000,-,main,frame,loop.park,16ms
+2483,3040500000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2484,3041300000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2485,3050001234,-,main,bus,vexelray.gui.mutations,7us
+2486,3056000000,-,main,frame,frame,1.9ms
+2487,3056005000,-,main,frame,frame.present,#192
+2488,3056009000,-,main,frame,loop.park,16ms
+2489,3072000000,-,main,frame,frame,1.9ms
+2490,3072005000,-,main,frame,frame.present,#193
+2491,3072009000,-,main,frame,loop.park,16ms
+2492,3088000000,-,main,frame,frame,1.9ms
+2493,3088005000,-,main,frame,frame.present,#194
+2494,3088009000,-,main,frame,loop.park,16ms
+2495,3100001234,-,main,bus,vexelray.gui.mutations,7us
+2496,3104000000,-,main,frame,frame,1.9ms
+2497,3104005000,-,main,frame,frame.present,#195
+2498,3104009000,-,main,frame,loop.park,16ms
+2499,3120000000,-,main,frame,frame,1.9ms
+2500,3120005000,-,main,frame,frame.present,#196
+2501,3120009000,-,main,frame,loop.park,16ms
+2502,3136000000,-,main,frame,frame,1.9ms
+2503,3136005000,-,main,frame,frame.present,#197
+2504,3136009000,-,main,frame,loop.park,16ms
+2505,3150001234,-,main,bus,vexelray.gui.mutations,7us
+2506,3152000000,-,main,frame,frame,1.9ms
+2507,3152005000,-,main,frame,frame.present,#198
+2508,3152009000,-,main,frame,loop.park,16ms
+2509,3168000000,-,main,frame,frame,1.9ms
+2510,3168005000,-,main,frame,frame.present,#199
+2511,3168009000,-,main,frame,loop.park,16ms
+2512,3184000000,-,main,frame,frame,1.9ms
+2513,3184005000,-,main,frame,frame.present,#200
+2514,3184009000,-,main,frame,loop.park,16ms
+2515,3200000000,-,main,frame,frame,1.9ms
+2516,3200001234,-,main,bus,vexelray.gui.mutations,7us
+2517,3200005000,-,main,frame,frame.present,#201
+2518,3200009000,-,main,frame,loop.park,16ms
+2519,3216000000,-,main,frame,frame,1.9ms
+2520,3216005000,-,main,frame,frame.present,#202
+2521,3216009000,-,main,frame,loop.park,16ms
+2522,3232000000,-,main,frame,frame,1.9ms
+2523,3232005000,-,main,frame,frame.present,#203
+2524,3232009000,-,main,frame,loop.park,16ms
+2525,3248000000,-,main,frame,frame,1.9ms
+2526,3248005000,-,main,frame,frame.present,#204
+2527,3248009000,-,main,frame,loop.park,16ms
+2528,3250001234,-,main,bus,vexelray.gui.mutations,7us
+2529,3264000000,-,main,frame,frame,1.9ms
+2530,3264005000,-,main,frame,frame.present,#205
+2531,3264009000,-,main,frame,loop.park,16ms
+2532,3280000000,-,main,frame,frame,1.9ms
+2533,3280005000,-,main,frame,frame.present,#206
+2534,3280009000,-,main,frame,loop.park,16ms
+2535,3296000000,-,main,frame,frame,1.9ms
+2536,3296005000,-,main,frame,frame.present,#207
+2537,3296009000,-,main,frame,loop.park,16ms
+2538,3300001234,-,main,bus,vexelray.gui.mutations,7us
+2539,3312000000,-,main,frame,frame,1.9ms
+2540,3312005000,-,main,frame,frame.present,#208
+2541,3312009000,-,main,frame,loop.park,16ms
+2542,3328000000,-,main,frame,frame,1.9ms
+2543,3328005000,-,main,frame,frame.present,#209
+2544,3328009000,-,main,frame,loop.park,16ms
+2545,3344000000,-,main,frame,frame,1.9ms
+2546,3344005000,-,main,frame,frame.present,#210
+2547,3344009000,-,main,frame,loop.park,16ms
+2548,3350001234,-,main,bus,vexelray.gui.mutations,7us
+2549,3360000000,-,main,frame,frame,1.9ms
+2550,3360005000,-,main,frame,frame.present,#211
+2551,3360009000,-,main,frame,loop.park,16ms
+2552,3376000000,-,main,frame,frame,1.9ms
+2553,3376005000,-,main,frame,frame.present,#212
+2554,3376009000,-,main,frame,loop.park,16ms
+2555,3392000000,-,main,frame,frame,1.9ms
+2556,3392005000,-,main,frame,frame.present,#213
+2557,3392009000,-,main,frame,loop.park,16ms
+2558,3400001234,-,main,bus,vexelray.gui.mutations,7us
+2559,3408000000,-,main,frame,frame,1.9ms
+2560,3408005000,-,main,frame,frame.present,#214
+2561,3408009000,-,main,frame,loop.park,16ms
+2562,3424000000,-,main,frame,frame,1.9ms
+2563,3424005000,-,main,frame,frame.present,#215
+2564,3424009000,-,main,frame,loop.park,16ms
+2565,3440000000,-,main,frame,frame,1.9ms
+2566,3440005000,-,main,frame,frame.present,#216
+2567,3440009000,-,main,frame,loop.park,16ms
+2568,3450001234,-,main,bus,vexelray.gui.mutations,7us
+2569,3456000000,-,main,frame,frame,1.9ms
+2570,3456005000,-,main,frame,frame.present,#217
+2571,3456009000,-,main,frame,loop.park,16ms
+2572,3472000000,-,main,frame,frame,1.9ms
+2573,3472005000,-,main,frame,frame.present,#218
+2574,3472009000,-,main,frame,loop.park,16ms
+2575,3488000000,-,main,frame,frame,1.9ms
+2576,3488005000,-,main,frame,frame.present,#219
+2577,3488009000,-,main,frame,loop.park,16ms
+2578,3500001234,-,main,bus,vexelray.gui.mutations,7us
+2579,3504000000,-,main,frame,frame,1.9ms
+2580,3504005000,-,main,frame,frame.present,#220
+2581,3504009000,-,main,frame,loop.park,16ms
+2582,3520000000,-,main,frame,frame,1.9ms
+2583,3520005000,-,main,frame,frame.present,#221
+2584,3520009000,-,main,frame,loop.park,16ms
+2585,3536000000,-,main,frame,frame,1.9ms
+2586,3536005000,-,main,frame,frame.present,#222
+2587,3536009000,-,main,frame,loop.park,16ms
+2588,3550001234,-,main,bus,vexelray.gui.mutations,7us
+2589,3552000000,-,main,frame,frame,1.9ms
+2590,3552005000,-,main,frame,frame.present,#223
+2591,3552009000,-,main,frame,loop.park,16ms
+2592,3568000000,-,main,frame,frame,1.9ms
+2593,3568005000,-,main,frame,frame.present,#224
+2594,3568009000,-,main,frame,loop.park,16ms
+2595,3584000000,-,main,frame,frame,1.9ms
+2596,3584005000,-,main,frame,frame.present,#225
+2597,3584009000,-,main,frame,loop.park,16ms
+2598,3600000000,-,main,bus,enqueue,demo.Parser#edit 1
+2599,3600000000,-,main,frame,frame,1.9ms
+2600,3600000100,-,main,bus,enqueue,demo.Logger#edit 1
+2601,3600000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2602,3600000300,-,main,bus,doc.edit,4us
+2603,3600001234,-,main,bus,vexelray.gui.mutations,7us
+2604,3600005000,-,main,frame,frame.present,#226
+2605,3600009000,-,main,frame,loop.park,16ms
+2606,3602000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2607,3603000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2608,3603000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2609,3603000200,-,vexel-component-parse,bus,doc.parsed,6us
+2610,3603000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2611,3603000500,-,vexel-component-parse,bus,log.line,2us
+2612,3606000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2613,3607000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2614,3607000100,-,vexel-component-index,bus,search.hits,3us
+2615,3607000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2616,3607000400,-,vexel-component-index,bus,log.line,2us
+2617,3609000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2618,3610000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2619,3610000100,-,vexel-component-<default>,bus,log.line,2us
+2620,3612000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2621,3616000000,-,main,frame,frame,1.9ms
+2622,3616005000,-,main,frame,frame.present,#227
+2623,3616009000,-,main,frame,loop.park,16ms
+2624,3632000000,-,main,frame,frame,1.9ms
+2625,3632005000,-,main,frame,frame.present,#228
+2626,3632009000,-,main,frame,loop.park,16ms
+2627,3648000000,-,main,frame,frame,1.9ms
+2628,3648005000,-,main,frame,frame.present,#229
+2629,3648009000,-,main,frame,loop.park,16ms
+2630,3650001234,-,main,bus,vexelray.gui.mutations,7us
+2631,3664000000,-,main,frame,frame,1.9ms
+2632,3664005000,-,main,frame,frame.present,#230
+2633,3664009000,-,main,frame,loop.park,16ms
+2634,3680000000,-,main,frame,frame,1.9ms
+2635,3680005000,-,main,frame,frame.present,#231
+2636,3680009000,-,main,frame,loop.park,16ms
+2637,3696000000,-,main,frame,frame,1.9ms
+2638,3696005000,-,main,frame,frame.present,#232
+2639,3696009000,-,main,frame,loop.park,16ms
+2640,3700001234,-,main,bus,vexelray.gui.mutations,7us
+2641,3712000000,-,main,frame,frame,1.9ms
+2642,3712005000,-,main,frame,frame.present,#233
+2643,3712009000,-,main,frame,loop.park,16ms
+2644,3728000000,-,main,frame,frame,1.9ms
+2645,3728005000,-,main,frame,frame.present,#234
+2646,3728009000,-,main,frame,loop.park,16ms
+2647,3744000000,-,main,frame,frame,1.9ms
+2648,3744005000,-,main,frame,frame.present,#235
+2649,3744009000,-,main,frame,loop.park,16ms
+2650,3750000000,-,main,bus,enqueue,demo.Parser#edit 1
+2651,3750000100,-,main,bus,enqueue,demo.Logger#edit 1
+2652,3750000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2653,3750000300,-,main,bus,doc.edit,4us
+2654,3750001234,-,main,bus,vexelray.gui.mutations,7us
+2655,3752000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2656,3753000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2657,3753000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2658,3753000200,-,vexel-component-parse,bus,doc.parsed,6us
+2659,3753000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2660,3753000500,-,vexel-component-parse,bus,log.line,2us
+2661,3756000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2662,3757000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2663,3757000100,-,vexel-component-index,bus,search.hits,3us
+2664,3757000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2665,3757000400,-,vexel-component-index,bus,log.line,2us
+2666,3759000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2667,3760000000,-,main,frame,frame,1.9ms
+2668,3760000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2669,3760000100,-,vexel-component-<default>,bus,log.line,2us
+2670,3760005000,-,main,frame,frame.present,#236
+2671,3760009000,-,main,frame,loop.park,16ms
+2672,3762000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2673,3776000000,-,main,frame,frame,1.9ms
+2674,3776005000,-,main,frame,frame.present,#237
+2675,3776009000,-,main,frame,loop.park,16ms
+2676,3792000000,-,main,frame,frame,1.9ms
+2677,3792005000,-,main,frame,frame.present,#238
+2678,3792009000,-,main,frame,loop.park,16ms
+2679,3800001234,-,main,bus,vexelray.gui.mutations,7us
+2680,3808000000,-,main,frame,frame,1.9ms
+2681,3808005000,-,main,frame,frame.present,#239
+2682,3808009000,-,main,frame,loop.park,16ms
+2683,3824000000,-,main,frame,frame,1.9ms
+2684,3824005000,-,main,frame,frame.present,#240
+2685,3824009000,-,main,frame,loop.park,16ms
+2686,3840000000,-,main,frame,frame,1.9ms
+2687,3840005000,-,main,frame,frame.present,#241
+2688,3840009000,-,main,frame,loop.park,16ms
+2689,3850001234,-,main,bus,vexelray.gui.mutations,7us
+2690,3856000000,-,main,frame,frame,1.9ms
+2691,3856005000,-,main,frame,frame.present,#242
+2692,3856009000,-,main,frame,loop.park,16ms
+2693,3872000000,-,main,frame,frame,1.9ms
+2694,3872005000,-,main,frame,frame.present,#243
+2695,3872009000,-,main,frame,loop.park,16ms
+2696,3888000000,-,main,frame,frame,1.9ms
+2697,3888005000,-,main,frame,frame.present,#244
+2698,3888009000,-,main,frame,loop.park,16ms
+2699,3900000000,-,main,bus,enqueue,demo.Parser#edit 1
+2700,3900000100,-,main,bus,enqueue,demo.Logger#edit 1
+2701,3900000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2702,3900000300,-,main,bus,doc.edit,4us
+2703,3900001234,-,main,bus,vexelray.gui.mutations,7us
+2704,3902000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2705,3903000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2706,3903000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2707,3903000200,-,vexel-component-parse,bus,doc.parsed,6us
+2708,3903000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2709,3903000500,-,vexel-component-parse,bus,log.line,2us
+2710,3904000000,-,main,frame,frame,1.9ms
+2711,3904005000,-,main,frame,frame.present,#245
+2712,3904009000,-,main,frame,loop.park,16ms
+2713,3906000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2714,3907000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2715,3907000100,-,vexel-component-index,bus,search.hits,3us
+2716,3907000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2717,3907000400,-,vexel-component-index,bus,log.line,2us
+2718,3909000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2719,3910000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2720,3910000100,-,vexel-component-<default>,bus,log.line,2us
+2721,3912000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2722,3920000000,-,main,frame,frame,1.9ms
+2723,3920005000,-,main,frame,frame.present,#246
+2724,3920009000,-,main,frame,loop.park,16ms
+2725,3936000000,-,main,frame,frame,1.9ms
+2726,3936005000,-,main,frame,frame.present,#247
+2727,3936009000,-,main,frame,loop.park,16ms
+2728,3950001234,-,main,bus,vexelray.gui.mutations,7us
+2729,3952000000,-,main,frame,frame,1.9ms
+2730,3952005000,-,main,frame,frame.present,#248
+2731,3952009000,-,main,frame,loop.park,16ms
+2732,3968000000,-,main,frame,frame,1.9ms
+2733,3968005000,-,main,frame,frame.present,#249
+2734,3968009000,-,main,frame,loop.park,16ms
+2735,3984000000,-,main,frame,frame,1.9ms
+2736,3984005000,-,main,frame,frame.present,#250
+2737,3984009000,-,main,frame,loop.park,16ms
+2738,4000000000,-,main,frame,frame,1.9ms
+2739,4000000000,-,vexel-component-disk,bus,enqueue,demo.Renderer#parsed 1
+2740,4000001234,-,main,bus,vexelray.gui.mutations,7us
+2741,4000002000,-,vexel-component-disk,bus,doc.parsed,3us
+2742,4000005000,-,main,frame,frame.present,#251
+2743,4000009000,-,main,frame,loop.park,16ms
+2744,4016000000,-,main,frame,frame,1.9ms
+2745,4016005000,-,main,frame,frame.present,#252
+2746,4016009000,-,main,frame,loop.park,16ms
+2747,4032000000,-,main,frame,frame,1.9ms
+2748,4032005000,-,main,frame,frame.present,#253
+2749,4032009000,-,main,frame,loop.park,16ms
+2750,4048000000,-,main,frame,frame,1.9ms
+2751,4048005000,-,main,frame,frame.present,#254
+2752,4048009000,-,main,frame,loop.park,16ms
+2753,4050000000,-,main,bus,enqueue,demo.Parser#edit 1
+2754,4050000100,-,main,bus,enqueue,demo.Logger#edit 1
+2755,4050000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2756,4050000300,-,main,bus,doc.edit,4us
+2757,4050001234,-,main,bus,vexelray.gui.mutations,7us
+2758,4052000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2759,4053000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2760,4053000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2761,4053000200,-,vexel-component-parse,bus,doc.parsed,6us
+2762,4053000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2763,4053000500,-,vexel-component-parse,bus,log.line,2us
+2764,4056000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2765,4057000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2766,4057000100,-,vexel-component-index,bus,search.hits,3us
+2767,4057000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2768,4057000400,-,vexel-component-index,bus,log.line,2us
+2769,4059000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2770,4060000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2771,4060000100,-,vexel-component-<default>,bus,log.line,2us
+2772,4062000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2773,4064000000,-,main,frame,frame,1.9ms
+2774,4064005000,-,main,frame,frame.present,#255
+2775,4064009000,-,main,frame,loop.park,16ms
+2776,4080000000,-,main,frame,frame,1.9ms
+2777,4080005000,-,main,frame,frame.present,#256
+2778,4080009000,-,main,frame,loop.park,16ms
+2779,4096000000,-,main,frame,frame,1.9ms
+2780,4096005000,-,main,frame,frame.present,#257
+2781,4096009000,-,main,frame,loop.park,16ms
+2782,4100001234,-,main,bus,vexelray.gui.mutations,7us
+2783,4112000000,-,main,frame,frame,1.9ms
+2784,4112005000,-,main,frame,frame.present,#258
+2785,4112009000,-,main,frame,loop.park,16ms
+2786,4128000000,-,main,frame,frame,1.9ms
+2787,4128005000,-,main,frame,frame.present,#259
+2788,4128009000,-,main,frame,loop.park,16ms
+2789,4144000000,-,main,frame,frame,1.9ms
+2790,4144005000,-,main,frame,frame.present,#260
+2791,4144009000,-,main,frame,loop.park,16ms
+2792,4150001234,-,main,bus,vexelray.gui.mutations,7us
+2793,4160000000,-,main,frame,frame,1.9ms
+2794,4160005000,-,main,frame,frame.present,#261
+2795,4160009000,-,main,frame,loop.park,16ms
+2796,4176000000,-,main,frame,frame,1.9ms
+2797,4176005000,-,main,frame,frame.present,#262
+2798,4176009000,-,main,frame,loop.park,16ms
+2799,4192000000,-,main,frame,frame,1.9ms
+2800,4192005000,-,main,frame,frame.present,#263
+2801,4192009000,-,main,frame,loop.park,16ms
+2802,4200000000,-,main,bus,enqueue,demo.Parser#edit 1
+2803,4200000100,-,main,bus,enqueue,demo.Logger#edit 1
+2804,4200000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2805,4200000300,-,main,bus,doc.edit,4us
+2806,4200001234,-,main,bus,vexelray.gui.mutations,7us
+2807,4202000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2808,4203000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2809,4203000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2810,4203000200,-,vexel-component-parse,bus,doc.parsed,6us
+2811,4203000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2812,4203000500,-,vexel-component-parse,bus,log.line,2us
+2813,4206000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2814,4207000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2815,4207000100,-,vexel-component-index,bus,search.hits,3us
+2816,4207000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2817,4207000400,-,vexel-component-index,bus,log.line,2us
+2818,4208000000,-,main,frame,frame,1.9ms
+2819,4208005000,-,main,frame,frame.present,#264
+2820,4208009000,-,main,frame,loop.park,16ms
+2821,4209000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2822,4210000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2823,4210000100,-,vexel-component-<default>,bus,log.line,2us
+2824,4212000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2825,4224000000,-,main,frame,frame,1.9ms
+2826,4224005000,-,main,frame,frame.present,#265
+2827,4224009000,-,main,frame,loop.park,16ms
+2828,4240000000,-,main,frame,frame,1.9ms
+2829,4240005000,-,main,frame,frame.present,#266
+2830,4240009000,-,main,frame,loop.park,16ms
+2831,4250001234,-,main,bus,vexelray.gui.mutations,7us
+2832,4256000000,-,main,frame,frame,1.9ms
+2833,4256005000,-,main,frame,frame.present,#267
+2834,4256009000,-,main,frame,loop.park,16ms
+2835,4272000000,-,main,frame,frame,1.9ms
+2836,4272005000,-,main,frame,frame.present,#268
+2837,4272009000,-,main,frame,loop.park,16ms
+2838,4288000000,-,main,frame,frame,1.9ms
+2839,4288005000,-,main,frame,frame.present,#269
+2840,4288009000,-,main,frame,loop.park,16ms
+2841,4300001234,-,main,bus,vexelray.gui.mutations,7us
+2842,4304000000,-,main,frame,frame,1.9ms
+2843,4304005000,-,main,frame,frame.present,#270
+2844,4304009000,-,main,frame,loop.park,16ms
+2845,4320000000,-,main,frame,frame,1.9ms
+2846,4320005000,-,main,frame,frame.present,#271
+2847,4320009000,-,main,frame,loop.park,16ms
+2848,4336000000,-,main,frame,frame,1.9ms
+2849,4336005000,-,main,frame,frame.present,#272
+2850,4336009000,-,main,frame,loop.park,16ms
+2851,4350000000,-,main,bus,enqueue,demo.Parser#edit 1
+2852,4350000100,-,main,bus,enqueue,demo.Logger#edit 1
+2853,4350000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2854,4350000300,-,main,bus,doc.edit,4us
+2855,4350001234,-,main,bus,vexelray.gui.mutations,7us
+2856,4352000000,-,main,frame,frame,1.9ms
+2857,4352000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2858,4352005000,-,main,frame,frame.present,#273
+2859,4352009000,-,main,frame,loop.park,16ms
+2860,4353000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2861,4353000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2862,4353000200,-,vexel-component-parse,bus,doc.parsed,6us
+2863,4353000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2864,4353000500,-,vexel-component-parse,bus,log.line,2us
+2865,4356000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2866,4357000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2867,4357000100,-,vexel-component-index,bus,search.hits,3us
+2868,4357000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2869,4357000400,-,vexel-component-index,bus,log.line,2us
+2870,4359000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2871,4360000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2872,4360000100,-,vexel-component-<default>,bus,log.line,2us
+2873,4362000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2874,4368000000,-,main,frame,frame,1.9ms
+2875,4368005000,-,main,frame,frame.present,#274
+2876,4368009000,-,main,frame,loop.park,16ms
+2877,4384000000,-,main,frame,frame,1.9ms
+2878,4384005000,-,main,frame,frame.present,#275
+2879,4384009000,-,main,frame,loop.park,16ms
+2880,4400000000,-,main,frame,frame,1.9ms
+2881,4400001234,-,main,bus,vexelray.gui.mutations,7us
+2882,4400005000,-,main,frame,frame.present,#276
+2883,4400009000,-,main,frame,loop.park,16ms
+2884,4416000000,-,main,frame,frame,1.9ms
+2885,4416005000,-,main,frame,frame.present,#277
+2886,4416009000,-,main,frame,loop.park,16ms
+2887,4432000000,-,main,frame,frame,1.9ms
+2888,4432005000,-,main,frame,frame.present,#278
+2889,4432009000,-,main,frame,loop.park,16ms
+2890,4448000000,-,main,frame,frame,1.9ms
+2891,4448005000,-,main,frame,frame.present,#279
+2892,4448009000,-,main,frame,loop.park,16ms
+2893,4450001234,-,main,bus,vexelray.gui.mutations,7us
+2894,4464000000,-,main,frame,frame,1.9ms
+2895,4464005000,-,main,frame,frame.present,#280
+2896,4464009000,-,main,frame,loop.park,16ms
+2897,4480000000,-,main,frame,frame,1.9ms
+2898,4480005000,-,main,frame,frame.present,#281
+2899,4480009000,-,main,frame,loop.park,16ms
+2900,4496000000,-,main,frame,frame,1.9ms
+2901,4496005000,-,main,frame,frame.present,#282
+2902,4496009000,-,main,frame,loop.park,16ms
+2903,4500000000,-,main,bus,enqueue,demo.Parser#edit 1
+2904,4500000100,-,main,bus,enqueue,demo.Logger#edit 1
+2905,4500000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2906,4500000300,-,main,bus,doc.edit,4us
+2907,4500001234,-,main,bus,vexelray.gui.mutations,7us
+2908,4502000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2909,4503000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2910,4503000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2911,4503000200,-,vexel-component-parse,bus,doc.parsed,6us
+2912,4503000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2913,4503000500,-,vexel-component-parse,bus,log.line,2us
+2914,4506000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2915,4507000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2916,4507000100,-,vexel-component-index,bus,search.hits,3us
+2917,4507000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2918,4507000400,-,vexel-component-index,bus,log.line,2us
+2919,4509000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2920,4510000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2921,4510000100,-,vexel-component-<default>,bus,log.line,2us
+2922,4512000000,-,main,frame,frame,1.9ms
+2923,4512000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2924,4512005000,-,main,frame,frame.present,#283
+2925,4512009000,-,main,frame,loop.park,16ms
+2926,4528000000,-,main,frame,frame,1.9ms
+2927,4528005000,-,main,frame,frame.present,#284
+2928,4528009000,-,main,frame,loop.park,16ms
+2929,4544000000,-,main,frame,frame,1.9ms
+2930,4544005000,-,main,frame,frame.present,#285
+2931,4544009000,-,main,frame,loop.park,16ms
+2932,4550001234,-,main,bus,vexelray.gui.mutations,7us
+2933,4560000000,-,main,frame,frame,1.9ms
+2934,4560005000,-,main,frame,frame.present,#286
+2935,4560009000,-,main,frame,loop.park,16ms
+2936,4576000000,-,main,frame,frame,1.9ms
+2937,4576005000,-,main,frame,frame.present,#287
+2938,4576009000,-,main,frame,loop.park,16ms
+2939,4592000000,-,main,frame,frame,1.9ms
+2940,4592005000,-,main,frame,frame.present,#288
+2941,4592009000,-,main,frame,loop.park,16ms
+2942,4600001234,-,main,bus,vexelray.gui.mutations,7us
+2943,4608000000,-,main,frame,frame,1.9ms
+2944,4608005000,-,main,frame,frame.present,#289
+2945,4608009000,-,main,frame,loop.park,16ms
+2946,4624000000,-,main,frame,frame,1.9ms
+2947,4624005000,-,main,frame,frame.present,#290
+2948,4624009000,-,main,frame,loop.park,16ms
+2949,4640000000,-,main,frame,frame,1.9ms
+2950,4640005000,-,main,frame,frame.present,#291
+2951,4640009000,-,main,frame,loop.park,16ms
+2952,4650000000,-,main,bus,enqueue,demo.Parser#edit 1
+2953,4650000100,-,main,bus,enqueue,demo.Logger#edit 1
+2954,4650000200,-,main,bus,enqueue,demo.Autosave#edit 1
+2955,4650000300,-,main,bus,doc.edit,4us
+2956,4650001234,-,main,bus,vexelray.gui.mutations,7us
+2957,4652000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+2958,4653000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+2959,4653000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+2960,4653000200,-,vexel-component-parse,bus,doc.parsed,6us
+2961,4653000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+2962,4653000500,-,vexel-component-parse,bus,log.line,2us
+2963,4656000000,-,main,frame,frame,1.9ms
+2964,4656000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+2965,4656005000,-,main,frame,frame.present,#292
+2966,4656009000,-,main,frame,loop.park,16ms
+2967,4657000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+2968,4657000100,-,vexel-component-index,bus,search.hits,3us
+2969,4657000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+2970,4657000400,-,vexel-component-index,bus,log.line,2us
+2971,4659000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+2972,4660000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+2973,4660000100,-,vexel-component-<default>,bus,log.line,2us
+2974,4662000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+2975,4672000000,-,main,frame,frame,1.9ms
+2976,4672005000,-,main,frame,frame.present,#293
+2977,4672009000,-,main,frame,loop.park,16ms
+2978,4688000000,-,main,frame,frame,1.9ms
+2979,4688005000,-,main,frame,frame.present,#294
+2980,4688009000,-,main,frame,loop.park,16ms
+2981,4700001234,-,main,bus,vexelray.gui.mutations,7us
+2982,4704000000,-,main,frame,frame,1.9ms
+2983,4704005000,-,main,frame,frame.present,#295
+2984,4704009000,-,main,frame,loop.park,16ms
+2985,4720000000,-,main,frame,frame,1.9ms
+2986,4720005000,-,main,frame,frame.present,#296
+2987,4720009000,-,main,frame,loop.park,16ms
+2988,4736000000,-,main,frame,frame,1.9ms
+2989,4736005000,-,main,frame,frame.present,#297
+2990,4736009000,-,main,frame,loop.park,16ms
+2991,4750001234,-,main,bus,vexelray.gui.mutations,7us
+2992,4752000000,-,main,frame,frame,1.9ms
+2993,4752005000,-,main,frame,frame.present,#298
+2994,4752009000,-,main,frame,loop.park,16ms
+2995,4768000000,-,main,frame,frame,1.9ms
+2996,4768005000,-,main,frame,frame.present,#299
+2997,4768009000,-,main,frame,loop.park,16ms
+2998,4784000000,-,main,frame,frame,1.9ms
+2999,4784005000,-,main,frame,frame.present,#300
+3000,4784009000,-,main,frame,loop.park,16ms
+3001,4800000000,-,main,bus,enqueue,demo.Parser#edit 1
+3002,4800000000,-,main,frame,frame,1.9ms
+3003,4800000100,-,main,bus,enqueue,demo.Logger#edit 1
+3004,4800000200,-,main,bus,enqueue,demo.Autosave#edit 1
+3005,4800000300,-,main,bus,doc.edit,4us
+3006,4800001234,-,main,bus,vexelray.gui.mutations,7us
+3007,4800005000,-,main,frame,frame.present,#301
+3008,4800009000,-,main,frame,loop.park,16ms
+3009,4802000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+3010,4803000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+3011,4803000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+3012,4803000200,-,vexel-component-parse,bus,doc.parsed,6us
+3013,4803000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+3014,4803000500,-,vexel-component-parse,bus,log.line,2us
+3015,4806000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+3016,4807000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+3017,4807000100,-,vexel-component-index,bus,search.hits,3us
+3018,4807000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+3019,4807000400,-,vexel-component-index,bus,log.line,2us
+3020,4809000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+3021,4810000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+3022,4810000100,-,vexel-component-<default>,bus,log.line,2us
+3023,4812000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+3024,4816000000,-,main,frame,frame,1.9ms
+3025,4816005000,-,main,frame,frame.present,#302
+3026,4816009000,-,main,frame,loop.park,16ms
+3027,4832000000,-,main,frame,frame,1.9ms
+3028,4832005000,-,main,frame,frame.present,#303
+3029,4832009000,-,main,frame,loop.park,16ms
+3030,4848000000,-,main,frame,frame,1.9ms
+3031,4848005000,-,main,frame,frame.present,#304
+3032,4848009000,-,main,frame,loop.park,16ms
+3033,4850001234,-,main,bus,vexelray.gui.mutations,7us
+3034,4864000000,-,main,frame,frame,1.9ms
+3035,4864005000,-,main,frame,frame.present,#305
+3036,4864009000,-,main,frame,loop.park,16ms
+3037,4880000000,-,main,frame,frame,1.9ms
+3038,4880005000,-,main,frame,frame.present,#306
+3039,4880009000,-,main,frame,loop.park,16ms
+3040,4896000000,-,main,frame,frame,1.9ms
+3041,4896005000,-,main,frame,frame.present,#307
+3042,4896009000,-,main,frame,loop.park,16ms
+3043,4900001234,-,main,bus,vexelray.gui.mutations,7us
+3044,4912000000,-,main,frame,frame,1.9ms
+3045,4912005000,-,main,frame,frame.present,#308
+3046,4912009000,-,main,frame,loop.park,16ms
+3047,4928000000,-,main,frame,frame,1.9ms
+3048,4928005000,-,main,frame,frame.present,#309
+3049,4928009000,-,main,frame,loop.park,16ms
+3050,4944000000,-,main,frame,frame,1.9ms
+3051,4944005000,-,main,frame,frame.present,#310
+3052,4944009000,-,main,frame,loop.park,16ms
+3053,4950000000,-,main,bus,enqueue,demo.Parser#edit 1
+3054,4950000100,-,main,bus,enqueue,demo.Logger#edit 1
+3055,4950000200,-,main,bus,enqueue,demo.Autosave#edit 1
+3056,4950000300,-,main,bus,doc.edit,4us
+3057,4950001234,-,main,bus,vexelray.gui.mutations,7us
+3058,4952000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+3059,4953000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+3060,4953000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+3061,4953000200,-,vexel-component-parse,bus,doc.parsed,6us
+3062,4953000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+3063,4953000500,-,vexel-component-parse,bus,log.line,2us
+3064,4956000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+3065,4957000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+3066,4957000100,-,vexel-component-index,bus,search.hits,3us
+3067,4957000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+3068,4957000400,-,vexel-component-index,bus,log.line,2us
+3069,4959000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+3070,4960000000,-,main,frame,frame,1.9ms
+3071,4960000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+3072,4960000100,-,vexel-component-<default>,bus,log.line,2us
+3073,4960005000,-,main,frame,frame.present,#311
+3074,4960009000,-,main,frame,loop.park,16ms
+3075,4962000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+3076,4976000000,-,main,frame,frame,1.9ms
+3077,4976005000,-,main,frame,frame.present,#312
+3078,4976009000,-,main,frame,loop.park,16ms
+3079,4992000000,-,main,frame,frame,1.9ms
+3080,4992005000,-,main,frame,frame.present,#313
+3081,4992009000,-,main,frame,loop.park,16ms
+3082,5000001234,-,main,bus,vexelray.gui.mutations,7us
+3083,5008000000,-,main,frame,frame,1.9ms
+3084,5008005000,-,main,frame,frame.present,#314
+3085,5008009000,-,main,frame,loop.park,16ms
+3086,5024000000,-,main,frame,frame,1.9ms
+3087,5024005000,-,main,frame,frame.present,#315
+3088,5024009000,-,main,frame,loop.park,16ms
+3089,5040000000,-,main,frame,frame,1.9ms
+3090,5040005000,-,main,frame,frame.present,#316
+3091,5040009000,-,main,frame,loop.park,16ms
+3092,5050001234,-,main,bus,vexelray.gui.mutations,7us
+3093,5056000000,-,main,frame,frame,1.9ms
+3094,5056005000,-,main,frame,frame.present,#317
+3095,5056009000,-,main,frame,loop.park,16ms
+3096,5072000000,-,main,frame,frame,1.9ms
+3097,5072005000,-,main,frame,frame.present,#318
+3098,5072009000,-,main,frame,loop.park,16ms
+3099,5088000000,-,main,frame,frame,1.9ms
+3100,5088005000,-,main,frame,frame.present,#319
+3101,5088009000,-,main,frame,loop.park,16ms
+3102,5100000000,-,main,bus,enqueue,demo.Parser#edit 1
+3103,5100000100,-,main,bus,enqueue,demo.Logger#edit 1
+3104,5100000200,-,main,bus,enqueue,demo.Autosave#edit 1
+3105,5100000300,-,main,bus,doc.edit,4us
+3106,5100001234,-,main,bus,vexelray.gui.mutations,7us
+3107,5102000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+3108,5103000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+3109,5103000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+3110,5103000200,-,vexel-component-parse,bus,doc.parsed,6us
+3111,5103000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+3112,5103000500,-,vexel-component-parse,bus,log.line,2us
+3113,5104000000,-,main,frame,frame,1.9ms
+3114,5104005000,-,main,frame,frame.present,#320
+3115,5104009000,-,main,frame,loop.park,16ms
+3116,5106000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+3117,5107000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+3118,5107000100,-,vexel-component-index,bus,search.hits,3us
+3119,5107000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+3120,5107000400,-,vexel-component-index,bus,log.line,2us
+3121,5109000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+3122,5110000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+3123,5110000100,-,vexel-component-<default>,bus,log.line,2us
+3124,5112000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+3125,5120000000,-,main,frame,frame,1.9ms
+3126,5120005000,-,main,frame,frame.present,#321
+3127,5120009000,-,main,frame,loop.park,16ms
+3128,5136000000,-,main,frame,frame,1.9ms
+3129,5136005000,-,main,frame,frame.present,#322
+3130,5136009000,-,main,frame,loop.park,16ms
+3131,5150001234,-,main,bus,vexelray.gui.mutations,7us
+3132,5152000000,-,main,frame,frame,1.9ms
+3133,5152005000,-,main,frame,frame.present,#323
+3134,5152009000,-,main,frame,loop.park,16ms
+3135,5168000000,-,main,frame,frame,1.9ms
+3136,5168005000,-,main,frame,frame.present,#324
+3137,5168009000,-,main,frame,loop.park,16ms
+3138,5184000000,-,main,frame,frame,1.9ms
+3139,5184005000,-,main,frame,frame.present,#325
+3140,5184009000,-,main,frame,loop.park,16ms
+3141,5200000000,-,main,frame,frame,1.9ms
+3142,5200001234,-,main,bus,vexelray.gui.mutations,7us
+3143,5200005000,-,main,frame,frame.present,#326
+3144,5200009000,-,main,frame,loop.park,16ms
+3145,5216000000,-,main,frame,frame,1.9ms
+3146,5216005000,-,main,frame,frame.present,#327
+3147,5216009000,-,main,frame,loop.park,16ms
+3148,5232000000,-,main,frame,frame,1.9ms
+3149,5232005000,-,main,frame,frame.present,#328
+3150,5232009000,-,main,frame,loop.park,16ms
+3151,5248000000,-,main,frame,frame,1.9ms
+3152,5248005000,-,main,frame,frame.present,#329
+3153,5248009000,-,main,frame,loop.park,16ms
+3154,5250000000,-,main,bus,enqueue,demo.Parser#edit 1
+3155,5250000100,-,main,bus,enqueue,demo.Logger#edit 1
+3156,5250000200,-,main,bus,enqueue,demo.Autosave#edit 1
+3157,5250000300,-,main,bus,doc.edit,4us
+3158,5250001234,-,main,bus,vexelray.gui.mutations,7us
+3159,5252000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+3160,5253000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+3161,5253000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+3162,5253000200,-,vexel-component-parse,bus,doc.parsed,6us
+3163,5253000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+3164,5253000500,-,vexel-component-parse,bus,log.line,2us
+3165,5256000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+3166,5257000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+3167,5257000100,-,vexel-component-index,bus,search.hits,3us
+3168,5257000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+3169,5257000400,-,vexel-component-index,bus,log.line,2us
+3170,5259000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+3171,5260000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+3172,5260000100,-,vexel-component-<default>,bus,log.line,2us
+3173,5262000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+3174,5264000000,-,main,frame,frame,1.9ms
+3175,5264005000,-,main,frame,frame.present,#330
+3176,5264009000,-,main,frame,loop.park,16ms
+3177,5280000000,-,main,frame,frame,1.9ms
+3178,5280005000,-,main,frame,frame.present,#331
+3179,5280009000,-,main,frame,loop.park,16ms
+3180,5296000000,-,main,frame,frame,1.9ms
+3181,5296005000,-,main,frame,frame.present,#332
+3182,5296009000,-,main,frame,loop.park,16ms
+3183,5300001234,-,main,bus,vexelray.gui.mutations,7us
+3184,5312000000,-,main,frame,frame,1.9ms
+3185,5312005000,-,main,frame,frame.present,#333
+3186,5312009000,-,main,frame,loop.park,16ms
+3187,5328000000,-,main,frame,frame,1.9ms
+3188,5328005000,-,main,frame,frame.present,#334
+3189,5328009000,-,main,frame,loop.park,16ms
+3190,5344000000,-,main,frame,frame,1.9ms
+3191,5344005000,-,main,frame,frame.present,#335
+3192,5344009000,-,main,frame,loop.park,16ms
+3193,5350001234,-,main,bus,vexelray.gui.mutations,7us
+3194,5360000000,-,main,frame,frame,1.9ms
+3195,5360005000,-,main,frame,frame.present,#336
+3196,5360009000,-,main,frame,loop.park,16ms
+3197,5376000000,-,main,frame,frame,1.9ms
+3198,5376005000,-,main,frame,frame.present,#337
+3199,5376009000,-,main,frame,loop.park,16ms
+3200,5392000000,-,main,frame,frame,1.9ms
+3201,5392005000,-,main,frame,frame.present,#338
+3202,5392009000,-,main,frame,loop.park,16ms
+3203,5400000000,-,main,bus,enqueue,demo.Parser#edit 1
+3204,5400000100,-,main,bus,enqueue,demo.Logger#edit 1
+3205,5400000200,-,main,bus,enqueue,demo.Autosave#edit 1
+3206,5400000300,-,main,bus,doc.edit,4us
+3207,5400001234,-,main,bus,vexelray.gui.mutations,7us
+3208,5402000000,-,vexel-component-parse,bus,deliver,demo.Parser#edit 1
+3209,5403000000,-,vexel-component-parse,bus,enqueue,demo.Indexer#parsed 1
+3210,5403000100,-,vexel-component-parse,bus,enqueue,demo.Renderer#parsed 1
+3211,5403000200,-,vexel-component-parse,bus,doc.parsed,6us
+3212,5403000400,-,vexel-component-parse,bus,enqueue,demo.Logger#line 1
+3213,5403000500,-,vexel-component-parse,bus,log.line,2us
+3214,5406000000,-,vexel-component-index,bus,deliver,demo.Indexer#parsed 1
+3215,5407000000,-,vexel-component-index,bus,enqueue,demo.Renderer#hits 1
+3216,5407000100,-,vexel-component-index,bus,search.hits,3us
+3217,5407000300,-,vexel-component-index,bus,enqueue,demo.Logger#line 2
+3218,5407000400,-,vexel-component-index,bus,log.line,2us
+3219,5408000000,-,main,frame,frame,1.9ms
+3220,5408005000,-,main,frame,frame.present,#339
+3221,5408009000,-,main,frame,loop.park,16ms
+3222,5409000000,-,vexel-component-<default>,bus,deliver,demo.Renderer#parsed 1
+3223,5410000000,-,vexel-component-<default>,bus,enqueue,demo.Logger#line 3
+3224,5410000100,-,vexel-component-<default>,bus,log.line,2us
+3225,5412000000,-,vexel-component-<default>,bus,deliver,demo.Logger#line 3
+3226,5424000000,-,main,frame,frame,1.9ms
+3227,5424005000,-,main,frame,frame.present,#340
+3228,5424009000,-,main,frame,loop.park,16ms
+3229,5440000000,-,main,frame,frame,1.9ms
+3230,5440005000,-,main,frame,frame.present,#341
+3231,5440009000,-,main,frame,loop.park,16ms
+3232,5450001234,-,main,bus,vexelray.gui.mutations,7us
+3233,5456000000,-,main,frame,frame,1.9ms
+3234,5456005000,-,main,frame,frame.present,#342
+3235,5456009000,-,main,frame,loop.park,16ms
+3236,5472000000,-,main,frame,frame,1.9ms
+3237,5472005000,-,main,frame,frame.present,#343
+3238,5472009000,-,main,frame,loop.park,16ms
+3239,5488000000,-,main,frame,frame,1.9ms
+3240,5488005000,-,main,frame,frame.present,#344
+3241,5488009000,-,main,frame,loop.park,16ms
+3242,5500000000,-,vexel-component-disk,bus,enqueue,demo.Renderer#parsed 1
+3243,5500001234,-,main,bus,vexelray.gui.mutations,7us
+3244,5500002000,-,vexel-component-disk,bus,doc.parsed,3us
+3245,5504000000,-,main,frame,frame,1.9ms
+3246,5504005000,-,main,frame,frame.present,#345
+3247,5504009000,-,main,frame,loop.park,16ms
+3248,5520000000,-,main,frame,frame,1.9ms
+3249,5520005000,-,main,frame,frame.present,#346
+3250,5520009000,-,main,frame,loop.park,16ms
+3251,5536000000,-,main,frame,frame,1.9ms
+3252,5536005000,-,main,frame,frame.present,#347
+3253,5536009000,-,main,frame,loop.park,16ms
+3254,5550001234,-,main,bus,vexelray.gui.mutations,7us
+3255,5552000000,-,main,frame,frame,1.9ms
+3256,5552005000,-,main,frame,frame.present,#348
+3257,5552009000,-,main,frame,loop.park,16ms
+3258,5568000000,-,main,frame,frame,1.9ms
+3259,5568005000,-,main,frame,frame.present,#349
+3260,5568009000,-,main,frame,loop.park,16ms
+3261,5584000000,-,main,frame,frame,1.9ms
+3262,5584005000,-,main,frame,frame.present,#350
+3263,5584009000,-,main,frame,loop.park,16ms
+3264,5600000000,-,main,frame,frame,1.9ms
+3265,5600001234,-,main,bus,vexelray.gui.mutations,7us
+3266,5600005000,-,main,frame,frame.present,#351
+3267,5600009000,-,main,frame,loop.park,16ms
+3268,5616000000,-,main,frame,frame,1.9ms
+3269,5616005000,-,main,frame,frame.present,#352
+3270,5616009000,-,main,frame,loop.park,16ms
+3271,5632000000,-,main,frame,frame,1.9ms
+3272,5632005000,-,main,frame,frame.present,#353
+3273,5632009000,-,main,frame,loop.park,16ms
+3274,5648000000,-,main,frame,frame,1.9ms
+3275,5648005000,-,main,frame,frame.present,#354
+3276,5648009000,-,main,frame,loop.park,16ms
+3277,5650001234,-,main,bus,vexelray.gui.mutations,7us
+3278,5664000000,-,main,frame,frame,1.9ms
+3279,5664005000,-,main,frame,frame.present,#355
+3280,5664009000,-,main,frame,loop.park,16ms
+3281,5680000000,-,main,frame,frame,1.9ms
+3282,5680005000,-,main,frame,frame.present,#356
+3283,5680009000,-,main,frame,loop.park,16ms
+3284,5696000000,-,main,frame,frame,1.9ms
+3285,5696005000,-,main,frame,frame.present,#357
+3286,5696009000,-,main,frame,loop.park,16ms
+3287,5700001234,-,main,bus,vexelray.gui.mutations,7us
+3288,5712000000,-,main,frame,frame,1.9ms
+3289,5712005000,-,main,frame,frame.present,#358
+3290,5712009000,-,main,frame,loop.park,16ms
+3291,5728000000,-,main,frame,frame,1.9ms
+3292,5728005000,-,main,frame,frame.present,#359
+3293,5728009000,-,main,frame,loop.park,16ms
+3294,5744000000,-,main,frame,frame,1.9ms
+3295,5744005000,-,main,frame,frame.present,#360
+3296,5744009000,-,main,frame,loop.park,16ms
+3297,5750001234,-,main,bus,vexelray.gui.mutations,7us
+3298,5760000000,-,main,frame,frame,1.9ms
+3299,5760005000,-,main,frame,frame.present,#361
+3300,5760009000,-,main,frame,loop.park,16ms
+3301,5776000000,-,main,frame,frame,1.9ms
+3302,5776005000,-,main,frame,frame.present,#362
+3303,5776009000,-,main,frame,loop.park,16ms
+3304,5792000000,-,main,frame,frame,1.9ms
+3305,5792005000,-,main,frame,frame.present,#363
+3306,5792009000,-,main,frame,loop.park,16ms
+3307,5800001234,-,main,bus,vexelray.gui.mutations,7us
+3308,5808000000,-,main,frame,frame,1.9ms
+3309,5808005000,-,main,frame,frame.present,#364
+3310,5808009000,-,main,frame,loop.park,16ms
+3311,5824000000,-,main,frame,frame,1.9ms
+3312,5824005000,-,main,frame,frame.present,#365
+3313,5824009000,-,main,frame,loop.park,16ms
+3314,5840000000,-,main,frame,frame,1.9ms
+3315,5840005000,-,main,frame,frame.present,#366
+3316,5840009000,-,main,frame,loop.park,16ms
+3317,5850001234,-,main,bus,vexelray.gui.mutations,7us
+3318,5856000000,-,main,frame,frame,1.9ms
+3319,5856005000,-,main,frame,frame.present,#367
+3320,5856009000,-,main,frame,loop.park,16ms
+3321,5872000000,-,main,frame,frame,1.9ms
+3322,5872005000,-,main,frame,frame.present,#368
+3323,5872009000,-,main,frame,loop.park,16ms
+3324,5888000000,-,main,frame,frame,1.9ms
+3325,5888005000,-,main,frame,frame.present,#369
+3326,5888009000,-,main,frame,loop.park,16ms
+3327,5900001234,-,main,bus,vexelray.gui.mutations,7us
+3328,5904000000,-,main,frame,frame,1.9ms
+3329,5904005000,-,main,frame,frame.present,#370
+3330,5904009000,-,main,frame,loop.park,16ms
+3331,5920000000,-,main,frame,frame,1.9ms
+3332,5920005000,-,main,frame,frame.present,#371
+3333,5920009000,-,main,frame,loop.park,16ms
+3334,5936000000,-,main,frame,frame,1.9ms
+3335,5936005000,-,main,frame,frame.present,#372
+3336,5936009000,-,main,frame,loop.park,16ms
+3337,5950001234,-,main,bus,vexelray.gui.mutations,7us
+3338,5952000000,-,main,frame,frame,1.9ms
+3339,5952005000,-,main,frame,frame.present,#373
+3340,5952009000,-,main,frame,loop.park,16ms
+3341,5968000000,-,main,frame,frame,1.9ms
+3342,5968005000,-,main,frame,frame.present,#374
+3343,5968009000,-,main,frame,loop.park,16ms
+3344,5984000000,-,main,frame,frame,1.9ms
+3345,5984005000,-,main,frame,frame.present,#375
+3346,5984009000,-,main,frame,loop.park,16ms
+3347,6000000000,-,main,frame,frame,1.9ms
+3348,6000005000,-,main,frame,frame.present,#376
+3349,6000009000,-,main,frame,loop.park,16ms

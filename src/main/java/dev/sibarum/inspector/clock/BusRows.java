@@ -13,6 +13,8 @@ import dev.sibarum.inspector.rows.Row;
  *   <li>{@code <topic> dropped}: a pumped mailbox refused a message;</li>
  *   <li>{@code <topic> batch}: a pumped mailbox handed its subscriber this many at once;</li>
  *   <li>{@code pump drain} and {@code pump delivered}: the main thread's pump emptying every mailbox.</li>
+ *   <li>{@code enqueue}, {@code deliver} and {@code drop}: a named mailbox's own rows, {@code <mailbox> <n>}, which say
+ *       which mailbox a message went to (docs/bus-circuit.md §3).</li>
  * </ul>
  */
 public final class BusRows {
@@ -27,6 +29,15 @@ public final class BusRows {
     /** The pump emptied every mailbox. */
     public static final String DRAIN = "pump drain";
 
+    /** A named mailbox queued a message: {@code <mailbox> <depth>} (docs/bus-circuit.md §3). */
+    public static final String ENQUEUE = "enqueue";
+
+    /** A named mailbox's subscriber was handed a batch: {@code <mailbox> <count>}. */
+    public static final String DELIVER = "deliver";
+
+    /** A named mailbox refused a message: {@code <mailbox> <policy>}. */
+    public static final String DROP = "drop";
+
     private BusRows() {
     }
 
@@ -34,7 +45,7 @@ public final class BusRows {
     public static boolean publish(Row row) {
         String k = row.kind();
         return row.lane().equals(LANE) && !k.startsWith(PUMP) && !k.endsWith(DEPTH) && !k.endsWith(DROPPED)
-                && !k.endsWith(BATCH);
+                && !k.endsWith(BATCH) && !k.equals(ENQUEUE) && !k.equals(DELIVER) && !k.equals(DROP);
     }
 
     /** A pumped mailbox's depth; the topic is {@link #topic}. */

@@ -243,6 +243,12 @@ a burst sets a record. Measured on a made-up 6,000-a-second storm: the lag holds
 **Next:** a real-time ruler along the belts; records per build; then the topology and the subscriber of each message
 once the atchung tap lands.
 
+**Then, the same day: the bus as a circuit** (docs/bus-circuit.md). The belts were lanes made up from traffic, and
+the point is the wiring the code declares: who sends, who receives, many to many. The circuit draws only the declared
+graph, as a backplane of chips and copper traces, with each message an electron from its sender to each receiver. The
+graph, mailbox names and per-mailbox `enqueue`/`deliver`/`drop` rows are being added upstream (vexelray-framework,
+atchung, vexelray-gui) to a contract written here; until they land the Inspector reads a hand-written graph.
+
 ### M4 — Time
 
 - The pinned cylinder: live shreds and their states (the SPORK…END trace), scheduled entries, effects and their

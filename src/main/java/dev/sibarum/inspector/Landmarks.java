@@ -31,13 +31,16 @@ final class Landmarks {
     /** This application's builds under the movement; each line is {@code history.<n>}, newest first. */
     static final String HISTORY = "history";
 
-    /** The bus panel: conveyors, governor and combo. */
+    /** The bus panel: the circuit, the governor and the combo. */
     static final String BUS = "bus";
 
-    /** Each belt's topic is {@code bus.lane.<n>}, and its mailbox's fill {@code bus.lane.<n>.mailbox}. */
-    static final String BUS_LANE = "bus.lane";
+    /** The circuit board: chips, traces and electrons. */
+    static final String BOARD = "bus.board";
 
-    /** Why there is no belt yet, while there is none. */
+    /** Each mailbox's pin on the board is {@code bus.pin.<class#method>}. */
+    static final String BUS_PIN = "bus.pin";
+
+    /** Why the circuit shows no traffic, when there is a reason. */
     static final String BUS_HINT = "bus.hint";
 
     /** How fast show time runs against real time, and how far behind: {@code real time}, {@code ×0.1 · 182 ms behind}. */

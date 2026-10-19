@@ -44,7 +44,7 @@ import sibarum.kronometer.anim.Ease;
 final class Movement {
 
     /** The movement's side, in root ems. Every part is placed in fractions of it ({@link Parts}). */
-    static final float SIDE = 24;
+    static final float SIDE = 20;
 
     /** One swing of the balance. */
     static final Dur BEAT = Dur.ms(130);

@@ -1,6 +1,5 @@
 package dev.sibarum.inspector;
 
-import dev.sibarum.inspector.clock.BeadPool;
 import dev.sibarum.inspector.clock.BusRows;
 import dev.sibarum.inspector.clock.Combo;
 import dev.sibarum.inspector.clock.Pending;
@@ -23,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       {@link Combo}, which is real time by definition.</li>
  *   <li><b>Into {@link Pending}</b>, released on the timeline as show time reaches it: frame rows to {@code view},
  *       the escapement the window shows, so the balance wheel and the beads share one clock and never disagree
- *       about which frame something happened in; bus rows to the {@link BusView}, as beads.</li>
+ *       about which frame something happened in; bus rows to the {@link CircuitView}, as electrons.</li>
  * </ul>
  *
  * <h2>Real time</h2>
@@ -49,10 +48,9 @@ final class Show implements RowSink {
     private final KronoGui krono;
     private final RowSink measure;
     private final RowSink view;
-    private final BusView bus;
+    private final CircuitView bus;
     private final Pending pending = new Pending(1 << 16);
     private final ShowClock clock = ShowClock.standard();
-    private final BeadPool pool = new BeadPool(BusView.BEADS, BusView.TRAVEL, BusView.LANES, BusView.GAP);
     private final Combo combo = Combo.standard();
     private final AtomicBoolean armed = new AtomicBoolean();
 
@@ -67,7 +65,7 @@ final class Show implements RowSink {
     // The timeline's own.
     private long last;
 
-    Show(KronoGui krono, RowSink measure, RowSink view, BusView bus) {
+    Show(KronoGui krono, RowSink measure, RowSink view, CircuitView bus) {
         this.krono = krono;
         this.measure = measure;
         this.view = view;
@@ -84,7 +82,7 @@ final class Show implements RowSink {
         frames = 0;
         busRows = 0;
         hinted = false;
-        bus.hint("waiting for the bus");
+        bus.hint("");
         pending.marker(new Pending.Marker(true, origin));
         arm();
     }
@@ -153,20 +151,20 @@ final class Show implements RowSink {
         while ((item = pending.poll(show)) != null) {
             if (item instanceof Row row) {
                 if (row.lane().equals(BusRows.LANE)) {
-                    bus.apply(row, pool, now);
+                    bus.row(row, now);
                 }
                 view.row(row);
             } else if (item instanceof Pending.Marker m) {
                 if (m.begin()) {
                     clock.reset();
-                    bus.reset(pool);
+                    bus.reset();
                     view.begin(m.text());
                 } else {
                     view.end(m.text());
                 }
             }
         }
-        boolean moving = bus.frame(now, dt, clock, real == Long.MIN_VALUE ? 0 : real, pool, combo);
+        boolean moving = bus.frame(now, dt, clock, real == Long.MIN_VALUE ? 0 : real, combo);
         return moving || !pending.isEmpty() || (real != Long.MIN_VALUE && clock.lag(real) > 0);
     }
 }

@@ -1,0 +1,26 @@
+# vexelray bus graph 1
+# MADE UP, to exercise the circuit: an editor with a parse pipeline. Many-to-many on purpose: doc.edit fans out to
+# three mailboxes, log.line fans in from three components, and doc.parsed is published by two. No real application
+# declares this; replay it with samples/circuit-bus.csv.
+component  demo.Autosave  lane=disk
+component  demo.Indexer   lane=index
+component  demo.Logger    lane=<default>
+component  demo.Parser    lane=parse
+component  demo.Renderer  lane=<default>
+publisher  demo.Ui        lane=-
+mailbox    demo.Autosave#edit    topic=doc.edit      type=demo.Edit     overflow=COALESCE_LATEST  capacity=64
+mailbox    demo.Indexer#parsed   topic=doc.parsed    type=demo.Tree     overflow=DROP_OLDEST      capacity=16
+mailbox    demo.Indexer#query    topic=search.query  type=demo.Query    overflow=COALESCE_LATEST  capacity=64
+mailbox    demo.Logger#line      topic=log.line      type=demo.Line     overflow=DROP_NEWEST      capacity=256
+mailbox    demo.Parser#edit      topic=doc.edit      type=demo.Edit     overflow=BLOCK            capacity=32
+mailbox    demo.Renderer#parsed  topic=doc.parsed    type=demo.Tree     overflow=COALESCE_LATEST  capacity=64
+mailbox    demo.Renderer#hits    topic=search.hits   type=demo.Hits    overflow=FAIL             capacity=64
+mailbox    demo.Logger#edit      topic=doc.edit      type=demo.Edit     overflow=DROP_OLDEST      capacity=256
+publishes  demo.Indexer   topic=log.line
+publishes  demo.Indexer   topic=search.hits
+publishes  demo.Parser    topic=doc.parsed
+publishes  demo.Parser    topic=log.line
+publishes  demo.Renderer  topic=log.line
+publishes  demo.Autosave  topic=doc.parsed
+publishes  demo.Ui        topic=doc.edit
+publishes  demo.Ui        topic=search.query

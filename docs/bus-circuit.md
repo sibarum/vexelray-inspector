@@ -13,7 +13,7 @@ bumps the version on the graph's first line, and the Inspector refuses a version
 ## 1. The graph
 
 The declared message graph of one application, as text: one fact per line, UTF-8, `\n` line ends. A line is a
-keyword, then a name, then `key=value` pairs separated by single spaces. No value contains a space; a name is a
+keyword, then a name, then `key=value` pairs, separated by one or more spaces. No value contains a space; a name is a
 fully qualified Java class name, or that and `#` and a method name. Lines starting `#` are comments, except the first.
 
 ```

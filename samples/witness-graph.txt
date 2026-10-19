@@ -1,0 +1,16 @@
+# vexelray bus graph 1
+# Hand-written from vexelray-framework's `components` acceptance witness (witnesses/components), in the
+# package `witness`, until the processor emits it (docs/bus-circuit.md).
+component  witness.Echo      lane=<default>
+component  witness.Isolated  lane=isolated
+component  witness.Wedger    lane=<default>
+component  witness.Worker    lane=worker
+publisher  witness.Ui        lane=-
+mailbox    witness.Echo#ping       topic=witness.ping            type=witness.Ping   overflow=FAIL             capacity=64
+mailbox    witness.Isolated#wedge  topic=witness.wedge.isolated  type=witness.Wedge  overflow=COALESCE_LATEST  capacity=64
+mailbox    witness.Wedger#wedge    topic=witness.wedge.default   type=witness.Wedge  overflow=COALESCE_LATEST  capacity=64
+mailbox    witness.Worker#job      topic=witness.job             type=witness.Job    overflow=BLOCK            capacity=8
+publishes  witness.Ui  topic=witness.job
+publishes  witness.Ui  topic=witness.ping
+publishes  witness.Ui  topic=witness.wedge.default
+publishes  witness.Ui  topic=witness.wedge.isolated

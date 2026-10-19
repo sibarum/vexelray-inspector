@@ -212,7 +212,8 @@ it. All of this works before the Inspector draws anything.
 
 **Mostly landed 2026-10-17.** The picker over the discovery folder, `--attach=<app|pid:n>`, and the live source over
 `LinkClient` all work. Choosing the gui demo set the wheel ticking on its real frame numbers, and the picker came back
-when the demo was killed. Two parts are still open (docs/TODO.md): attaching by launching, and the recorder's own
+when the demo was killed. Attaching by launching landed 2026-10-19: `--launch <command>` started the calculator
+demo through Maven, and the wheel ticked on its frames. One part is still open (docs/TODO.md): the recorder's own
 cost.
 
 ### M2 — The escapement

@@ -26,12 +26,13 @@ link, or it plays a recording.
 | The **escapement**: the balance wheel swings one beat per `frame.present`, the fork snaps across and the escape wheel steps half a tooth | Frame stages in the swing (INPUT, CLOCK, APP, SETTLE): M2 |
 | A **park is a rest**: the wheel stands still, and the plaque names the park's budget (`200ms`, `until woken`) | Saying a stall while it is still going on: the Inspector learns of one only when a row ends it |
 | Readouts: frame number, frame time (its `frame` span), the time since the frame before, the park and how long the last rest lasted, and what ended it (`mutation`, `injected input`, the budget running out) on which thread, and how many rows the stream lost | The recorder's own cost |
-| **Live**: the picker lists the running applications from their discovery files; choosing one, or `--attach=<app>`, streams its `frame` lane over its link; when it goes away the picker comes back | Attaching by launching: `--launch <command>` |
+| **Live**: the picker lists the running applications from their discovery files; choosing one, or `--attach=<app>`, streams its `frame` lane over its link; when it goes away the picker comes back | |
+| **Launch**: `--launch <command>` starts an application with automation on, attaches to it once its discovery file advertises a link, and stops it (and everything under it) when the Inspector closes or attaches elsewhere | |
 | **A gap is not made up**: rows the stream lost are counted, nothing is measured across them, and the first frame after says `MISSED BEATS` | |
 | **A gap no park covers is a stall**: when the loop was silent more than 100 ms beyond the park's budget (`csvview --gaps`' rule), the plaque says `STALL · #7 · 1.50 s` in ruby and the readouts count them; a gap the stream lost is never one | |
 | **Replay** of a probe CSV at its recorded pace, looping, faster or slower | Reading the other lanes (M2 on) |
 | **History by build**: every live run of an application whose build is known is kept (frames, frame time p50/p95/p99, stalls, rows lost, parks), keyed by its exact source and its stack's, and the strip under the movement compares this build with the ones before | Saying, at a glance, that this build is worse than the last (M8's rules) |
-| 38 tests, none of which needs a window; one builds the real tree headless, one streams from a real link | |
+| 55 tests, none of which needs a window; one builds the real tree headless, one streams from a real link, one launches a real child and stops it | |
 
 ## Run it
 
@@ -46,6 +47,8 @@ the discovery files in `~/.vexelray/automation/`. Choose one, and the escapement
 ```
 mvn compile exec:exec "-Dapp.args=--attach=calculator-vexel-demo"         # straight to a running application
 mvn compile exec:exec "-Dapp.args=--attach=pid:18292"                      # one process, when several share a name
+mvn compile exec:exec "-Dapp.args=--launch mvn.cmd -q -f ../calculator-vexel-demo/pom.xml exec:exec -Dautomation=0"
+                                                                           # start one, inspect it, stop it on close
 mvn compile exec:exec "-Dapp.args=--replay=run.csv --replay.speed=0.25"   # a quarter of the recorded pace
 mvn compile exec:exec "-Dapp.args=--replay=run.csv --replay.loop=false"   # once, then rest
 mvn compile exec:exec -Dautomation=0                                       # a driving socket on a free port
@@ -72,7 +75,7 @@ The flow is one line: **source → escapement → window**.
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this application builds**, one `@Provides` per part: the first source, the switch in front of it, the picker, the window, the escapement, and the start. `InspectorAppWiring` is generated from it. |
-| `rows/` | **the rows, with no `Gui` in them.** `Row` is the `correlations.csv` schema plus the stream's `frame` column. `RowFormat` reads a line (RFC 4180 quoting, a header row naming the columns, torn lines skipped and counted). `RowSource` is the seam: `ReplaySource` plays a file at its recorded pace, and `LinkSource` streams a running application over its Inspector link (`LinkClient`, from `vexelray-gui-inspector-link`). `Sources` stands in front of whichever is current, and is the one place the source changes. `Attach` says which running applications `--attach` and the picker offer, from `Discovery.live()`. |
+| `rows/` | **the rows, with no `Gui` in them.** `Row` is the `correlations.csv` schema plus the stream's `frame` column. `RowFormat` reads a line (RFC 4180 quoting, a header row naming the columns, torn lines skipped and counted). `RowSource` is the seam: `ReplaySource` plays a file at its recorded pace, `LinkSource` streams a running application over its Inspector link (`LinkClient`, from `vexelray-gui-inspector-link`), and `LaunchSource` starts one and then streams it the same way. `Sources` stands in front of whichever is current, and is the one place the source changes. `Attach` says which running applications `--attach` and the picker offer, from `Discovery.live()`. |
 | `Picker.java` | the running applications to choose from, read from the discovery folder every second on the offload lane, while nothing is being inspected. |
 | `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. |
 | `history/` | **every run kept, by build.** `Build` is what an application advertises in its discovery file: coordinates, its exact source (commit, plus `+dirty.<digest>` of uncommitted changes) and a digest of every stamped stack part, so two runs are one build only if all of it matches. `Session` measures a run from the escapement's beats; `History` keeps one CSV line per run in `~/.vexelray-inspector/history/<group>/<artifact>.csv` and sums runs per build; `Recorder` (behind `Runs`) begins and ends runs as sources switch. A replay, or an application built without `vexelray-build-maven-plugin`, is shown and not kept. |
@@ -101,6 +104,8 @@ Whichever source is current delivers on a thread of its own, and the escapement 
 - **A live source** connects on `inspector-link`, which ends once the stream is open. The rows then arrive on
   elektro-Q's receive thread for that connection: one thread, one call at a time, in the application's order, which
   is what `RowSink` asks for. The end of a run, when the application goes away, comes on that thread too.
+- **A launch** starts the child on `inspector-launch`, which waits for its discovery file, starts the live source and
+  ends. `inspector-launch-output` reads the child's output into the log for as long as the child runs.
 - **The picker** reads the discovery folder on the offload lane, asked by a one-second timer on the timeline.
 - **The history** is fed beats on the source's thread. It reads and writes its files on the offload lane, and it
   writes the run in progress on the closing thread when the Inspector closes, because the lanes stop then.

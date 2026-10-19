@@ -8,8 +8,5 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next (the rest of M1)
 
-- [ ] **Attach by launching**: `--launch <command>`, reading `automation: localhost:<port>` from the child's stdout
-      as `ottermate --launch` does (or waiting for its discovery file), attaching to it, and stopping the child (and
-      a `mvn` wrapper's grandchild) on close.
 - [ ] **The recorder's own cost**, shown from day one (roadmap M1). The link's `Snap` carries the loop and ring
       counters but no cost yet, and `LinkSource` does not read snapshots: both ends need it.

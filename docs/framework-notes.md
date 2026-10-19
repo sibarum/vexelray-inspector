@@ -48,6 +48,26 @@ check.
 platform thread, named in the wiring, started after its consumers and stopped before them (T6.1, T6.3). Every client
 of the flight recorder's stream will want the same.
 
+**Seen again, 2026-10-19:** `LaunchSource` (`--launch`) needed two more such threads: `inspector-launch` waits for
+the child's discovery file, and `inspector-launch-output` reads the child's output for as long as the child runs. It
+also keeps its own shutdown hook beside the disposer, so the child is stopped even when the Inspector is not closed
+in order. `ottermate`'s `Launch` holds the same code; a launcher that starts, watches and stops a child application
+is a second candidate component here.
+
+## FN-3 · A setting cannot take the rest of the command line 🔬
+
+`--launch` wants a command line as its value: `Inspector --launch mvn.cmd compile exec:exec -Dautomation=0`, as
+`ottermate --launch` takes it. Settings are only `--key=value`. A quoted `--launch="mvn.cmd compile ..."` works from
+a shell, but not through `-Dapp.args`, which the template's pom splits on white space before the application sees it,
+so the quotes cannot hold the words together.
+
+Worked around in `Inspector.main`: before `VexelApplication.run`, `LaunchSource.fold` turns a bare `--launch` and
+every word after it into one `--launch=<command>`, quoting a word that has white space in it.
+
+**What the framework could do:** let a `@Setting` declare that it takes the rest of the line (`rest = true`), and
+fold it in the shell's own argument parser, so the misspelled-flag check sees the folded form and no application
+edits its `args`.
+
 ## FN-2 · A `Sketch.line`'s round caps are inside its ends, so a short thick line is a bead 🔬
 
 drawing.md §3 calls a line "round-capped", and says a polyline's joints look joined because of the caps. Measured:

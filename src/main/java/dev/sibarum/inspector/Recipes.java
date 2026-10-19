@@ -5,6 +5,7 @@ import dev.sibarum.inspector.history.History;
 import dev.sibarum.inspector.history.Recorder;
 import dev.sibarum.inspector.history.Runs;
 import dev.sibarum.inspector.rows.Attach;
+import dev.sibarum.inspector.rows.LaunchSource;
 import dev.sibarum.inspector.rows.Pacer;
 import dev.sibarum.inspector.rows.ReplaySource;
 import dev.sibarum.inspector.rows.RowSink;
@@ -55,18 +56,26 @@ final class Recipes {
      * <ul>
      *   <li>{@code --replay=<file>}: a probe CSV played at its recorded pace, faster with {@code --replay.speed=4},
      *       once with {@code --replay.loop=false};</li>
+     *   <li>{@code --launch="<command>"}: an application the Inspector starts, then inspects live, and stops when it
+     *       is done with it ({@link LaunchSource}); the command must switch automation on, and
+     *       {@code --launch.timeout=<seconds>} is how long it has to get ready;</li>
      *   <li>{@code --attach=<app>} or {@code --attach=pid:<n>}: a running application, live, through its Inspector
      *       link, found in the discovery folder ({@link Attach});</li>
-     *   <li>neither: nothing yet, and the window shows the picker.</li>
+     *   <li>none of them: nothing yet, and the window shows the picker.</li>
      * </ul>
      */
     @Provides
     RowSource source(@Setting("replay") String replay,
                      @Setting(value = "replay.speed", def = "1") float speed,
                      @Setting(value = "replay.loop", def = "true") boolean loop,
+                     @Setting("launch") String launch,
+                     @Setting(value = "launch.timeout", def = "120") int launchTimeout,
                      @Setting("attach") String attach) {
         if (!replay.isBlank()) {
             return new ReplaySource(Path.of(replay), speed, loop, Pacer.SYSTEM);
+        }
+        if (!launch.isBlank()) {
+            return new LaunchSource(LaunchSource.split(launch), launchTimeout, Discovery::live);
         }
         if (!attach.isBlank()) {
             return Attach.initial(Discovery.live(), attach);
@@ -144,7 +153,11 @@ final class Recipes {
             @Override
             public void began(String origin) {
                 ui.picking(false);
-                runs.begin(sources.current().build().orElse(null));
+                // A launched application is only known once it is up: name it, and show its builds, now.
+                RowSource now = sources.current();
+                ui.title(now.describe());
+                now.build().ifPresent(runs::look);
+                runs.begin(now.build().orElse(null));
             }
 
             @Override

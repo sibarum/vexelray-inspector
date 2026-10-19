@@ -1,0 +1,22 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="b68tm6" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#f8fdef"/>
+<stop offset="1" stop-color="#e2f1c9"/>
+</linearGradient>
+<linearGradient id="b68em6" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
+<stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+</linearGradient>
+</defs>
+<g opacity=".6">
+<rect x="2" y="2" width="60" height="60" rx="15" fill="url(#b68tm6)"/>
+<rect x="2" y="2" width="60" height="60" rx="15" fill="none" stroke="#b9d593" stroke-width="1"/>
+<path d="M38 38 L50.5 50.5" stroke="#4d7f12" stroke-width="7.6" stroke-linecap="round"/>
+<path d="M34.59 26.61 L36.99 27.43 L36.42 30.35 L33.89 30.21 L32.64 32.09 L33.76 34.37 L31.30 36.03 L29.61 34.14 L27.39 34.59 L26.57 36.99 L23.65 36.42 L23.79 33.89 L21.91 32.64 L19.63 33.76 L17.97 31.30 L19.86 29.61 L19.41 27.39 L17.01 26.57 L17.58 23.65 L20.11 23.79 L21.36 21.91 L20.24 19.63 L22.70 17.97 L24.39 19.86 L26.61 19.41 L27.43 17.01 L30.35 17.58 L30.21 20.11 L32.09 21.36 L34.37 20.24 L36.03 22.70 L34.14 24.39 Z" fill="#93c45a" stroke="#93c45a" stroke-width="0.8" stroke-linejoin="round"/>
+<circle cx="27" cy="27" r="3" fill="#e2f1c9"/>
+<circle cx="27" cy="27" r="15" fill="none" stroke="#4d7f12" stroke-width="6.2"/>
+<rect x="2.6" y="2.6" width="58.8" height="58.8" rx="14.4" fill="none" stroke="url(#b68em6)" stroke-width="1.2"/>
+</g>
+<rect x="3" y="3" width="58" height="58" rx="14" fill="none" stroke="#4d7f12" stroke-width="4" stroke-dasharray="15.6 10.4" stroke-dashoffset="-5.2" stroke-linecap="round"/>
+</svg>

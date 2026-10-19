@@ -121,6 +121,7 @@
                 <directory>src/main/rc</directory>
                 <includes>
                     <include>vexelray-inspector.ico</include>
+                    <include>vexelray-inspector-background.ico</include>
                 </includes>
             </resource>
         </resources>

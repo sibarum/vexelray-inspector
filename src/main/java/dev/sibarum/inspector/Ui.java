@@ -15,11 +15,11 @@ import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
 /**
- * The window: the framework's title bar, the escapement beside its readouts, and a status line saying where the rows
- * come from.
+ * The window: the framework's title bar, the escapement beside its readouts, the bus under them, and a status line
+ * saying where the rows come from.
  *
- * <p>It is the {@link Escapement}'s listener, so it is called on the source's thread with the whole new
- * {@link Beat} each time. A prop written off the GUI thread is queued and applied by the next drain, which is the
+ * <p>It is the listener of the {@link Escapement} that {@link Show} feeds on the show clock, so it is called on the
+ * timeline with the whole new {@link Beat} each time. A prop written off the GUI thread is queued and applied by the next drain, which is the
  * framework's own idiom; nothing here reads the tree back.
  */
 final class Ui implements Escapement.Listener {
@@ -27,6 +27,7 @@ final class Ui implements Escapement.Listener {
     private final TitleBar titleBar;
     private final StatusBar status;
     private final Movement movement;
+    private final BusView bus;
     private final Node inspecting;
     private final Picker picker;
     private final Node history;
@@ -43,12 +44,13 @@ final class Ui implements Escapement.Listener {
     Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker) {
         this.titleBar = titleBar;
         this.movement = new Movement(gui, krono);
+        this.bus = new BusView(gui);
         this.picker = picker;
 
         Node readouts = gui.column()
                 .width(Length.rem(17))
-                .gap(Length.rem(0.9f))
-                .padding(Length.rem(1.2f))
+                .gap(Length.rem(0.6f))
+                .padding(Length.rem(1.0f))
                 .background(gui.theme().color(Role.PANEL))
                 .corner(Length.rem(0.5f));
         Node heading = gui.text("THE MAIN LOOP").textSize(Length.rem(0.8f)).textColor(gui.theme().color(Role.ACCENT));
@@ -89,7 +91,7 @@ final class Ui implements Escapement.Listener {
                 .children(gui.row()
                         .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
                         .gap(Length.rem(2.5f))
-                        .children(movement.node(), readouts), history);
+                        .children(movement.node(), readouts), bus.node(), history);
         picker.node().visible(false);
         Node body = gui.row()
                 .width(Length.FILL).height(Length.grow(1f))
@@ -103,6 +105,11 @@ final class Ui implements Escapement.Listener {
         gui.root().direction(Direction.COLUMN)
                 .background(gui.theme().color(Role.PAGE))
                 .children(titleBar.node(), body, status.node());
+    }
+
+    /** The bus panel, which {@link Show} moves. */
+    BusView bus() {
+        return bus;
     }
 
     /** A name over a value; returns the value. */

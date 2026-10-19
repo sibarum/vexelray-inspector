@@ -31,6 +31,24 @@ final class Landmarks {
     /** This application's builds under the movement; each line is {@code history.<n>}, newest first. */
     static final String HISTORY = "history";
 
+    /** The bus panel: conveyors, governor and combo. */
+    static final String BUS = "bus";
+
+    /** Each belt's topic is {@code bus.lane.<n>}, and its mailbox's fill {@code bus.lane.<n>.mailbox}. */
+    static final String BUS_LANE = "bus.lane";
+
+    /** Why there is no belt yet, while there is none. */
+    static final String BUS_HINT = "bus.hint";
+
+    /** How fast show time runs against real time, and how far behind: {@code real time}, {@code ×0.1 · 182 ms behind}. */
+    static final String GOVERNOR = "bus.governor";
+
+    /** The burst being counted, in real time ({@code 1,000}), then its total ({@code 1,000!}). */
+    static final String COMBO = "bus.combo";
+
+    /** Under the combo: {@code NEW RECORD}, or the record to beat. */
+    static final String COMBO_NOTE = "bus.combo.note";
+
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";
 

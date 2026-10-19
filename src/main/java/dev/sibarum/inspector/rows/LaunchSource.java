@@ -35,6 +35,9 @@ import java.util.stream.Collectors;
  * is chosen, and when the Inspector closes. A shutdown hook does the same if the Inspector is ended some other way, so
  * a launched window never outlives the Inspector that nobody is watching it through.
  *
+ * <p><b>It probes the bus.</b> A driven run leaves the bus lane out, so the child is started with {@link #LANES} in its
+ * environment, unless the caller set {@code PROBE} there or {@code -Dprobe} on the command line.
+ *
  * <p><b>The child's output goes to the log</b> ({@code vexelray-inspector.launch}, at debug), never to stdout, which is
  * for lines another program parses. A launch that fails says why in the status line; the child's own account of it
  * is in the log.
@@ -143,6 +146,22 @@ public final class LaunchSource implements RowSource {
                 .findFirst();
     }
 
+    /**
+     * The lanes a launched application is probed on, unless its environment already says: a driven run's own
+     * ({@code frame,input,layout,app}) and the bus, which a driven run leaves out (FN-4), traced in CSV as a driven
+     * run is. Set in the child's environment ({@code PROBE}, {@code PROBE_FORMAT}), which every VexelRay
+     * application reads, so the command line stays the caller's; a {@code -Dprobe} in it still wins.
+     */
+    static final String LANES = "frame,input,layout,app,bus";
+
+    /** Probe the child on {@link #LANES}, in CSV, unless {@code env} already chose. */
+    static void probe(java.util.Map<String, String> env) {
+        if (!env.containsKey("PROBE")) {
+            env.put("PROBE", LANES);
+            env.put("PROBE_FORMAT", "csv");
+        }
+    }
+
     @Override
     public void start(RowSink sink) {
         if (thread != null) {
@@ -156,7 +175,9 @@ public final class LaunchSource implements RowSource {
     private void launch(RowSink sink) {
         Process p;
         try {
-            p = new ProcessBuilder(command).redirectErrorStream(true).start();
+            ProcessBuilder b = new ProcessBuilder(command).redirectErrorStream(true);
+            probe(b.environment());
+            p = b.start();
         } catch (IOException e) {
             if (!closed) {
                 sink.end("could not launch " + describe() + ": " + e.getMessage());

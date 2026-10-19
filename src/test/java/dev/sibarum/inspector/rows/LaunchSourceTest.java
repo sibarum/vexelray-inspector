@@ -107,6 +107,17 @@ class LaunchSourceTest {
     }
 
     @Test
+    void aLaunchedChildProbesTheBusUnlessItsEnvironmentSaysOtherwise() {
+        Map<String, String> env = new java.util.HashMap<>();
+        LaunchSource.probe(env);
+        assertEquals("frame,input,layout,app,bus", env.get("PROBE"));
+        assertEquals("csv", env.get("PROBE_FORMAT"));
+        Map<String, String> chosen = new java.util.HashMap<>(Map.of("PROBE", "frame"));
+        LaunchSource.probe(chosen);
+        assertEquals(Map.of("PROBE", "frame"), chosen, "the caller's choice stands");
+    }
+
+    @Test
     void theChildIsTheOneInItsTreeThatAdvertisesALink() {
         Discovery.Entry stranger = app("demo", 10, "tcp:1");
         Discovery.Entry noLink = app("demo", 20, null);

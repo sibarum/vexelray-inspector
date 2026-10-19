@@ -18,8 +18,8 @@ parked with a 200 ms budget, so the balance wheel rests and the plaque says so.*
 
 ## Status
 
-**Milestone 1, first light.** It inspects a running VexelRay application live, through the application's Inspector
-link, or it plays a recording.
+**Milestone 1, first light, and the first of M3: the bus.** It inspects a running VexelRay application live, through
+the application's Inspector link, or it plays a recording.
 
 | Works | Not yet |
 | --- | --- |
@@ -30,9 +30,12 @@ link, or it plays a recording.
 | **Launch**: `--launch <command>` starts an application with automation on, attaches to it once its discovery file advertises a link, and stops it (and everything under it) when the Inspector closes or attaches elsewhere | |
 | **A gap is not made up**: rows the stream lost are counted, nothing is measured across them, and the first frame after says `MISSED BEATS` | |
 | **A gap no park covers is a stall**: when the loop was silent more than 100 ms beyond the park's budget (`csvview --gaps`' rule), the plaque says `STALL · #7 · 1.50 s` in ruby and the readouts count them; a gap the stream lost is never one | |
-| **Replay** of a probe CSV at its recorded pace, looping, faster or slower | Reading the other lanes (M2 on) |
+| **Replay** of a probe CSV at its recorded pace, looping, faster or slower. `samples/bus-burst.csv` is made up: 1,000 messages in 20 ms, then 6,000 a second for a second | Reading the other lanes (M2 on) |
+| **The bus**: a belt per topic and a bead per message, gold from the main thread and steel from others; a pumped mailbox's depth and drops at the end of its belt | Which subscriber took each message, and the topology: the atchung tap and registry (roadmap M3) |
+| **The show clock**: the whole movement is shown a little late; a burst is stretched up to ten times within 200 ms of slack, lag past the slack is caught up with messages playing together, and quiet is skipped, so it is never more than 400 ms behind. The **governor** says how fast and how far behind; it rests at real time | A real-time ruler along the belts, so a stretched burst still reads as its true length |
+| **The combo counter** counts a burst message by message in real time while the beads play it slowly, holds the total (`6,000!`), and says `NEW RECORD` when it beats the run's biggest | A record per build, kept in the history |
 | **History by build**: every live run of an application whose build is known is kept (frames, frame time p50/p95/p99, stalls, rows lost, parks), keyed by its exact source and its stack's, and the strip under the movement compares this build with the ones before | Saying, at a glance, that this build is worse than the last (M8's rules) |
-| 55 tests, none of which needs a window; one builds the real tree headless, one streams from a real link, one launches a real child and stops it | |
+| 69 tests, none of which needs a window; one builds the real tree headless, one streams from a real link, one launches a real child and stops it, and the show clock is played against made-up bursts and storms and the recorded sample | |
 
 ## Run it
 
@@ -70,21 +73,24 @@ lane; that its `seq` starts at 3297 rather than 1 is the trim, not loss.
 
 ## How it is put together
 
-The flow is one line: **source → escapement → window**.
+The flow is one line: **source → show → window**. `Show` measures each row as it arrives and shows it when the show
+clock reaches it.
 
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this application builds**, one `@Provides` per part: the first source, the switch in front of it, the picker, the window, the escapement, and the start. `InspectorAppWiring` is generated from it. |
 | `rows/` | **the rows, with no `Gui` in them.** `Row` is the `correlations.csv` schema plus the stream's `frame` column. `RowFormat` reads a line (RFC 4180 quoting, a header row naming the columns, torn lines skipped and counted). `RowSource` is the seam: `ReplaySource` plays a file at its recorded pace, `LinkSource` streams a running application over its Inspector link (`LinkClient`, from `vexelray-gui-inspector-link`), and `LaunchSource` starts one and then streams it the same way. `Sources` stands in front of whichever is current, and is the one place the source changes. `Attach` says which running applications `--attach` and the picker offer, from `Discovery.live()`. |
 | `Picker.java` | the running applications to choose from, read from the discovery folder every second on the offload lane, while nothing is being inspected. |
-| `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. |
+| `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. `ShowClock` is the time the movement is shown at: real time, stretched for bursts within its slack, caught up past it. `Pending` is the ring between the source's thread and the timeline. `BeadPool` is the fixed set of beads in flight; a message closer than a bead's width to the last on its belt rides on that bead. `Combo` finds bursts and counts them in real time. `BusRows` says what the `bus` lane's rows mean. |
 | `history/` | **every run kept, by build.** `Build` is what an application advertises in its discovery file: coordinates, its exact source (commit, plus `+dirty.<digest>` of uncommitted changes) and a digest of every stamped stack part, so two runs are one build only if all of it matches. `Session` measures a run from the escapement's beats; `History` keeps one CSV line per run in `~/.vexelray-inspector/history/<group>/<artifact>.csv` and sums runs per build; `Recorder` (behind `Runs`) begins and ends runs as sources switch. A replay, or an application built without `vexelray-build-maven-plugin`, is shown and not kept. |
 | `Ui.java` | the window: the movement beside its readouts, the build strip under them, and a status line. The escapement's listener, so everything shown is derived from one `Beat`. |
+| `Show.java` | **where the rows go.** Measured at once by the escapement the history keeps; released on the show clock to the escapement the window shows and to the bus, every frame there is something to show and no frame after. |
+| `BusView.java` | the bus on screen: belts, beads, mailboxes, the governor and the combo counter. |
 | `Movement.java` | the escapement on screen, and its animation. |
 | `Parts.java` | the parts, drawn: plate, balance wheel, pallet fork, escape wheel, balance cock. |
 
 `Inspector.java` is the entry point and its constants. `Look.java` and `Landmarks.java` are the vocabularies: colour,
-and the names an automation script may depend on (`movement`, `balance`, `plaque`, `readout.*`).
+and the names an automation script may depend on (`movement`, `balance`, `plaque`, `readout.*`, `bus.*`).
 
 ### How the clockwork is drawn
 
@@ -98,7 +104,9 @@ colours rather than theme roles: a movement is gold, steel and ruby in any theme
 
 ### Threads
 
-Whichever source is current delivers on a thread of its own, and the escapement and the window's listener run there.
+Whichever source is current delivers on a thread of its own. There `Show` measures each row at once, with the
+escapement the history keeps and the combo counter, and puts it in `Pending`, a ring that never makes the timeline
+wait. The timeline releases it as the show clock reaches it, to the escapement the window shows and to the bus.
 
 - **A replay** delivers on `inspector-replay`, a platform thread that spends nearly all its time parked.
 - **A live source** connects on `inspector-link`, which ends once the stream is open. The rows then arrive on
@@ -107,11 +115,15 @@ Whichever source is current delivers on a thread of its own, and the escapement 
 - **A launch** starts the child on `inspector-launch`, which waits for its discovery file, starts the live source and
   ends. `inspector-launch-output` reads the child's output into the log for as long as the child runs.
 - **The picker** reads the discovery folder on the offload lane, asked by a one-second timer on the timeline.
+- **The show** runs on the timeline, inside the frame, every frame there is something to show: a `KronoGui.ramp` re-armed
+  while anything is waiting, moving or behind, and left to end when nothing is, so an idle target leaves the Inspector
+  idle. It takes no lock. The beads are a fixed pool of nodes moved with `translate`, so nothing is allocated per bead;
+  the readouts and the combo counter still format a string when they change (docs/TODO.md).
 - **The history** is fed beats on the source's thread. It reads and writes its files on the offload lane, and it
   writes the run in progress on the closing thread when the Inspector closes, because the lanes stop then.
 
-A prop written off the GUI thread is applied by the next drain. The swing is moved onto the timeline
-(`KronoGui.onTimeline`), so the angles are only ever touched there. Nothing runs inside the frame loop.
+A prop written off the GUI thread is applied by the next drain. The swing runs on the timeline too
+(`KronoGui.onTimeline`), so the angles are only ever touched there.
 
 ## Automation
 

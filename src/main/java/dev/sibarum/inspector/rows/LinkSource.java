@@ -13,7 +13,7 @@ import java.util.Objects;
  * A running application, live: its Inspector link (vexelray-gui {@code docs/plans/flight-recorder.md} §6), dialled
  * at the endpoint its discovery file advertises.
  *
- * <p>It opens the stream on the {@code frame} lane only, which is everything the escapement reads, and maps each of
+ * <p>It opens the stream on the {@code frame} and {@code bus} lanes, which is everything the movement reads, and maps each of
  * the link's rows onto a {@link Row}, frame stamp included, so {@link Row#presentedFrame()} reads the stamp rather
  * than a {@code frame.present} detail. A range of rows the application lost before a batch arrives as one row of its
  * own, lane {@code stream}, kind {@code lost}, detail {@code a..b}, which the escapement counts.
@@ -27,8 +27,11 @@ import java.util.Objects;
  */
 public final class LinkSource implements RowSource {
 
-    /** The lane read: the escapement's. M2 widens this. */
-    static final List<String> LANES = List.of("frame");
+    /**
+     * The lanes read: the escapement's, and the bus's. A driven run probes only {@code frame,input,layout,app}, so
+     * the bus is empty unless the target was started with {@code -Dprobe=all -Dprobe.format=csv} (FN-4).
+     */
+    static final List<String> LANES = List.of("frame", "bus");
 
     /** The lane of the row that stands for rows the application lost: the stream's own, not the target's. */
     public static final String STREAM = "stream";

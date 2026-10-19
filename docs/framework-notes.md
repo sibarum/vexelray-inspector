@@ -86,3 +86,36 @@ last, so no line is shorter than its thickness.
 **What the framework could do:** extend the box by the radius at both ends (a true capsule, as SVG's
 `stroke-linecap="round"` is, which is also what `SvgSink` would have to match), or document that caps are inside
 and say so on `Sketch.line` and `polyline`.
+
+## FN-4 · A driven run does not probe the bus 🔬
+
+The Inspector's bus conveyors read the `bus` lane: one span per publish, and pumped mailboxes' depth, drops and
+batches (atchung `Atchung.publish`, `PumpedReg`, `Pump`). A launch with `--automation` turns the probe on, but with
+`frame,input,layout,app` only (atchung `LogConfig`, `LogConfigTest.aDrivenRunIsTheLoudestAndTurnsTheProbeOn`), so
+an application attached to from the picker sends no bus rows at all. Measured on the calculator demo: none with
+`-Dautomation=0`, 191 in 0.45 s with `-Dprobe=all -Dprobe.format=csv` added.
+
+Worked around twice. `--launch` starts its child with `PROBE=frame,input,layout,app,bus` and `PROBE_FORMAT=csv` in
+the child's environment, unless the caller set `PROBE` (`LaunchSource.probe`). An application attached to from the
+picker can't be changed, so the bus panel names the flags when a run has 120 frames and no bus rows. One more snag
+found on the way: `-Dprobe=all` on its own turns off the driven run's CSV tracing, and an untraced probe gives the
+ring nothing but slow rows, not even frames. Both flags are needed, and two flags do not fit in one `-Dapp.jvmArgs`
+word through a launch, which is why the launch uses the environment.
+
+**What the framework could do:** add `bus` to a driven run's lanes. A publish row is one span on the publisher's
+thread, which the flight recorder already budgets for; the cost is worth measuring against the gui demo before
+deciding, and the default is atchung's call.
+
+## FN-5 · Every colour change fades, and a node cannot say it should not 🔬
+
+A bead on the bus is gold when the main thread published its message and blued steel when another thread did. The
+beads are a fixed pool of nodes, so a node changes colour when it is given to a message from another thread. The
+shell installs a `PaintMotion` (`Fades`), which fades every background, border and text colour change on every node.
+That's right for a hover, and wrong here: a steel bead started its crossing as a gold one fading to steel over its
+first ~100 ms, so a storm from a worker thread showed its newest beads as a gold-to-steel gradient.
+
+Worked around in `BusView`: each bead holds two dots, one of each colour, and shows one by opacity, which is a visual
+transform and does not fade. Twice the nodes for the beads.
+
+**What the framework could do:** let a node opt out of paint motion (`node.paintMotion(false)`, or a `Role` that
+cuts), for a part whose colour is data rather than state.

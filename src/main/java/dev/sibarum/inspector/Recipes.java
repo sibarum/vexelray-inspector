@@ -123,12 +123,12 @@ final class Recipes {
     }
 
     /**
-     * The main loop's state, read from the rows; it tells the window, and the history beside it. Where the rows go, so
-     * it is a {@link RowSink}.
+     * Where the rows go ({@link Show}): measured as they arrive, by an escapement whose beats the history keeps; and
+     * shown on the show clock, by an escapement the window shows and by the bus's beads, released together.
      */
     @Provides
-    RowSink escapement(Ui ui, Runs runs) {
-        return new Escapement(Escapement.Listener.both(ui, runs));
+    RowSink escapement(KronoGui krono, Ui ui, Runs runs) {
+        return new Show(krono, new Escapement(runs), new Escapement(ui), ui.bus());
     }
 
     /**

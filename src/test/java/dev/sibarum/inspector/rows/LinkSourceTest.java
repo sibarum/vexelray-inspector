@@ -83,7 +83,7 @@ class LinkSourceTest {
     }
 
     @Test
-    void liveFrameRowsArriveStampedAndTheOtherLanesStayHome() throws Exception {
+    void liveFrameRowsArriveStampedAndUnreadLanesStayHome() throws Exception {
         Recorder ring = linked();
         Heard heard = new Heard();
         source = new LinkSource(link.endpoint(), "demo (pid 1)");
@@ -91,14 +91,14 @@ class LinkSourceTest {
         await(() -> heard.events.contains("begin demo (pid 1), live"), "the run to begin");
         Thread.sleep(50);     // the stream is opened after begin; let it open before rows are written
         ring.row(1, 1_000_000, 1_792_278_599_195_946_000L, "main", Lane.FRAME, "frame.present", "#7");
-        ring.row(2, 2_000_000, 1_792_278_599_196_946_000L, "main", Lane.BUS, "vexelray.gui.mutations", "1");
+        ring.row(2, 2_000_000, 1_792_278_599_196_946_000L, "main", Lane.GPU, "submit", "1");
         ring.row(3, 3_000_000, 1_792_278_599_197_946_000L, "main", Lane.FRAME, "loop.park", "forever");
         await(() -> heard.rows.size() >= 2, "two frame rows");
         Row present = heard.rows.getFirst();
         assertEquals(new Row(1, 1_000_000, "2026-10-17T23:09:59.195946Z", "main", "frame", "frame.present", "#7", 7),
                 present);
         assertEquals(7, present.presentedFrame(), "the stamp, not the detail");
-        assertEquals("frame loop.park forever", heard.events.get(2), "and the bus row never came");
+        assertEquals("frame loop.park forever", heard.events.get(2), "and the gpu row never came");
     }
 
     @Test

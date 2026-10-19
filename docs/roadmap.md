@@ -234,6 +234,15 @@ cost.
 - Trace one input end to end: tactroller → `InputPublisher` → `InputDispatcher` → route → handler → mutation → frame.
 - Port: `bus`, after the atchung topic registry and tap land.
 
+**Started 2026-10-19: beads, and time that bends.** A belt per topic and a bead per message, from the probe's `bus`
+lane, which already has a span per publish and pumped mailboxes' depth and drops. The whole movement is shown on a
+*show clock*: up to 200 ms behind real time, so a burst can be stretched up to ten times (1,000 messages in 20 ms
+play over most of 200 ms), with lag past that caught up by messages playing together and quiet skipped. A governor
+says how fast and how far behind; a combo counter counts each burst in real time, message by message, and says when
+a burst sets a record. Measured on a made-up 6,000-a-second storm: the lag holds under 200 ms at real speed.
+**Next:** a real-time ruler along the belts; records per build; then the topology and the subscriber of each message
+once the atchung tap lands.
+
 ### M4 — Time
 
 - The pinned cylinder: live shreds and their states (the SPORK…END trace), scheduled entries, effects and their

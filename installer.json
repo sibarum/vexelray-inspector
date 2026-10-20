@@ -3,7 +3,7 @@
   "name": "VexelRay Inspector",
   "publisher": "sibarum",
   "description": "DevTools for VexelRay applications, drawn as clockwork: attach to a running app and watch its frame loop beat, park and stall.",
-  "version": "0.1.1-SNAPSHOT",
+  "version": "0.1.1",
 
   "repo": "sibarum/vexelray-dist",
   "branch": "main",

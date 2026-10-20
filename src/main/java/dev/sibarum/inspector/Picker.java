@@ -49,8 +49,9 @@ final class Picker {
         this.krono = krono;
         this.onPick = onPick;
         this.list = gui.column().gap(Length.rem(0.5f));
-        this.empty = gui.text("No VexelRay application is running with its automation socket on.\n"
-                        + "Start one with -Dautomation=0 (or --automation=0), and it appears here.")
+        this.empty = gui.text("No VexelRay application is running in debug mode.\n"
+                        + "Choose Restart in debug mode from its title bar's plug,\n"
+                        + "or start it with --automation=0.")
                 .textSize(Length.rem(0.85f)).textColor(gui.theme().color(Role.FAINT));
         this.node = gui.column()
                 .width(Length.rem(34))

@@ -11,6 +11,13 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] **The recorder's own cost**, shown from day one (roadmap M1). The link's `Snap` carries the loop and ring
       counters but no cost yet, and `LinkSource` does not read snapshots: both ends need it.
 
+## Restart in debug mode
+
+- [ ] **Follow a restart**: an Inspector attached to an application that restarts (into or out of a debug run) says
+      `went away` and shows the picker, and *Restart in debug mode* opens a second Inspector. The old one should
+      follow the new process instead. The discovery file would have to say which pid a run replaces (it has
+      `--restart.after=<pid>`, and does not write it down), so this needs a `replaces=` fact upstream first.
+
 ## The bus (M3)
 
 - [ ] **See a declared graph live**: no application declares `@Subscribe`/`@Publishes` yet, so the circuit has only

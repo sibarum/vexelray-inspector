@@ -47,6 +47,13 @@ mvn compile exec:exec "-Dapp.args=--replay=samples/calculator.csv"
 opens on the picker. The picker lists every VexelRay application running with its automation socket on, read from
 the discovery files in `~/.vexelray/automation/`. Choose one, and the escapement follows it live.
 
+**From the application, one click.** Any application on the framework has a plug in its title bar. *Restart in debug
+mode* restarts it with its sockets on and the probe armed from frame 0, and opens this Inspector already attached
+(`--attach=pid:<n>`). The application starts it as `vexelray-inspector`, which the installer puts on the path. From a
+checkout, set `VEXELRAY_INSPECTOR` in the application's environment first:
+`mvn.cmd -q -f <this checkout>/pom.xml compile exec:exec "-Dapp.args={attach}"`. A debug run wears a bug in place of
+the plug, and its menu has *Restart without debugging*.
+
 ```
 mvn compile exec:exec "-Dapp.args=--attach=calculator-vexel-demo"         # straight to a running application
 mvn compile exec:exec "-Dapp.args=--attach=pid:18292"                      # one process, when several share a name

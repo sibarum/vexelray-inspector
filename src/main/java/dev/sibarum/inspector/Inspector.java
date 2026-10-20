@@ -27,7 +27,7 @@ import dev.vexelray.framework.shell.VexelApplication;
  *                                 rest of the line (or one quoted --launch="..." value)
  * Inspector --attach=demo         a running application, live, through its Inspector link
  * Inspector --attach=pid:18292    one process, when several share a name
- * Inspector                       the picker: every application running with its automation socket on
+ * Inspector                       the picker: every application running with its automation socket on (a debug run)
  * Inspector --key=value           override a setting for this launch
  * </pre>
  *

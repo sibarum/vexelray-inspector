@@ -5,3 +5,4 @@ capture*.png
 *.iml
 .vscode/
 .vex/
+.claude/

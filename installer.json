@@ -22,5 +22,18 @@
       },
       { "name": "notices", "source": "THIRD-PARTY-NOTICES.txt" }
     ]
+  },
+
+  "linux": {
+    "binaries": [
+      {
+        "name": "vexelray-inspector",
+        "source": "target-linux/vexelray-inspector",
+        "icon": "src/main/rc/vexelray-inspector.ico",
+        "addToPath": true,
+        "shortcuts": { "desktop": true, "startMenu": true, "label": "VexelRay Inspector" }
+      },
+      { "name": "notices", "source": "THIRD-PARTY-NOTICES.txt" }
+    ]
   }
 }

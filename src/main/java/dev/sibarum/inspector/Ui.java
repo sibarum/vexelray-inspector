@@ -47,9 +47,11 @@ final class Ui implements Escapement.Listener {
         this.bus = new CircuitView(gui, graph);
         this.picker = picker;
 
-        // Two columns of four, so the panel is no taller than the movement and the circuit fits under them.
-        Node left = gui.column().width(Length.rem(13.5f)).gap(Length.rem(0.6f));
-        Node right = gui.column().width(Length.rem(14.5f)).gap(Length.rem(0.6f));
+        // Two columns of four, so the panel is no taller than the movement and the circuit fits under them. Each is
+        // fixed and wide enough for its longest value on one line (#12345  (12345 seen), rested 12.3 ms of forever,
+        // vexelray-caret-blink), so the panel keeps its shape while the values change under it.
+        Node left = gui.column().width(Length.rem(14.5f)).gap(Length.rem(0.6f));
+        Node right = gui.column().width(Length.rem(19.5f)).gap(Length.rem(0.6f));
         Node readouts = gui.column()
                 .gap(Length.rem(0.6f))
                 .padding(Length.rem(1.0f))
@@ -115,9 +117,10 @@ final class Ui implements Escapement.Listener {
         return bus;
     }
 
-    /** A name over a value; returns the value. */
+    /** A name over a value, which never wraps: a longer one is cut at the column's edge; returns the value. */
     private static Node readout(Gui gui, Node into, String name, String landmark) {
-        Node value = gui.text("—").font("mono").textSize(Length.rem(1.15f)).textColor(gui.theme().color(Role.INK));
+        Node value = gui.text("—").font("mono").textSize(Length.rem(1.15f)).textColor(gui.theme().color(Role.INK))
+                .wordWrap(false);
         gui.landmark(landmark, value);
         into.append(gui.column().gap(Length.rem(0.15f)).children(
                 gui.text(name).textSize(Length.rem(0.75f)).textColor(gui.theme().color(Role.FAINT)),

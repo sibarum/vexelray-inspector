@@ -31,26 +31,24 @@ final class Landmarks {
     /** This application's builds under the movement; each line is {@code history.<n>}, newest first. */
     static final String HISTORY = "history";
 
-    /** The bus panel: the circuit, the governor and the combo. */
-    static final String BUS = "bus";
+    /** The component graph's panel: the board, the governor and the flow table. */
+    static final String GRAPH = "graph";
 
-    /** The circuit board: chips, traces and electrons. */
-    static final String BOARD = "bus.board";
+    /** The board: the parts, the arrows between them and the messages on the arrows. */
+    static final String GRAPH_BOARD = "graph.board";
 
-    /** Each mailbox's pin on the board is {@code bus.pin.<class#method>}. */
-    static final String BUS_PIN = "bus.pin";
+    /** Each part's box is {@code graph.part.<key>}: {@code graph.part.input}, {@code graph.part.component.physics}. */
+    static final String GRAPH_PART = "graph.part";
 
-    /** Why the circuit shows no traffic, when there is a reason. */
-    static final String BUS_HINT = "bus.hint";
+    /** The flow table; each row is {@code graph.flow.<n>}, in the order the flows were first seen. */
+    static final String GRAPH_FLOWS = "graph.flows";
+    static final String GRAPH_FLOW = "graph.flow";
+
+    /** Why the graph shows no traffic, when there is a reason. */
+    static final String GRAPH_HINT = "graph.hint";
 
     /** How fast show time runs against real time, and how far behind: {@code real time}, {@code ×0.1 · 182 ms behind}. */
-    static final String GOVERNOR = "bus.governor";
-
-    /** The burst being counted, in real time ({@code 1,000}), then its total ({@code 1,000!}). */
-    static final String COMBO = "bus.combo";
-
-    /** Under the combo: {@code NEW RECORD}, or the record to beat. */
-    static final String COMBO_NOTE = "bus.combo.note";
+    static final String GOVERNOR = "graph.governor";
 
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";

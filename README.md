@@ -11,14 +11,15 @@ from its `vexel-desktop` template, and a **framework witness** like Vexplore: th
 - **What is not done**: [docs/TODO.md](docs/TODO.md).
 - **What the framework did to us**: [docs/framework-notes.md](docs/framework-notes.md).
 
-![The escapement at rest, replaying a calculator session](docs/screenshots/resting.png)
+![The component graph and the main loop, replaying a calculator session](docs/screenshots/component-graph.png)
 
-*The calculator demo's main loop, replayed from `samples/calculator.csv`: frame 22 took 3.74 ms, and the loop has
-parked with a 200 ms budget, so the balance wheel rests and the plaque says so.*
+*The calculator demo, replayed from `samples/calculator.csv`. Input devices and Automation send `tactroller.input` to
+the GUI, the app's handlers send it mutations, and the table under the graph names every flow with its rate and its
+total. Host OS and Graphics are drawn faint: nothing they do reaches the bus yet. Under the graph, the main loop.*
 
 ## Status
 
-**Milestone 1, first light, and the first of M3: the bus.** It inspects a running VexelRay application live, through
+**Milestone 1, first light, and M3's component graph.** It inspects a running VexelRay application live, through
 the application's Inspector link, or it plays a recording.
 
 | Works | Not yet |
@@ -31,11 +32,10 @@ the application's Inspector link, or it plays a recording.
 | **A gap is not made up**: rows the stream lost are counted, nothing is measured across them, and the first frame after says `MISSED BEATS` | |
 | **A gap no park covers is a stall**: when the loop was silent more than 100 ms beyond the park's budget (`csvview --gaps`' rule), the plaque says `STALL · #7 · 1.50 s` in ruby and the readouts count them; a gap the stream lost is never one | |
 | **Replay** of a probe CSV at its recorded pace, looping, faster or slower. `samples/bus-burst.csv` is made up: 1,000 messages in 20 ms, then 6,000 a second for a second | Reading the other lanes (M2 on) |
-| **The bus as a circuit**: only declared wiring is drawn ([docs/bus-circuit.md](docs/bus-circuit.md)). Chips are components and publishers, a copper trace per topic runs from every declared publisher to every declared mailbox, and each message is an electron from its sender to each receiver; a pin glows with its mailbox's depth and flashes ruby on a drop. The framework's hand-wired topics are one `framework` chip | Seeing a declared graph live: no application declares one yet. The graph comes from the application over its link (`bus graph`) when a run begins, else from `--bus.graph=<file>` |
-| **The show clock**: the whole movement is shown a little late; a burst is stretched up to ten times within 200 ms of slack, lag past the slack is caught up with messages playing together, and quiet is skipped, so it is never more than 400 ms behind. The **governor** says how fast and how far behind; it rests at real time | A real-time scale on the board, so a stretched burst still reads as its true length |
-| **The combo counter** counts a burst message by message in real time while the electrons play it slowly, holds the total (`6,000!`), and says `NEW RECORD` when it beats the run's biggest | A record per build, kept in the history |
+| **The component graph** ([docs/component-graph.md](docs/component-graph.md)): the application's parts (Host OS, Graphics, Input devices, Automation, GUI subsystem, App logic, and one node per component lane), an arrow for each pair a message has crossed between, kept for the run and as bright as its rate, and a dot per message on it. Under it the **flow table**: every topic from part to part, in the order first seen, with its rate now and its total, so a storm leaves its record after it passes. The sender is read from the thread and the topic, the receivers from named mailboxes or a stand-in table | Host OS and Graphics on the bus (FN-9, FN-10), handler calls as messages (FN-11), measured senders and receivers (FN-7, FN-8). Selecting a flow to hold its last messages |
+| **The show clock**: the whole movement is shown a little late; a burst is stretched up to ten times within 200 ms of slack, lag past the slack is caught up with messages playing together, and quiet is skipped, so it is never more than 400 ms behind. The **governor** says how fast and how far behind; it rests at real time |  |
 | **History by build**: every live run of an application whose build is known is kept (frames, frame time p50/p95/p99, stalls, rows lost, parks), keyed by its exact source and its stack's, and the strip under the movement compares this build with the ones before | Saying, at a glance, that this build is worse than the last (M8's rules) |
-| 75 tests, none of which needs a window; one builds the real tree headless, one streams from a real link, one launches a real child and stops it, and the show clock is played against made-up bursts and storms and the recorded sample | |
+| 77 tests, none of which needs a window; one builds the real tree headless, one streams from a real link, one launches a real child and stops it, and the show clock is played against made-up bursts and storms and the recorded sample, and the graph reads the recorded sample | |
 
 ## Run it
 
@@ -88,17 +88,18 @@ clock reaches it.
 | `Recipes.java` | **what this application builds**, one `@Provides` per part: the first source, the switch in front of it, the picker, the window, the escapement, and the start. `InspectorAppWiring` is generated from it. |
 | `rows/` | **the rows, with no `Gui` in them.** `Row` is the `correlations.csv` schema plus the stream's `frame` column. `RowFormat` reads a line (RFC 4180 quoting, a header row naming the columns, torn lines skipped and counted). `RowSource` is the seam: `ReplaySource` plays a file at its recorded pace, `LinkSource` streams a running application over its Inspector link (`LinkClient`, from `vexelray-gui-inspector-link`), and `LaunchSource` starts one and then streams it the same way. `Sources` stands in front of whichever is current, and is the one place the source changes. `Attach` says which running applications `--attach` and the picker offer, from `Discovery.live()`. |
 | `Picker.java` | the running applications to choose from, read from the discovery folder every second on the offload lane, while nothing is being inspected. |
-| `circuit/` | **the bus as declared, with no `Gui` in it.** `BusGraph` reads the declared graph (docs/bus-circuit.md). `Layout` places it as a backplane: chips in two columns ordered by flow, a trunk per topic between them, and a path from every sender (or the trunk, when the sender is not certain) to every mailbox. `Messages` reads the bus lane against it: `enqueue` rows say where a message went, the publishing thread says who sent it. |
-| `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. `ShowClock` is the time the movement is shown at: real time, stretched for bursts within its slack, caught up past it. `Pending` is the ring between the source's thread and the timeline. `BeadPool` is the fixed set of electrons in flight; one closer than a dot's width to the last on its path rides on that dot. `Combo` finds bursts and counts them in real time. `BusRows` says what the `bus` lane's rows mean. |
+| `graph/` | **the component graph as state, with no `Gui` in it** (docs/component-graph.md). `Graph` keeps the parts and every flow this run: one topic from one part to another, its total and a rate held over about a second. `Senders` says which part sent a message, from its thread and topic; `Receivers` is the stand-in table of who receives a topic when no named mailbox says so. |
+| `circuit/` | **the declared bus graph.** `BusGraph` reads it (docs/bus-circuit.md); the component graph uses it to name each component lane and place its mailboxes. |
+| `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. `ShowClock` is the time the movement is shown at: real time, stretched for bursts within its slack, caught up past it. `Pending` is the ring between the source's thread and the timeline. `BeadPool` is the fixed set of message dots in flight; one closer than the gap to the last on its arrow rides on that dot. `BusRows` says what the `bus` lane's rows mean. |
 | `history/` | **every run kept, by build.** `Build` is what an application advertises in its discovery file: coordinates, its exact source (commit, plus `+dirty.<digest>` of uncommitted changes) and a digest of every stamped stack part, so two runs are one build only if all of it matches. `Session` measures a run from the escapement's beats; `History` keeps one CSV line per run in `~/.vexelray-inspector/history/<group>/<artifact>.csv` and sums runs per build; `Recorder` (behind `Runs`) begins and ends runs as sources switch. A replay, or an application built without `vexelray-build-maven-plugin`, is shown and not kept. |
-| `Ui.java` | the window: the movement beside its readouts, the build strip under them, and a status line. The escapement's listener, so everything shown is derived from one `Beat`. |
-| `Show.java` | **where the rows go.** Measured at once by the escapement the history keeps; released on the show clock to the escapement the window shows and to the bus, every frame there is something to show and no frame after. |
-| `CircuitView.java` | the bus on screen: the board, the electrons, the pins, the governor and the combo counter. |
+| `Ui.java` | the window: the component graph, the movement beside its readouts under it, the build strip, and a status line. The escapement's listener, so everything the main loop shows is derived from one `Beat`. |
+| `Show.java` | **where the rows go.** Measured at once by the escapement the history keeps; released on the show clock to the escapement the window shows and to the graph, every frame there is something to show and no frame after. |
+| `GraphView.java` | the component graph on screen: the parts, the arrows, the message dots, the flow table and the governor. |
 | `Movement.java` | the escapement on screen, and its animation. |
 | `Parts.java` | the parts, drawn: plate, balance wheel, pallet fork, escape wheel, balance cock. |
 
 `Inspector.java` is the entry point and its constants. `Look.java` and `Landmarks.java` are the vocabularies: colour,
-and the names an automation script may depend on (`movement`, `balance`, `plaque`, `readout.*`, `bus.*`).
+and the names an automation script may depend on (`movement`, `balance`, `plaque`, `readout.*`, `graph.*`).
 
 ### How the clockwork is drawn
 
@@ -113,8 +114,8 @@ colours rather than theme roles: a movement is gold, steel and ruby in any theme
 ### Threads
 
 Whichever source is current delivers on a thread of its own. There `Show` measures each row at once, with the
-escapement the history keeps and the combo counter, and puts it in `Pending`, a ring that never makes the timeline
-wait. The timeline releases it as the show clock reaches it, to the escapement the window shows and to the bus.
+escapement the history keeps, and puts it in `Pending`, a ring that never makes the timeline
+wait. The timeline releases it as the show clock reaches it, to the escapement the window shows and to the graph.
 
 - **A replay** delivers on `inspector-replay`, a platform thread that spends nearly all its time parked.
 - **A live source** connects on `inspector-link`, which ends once the stream is open. The rows then arrive on
@@ -125,8 +126,8 @@ wait. The timeline releases it as the show clock reaches it, to the escapement t
 - **The picker** reads the discovery folder on the offload lane, asked by a one-second timer on the timeline.
 - **The show** runs on the timeline, inside the frame, every frame there is something to show: a `KronoGui.ramp` re-armed
   while anything is waiting, moving or behind, and left to end when nothing is, so an idle target leaves the Inspector
-  idle. It takes no lock. The electrons are a fixed pool of nodes moved with `translate`, so nothing is allocated per message;
-  the readouts and the combo counter still format a string when they change (docs/TODO.md).
+  idle. It takes no lock. The message dots are a fixed pool of nodes moved with `translate`, so nothing is allocated per message;
+  the readouts and the flow table still format a string when they change (docs/TODO.md).
 - **The history** is fed beats on the source's thread. It reads and writes its files on the offload lane, and it
   writes the run in progress on the closing thread when the Inspector closes, because the lanes stop then.
 

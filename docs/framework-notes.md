@@ -138,3 +138,93 @@ a running application:
 handed to `BusGraph.declare`), atchung names pumped mailboxes and writes `enqueue`, `deliver` and `drop` rows for
 named ones, and vexelray-gui serves the graph as `bus graph`. Landed 2026-10-19: atchung `9f17ce2`, vexelray-gui `6a1a52e`, vexelray-framework `0e8f79f` and `c1140fa`. The
 Inspector asks `bus graph` over the link when a run begins; a replay uses `--bus.graph=<file>`.
+
+## FN-7 · The bus cannot say who receives a message 🔬
+
+The component graph (docs/component-graph.md) draws an arrow from the part that sent a message to each part that
+received it. Surveyed on 2026-10-21, the receivers are out of reach for all but one kind of subscription:
+
+- **A subscription has no owner.** atchung's `Reg`, `InlineReg`, `AsyncReg` and `PumpedReg` carry no name and no
+  part. `Atchung.registry` is private; the only public question is `subscriberCount(topic)`. There is no list of
+  topics or subscribers and no tap.
+- **Only a named pumped mailbox writes a row per delivery** (`enqueue`, `deliver`, `drop`; FN-6). Those are the
+  framework's `@Subscribe` mailboxes. Every subscription the framework wires by hand is unnamed:
+  `InputDispatcher`'s and `KronoInput`'s on `tactroller.input`, the reconciler's on `vexelray.gui.mutations`, and
+  `Gui`'s on `vexelray.gui.navigate`. Inline and async deliveries write nothing at all.
+
+Worked around in `graph/Receivers`: a stand-in table from topic to receiving part, written from the survey, used
+when a publish enqueued to no named mailbox. A topic not in it is shown with `?` as its receiver.
+
+**What atchung could do:** take an owner at subscribe (`subscribe(Owner, topic, ...)`, where an owner is a part:
+`host`, `graphics`, `input`, `automation`, `gui`, `app` or `component:<lane>`, plus a name), keep the existing forms
+as `Owner.UNKNOWN`, and:
+
+- answer a `bus subscribers` verb over the link and the automation socket, one line per subscription:
+  `subscriber <name> part=<part> topic=<topic> type=<payload> mode=inline|async|pumped overflow=<policy> capacity=<n>`;
+- write `deliver <name> <count>` for every owned subscription, inline and async included, on the thread that
+  delivers, while the probe is on. The named mailboxes' rows do not change.
+
+## FN-8 · A publish names its thread, not its sender 🔬
+
+A publish row is the topic and the publishing thread (`Atchung.java:99`, `Probe.java:385`), and nothing else says who
+sent it. The graph reads the sender from the thread and the topic (docs/component-graph.md), which is right for a
+component's lane and a handler, and a guess on the main thread: a mutation written by the application's own code there
+is counted as the GUI's. Automation is worse off: it publishes the same `InputEvent`s on the same `tactroller.input`
+as a real device (`Cursor.java:253`, `Automation.java:697,718,934`), so only its thread (`vexelray-automation-<n>`)
+tells the two apart.
+
+Worked around in `graph/Senders`: the thread-and-topic rules in docs/component-graph.md.
+
+**What atchung and the framework could do:** a publish handle per owner (`bus.publisher(Owner)`, the "publish handle
+per component" bus-circuit.md §3 left out of version 1), with the generated wiring handing each component and each
+`Ui` its own. A publish through a handle writes `sent <name> <topic>` on the bus lane before its span. The automation
+server publishes through its own handle, so its input is automation by what the row says.
+
+## FN-9 · The host's window events are not on the bus 🔬
+
+Nothing the operating system tells the application is a message. Surveyed on 2026-10-21: `vexelray-os` does not import
+atchung, and `NativeWindow` is polled. Close is `pumpEvents()` returning false (`GuiWindow.java:263`). Resize is
+the width and height read each frame and handed to `gui.frame(w, h)` (`GuiWindow.java:303,488`), with live resize on
+a callback (`setFrameSink`). Focus for the loop's policy, and minimise, maximise and fullscreen, are polled
+(`GuiApp.java:1632`, `GuiWindow.java:271,340`). Display scale is not reported at all (NativeWindow gap E4).
+Clipboard is direct calls. No application reads STDIN. The one host fact on the bus is focus, and that arrives as
+tactroller input (`InputEvent.FocusChanged`).
+
+Worked around: not at all. The graph draws the Host OS node and its arrow to the GUI dashed, labelled with this
+note.
+
+**What vexelray-gui could do:** publish on change, on the loop's thread, from the polls it already makes:
+`vexelray.host.resized` (width, height), `vexelray.host.close.requested`, `vexelray.host.focus`, `vexelray.host.state`
+(normal, minimised, maximised, fullscreen) and `vexelray.host.scale` once `NativeWindow` reports it. The framework
+shell could offer `vexelray.host.stdin` (one message per line), read only while something subscribes. A publish with
+no subscribers is a count (`Atchung.java:93`), so an application that listens to none of them pays almost nothing.
+
+## FN-10 · Graphics events are not on the bus in a GUI application 🔬
+
+`EngineEvents` (`vexelray-engine-api/.../EngineEvents.java:61-98`) declares seven topics (run started and ended, frame
+started, resized, technique realised and closed, device lost), but they are published only by
+`VexelEngine.run(pipeline, bus, cb)`, which only Fathom calls. `GuiApp` and every framework application never publish
+them. What the presenters do (present, the DXGI copy and present, fence waits, swapchain rebuilds) is probe rows on the
+`gpu` lane (`WindowedPresenter.java:577,620,928`, `DxgiPresenter.java:213`), not messages. Compute results travel
+through rings and states, not the bus.
+
+Worked around: not at all. The graph draws the Graphics node and its arrow to the GUI dashed, labelled with this
+note.
+
+**What vexelray-gui and vexelray could do:** publish `EngineEvents` on the GUI app's path too, and add
+`vexelray.gpu.presented` (frame, latency), `vexelray.gpu.swapchain.rebuilt` and `vexelray.gpu.device.lost` from the
+presenters, on their thread. As with FN-9, no subscriber means only a count.
+
+## FN-11 · A handler call is not a message 🔬
+
+The arrow that matters most in an application is the GUI reaching the application's code: a click calling its
+handler. The dispatcher runs handlers by `handlerExecutor.execute(...)` (`InputDispatcher.java`, near line 1932) on
+the handler pool (`vexel-handler-<n>`), with no bus message and no row. So the graph sees handlers only by what they
+send back (mutations from `vexel-handler-<n>`), never by what reached them.
+
+Worked around: the graph draws GUI → App logic dashed, labelled with this note.
+
+**What vexelray-gui could do:** write `call <event> <node>` on the bus lane at the hand-off, on the GUI thread, where
+`<event>` is the input's kind (`click`, `key`, `drag`) and `<node>` the target's landmark or id. The handler's own
+rows then follow on its thread. If handlers become subscriptions with owners (FN-7), the row is that subscription's
+`deliver`.

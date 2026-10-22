@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The bus's rows read, the ring between source and timeline, the bead pool, and bursts counted. */
+/** The bus's rows read, the ring between source and timeline, and the bead pool. */
 class BusModelTest {
 
     private static final long MS = 1_000_000L;
@@ -100,32 +100,6 @@ class BusModelTest {
         assertTrue(c != a, "past the gap: a bead of its own");
         assertEquals(1, pool.weight(c));
         assertEquals(3, pool.count());
-    }
-
-    @Test
-    void aBurstIsCountedMessageByMessageAndARecordIsABurstThatBeatsTheLast() {
-        Combo combo = Combo.standard();
-        for (int i = 0; i < 5; i++) {
-            combo.event(i * 100 * MS);      // two a second: no burst
-        }
-        assertEquals(0, combo.bursts());
-        long t = 1000 * MS;
-        for (int i = 0; i < 1000; i++) {
-            combo.event(t + i * 20_000L);   // 1,000 in 20 ms
-        }
-        assertEquals(1, combo.bursts());
-        assertEquals(1000, combo.count());
-        assertTrue(combo.active(t + 20 * MS));
-        assertFalse(combo.active(t + 200 * MS), "over once the window passes quiet");
-        assertFalse(combo.newRecord(), "the first burst sets the record; it does not beat one");
-        t = 2000 * MS;
-        for (int i = 0; i < 3000; i++) {
-            combo.event(t + i * 10_000L);
-        }
-        assertEquals(2, combo.bursts());
-        assertEquals(3000, combo.count());
-        assertTrue(combo.newRecord());
-        assertEquals(3000, combo.record());
     }
 
     @Test

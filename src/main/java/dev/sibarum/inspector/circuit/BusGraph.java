@@ -10,9 +10,10 @@ import java.util.TreeMap;
 /**
  * An application's declared message graph, as the processor writes it (docs/bus-circuit.md §1, version 1): the chips,
  * the mailboxes on them, and which chip publishes which topic. Only what the code declares; the framework's
- * hand-wired topics are not in it, and are drawn as one {@link #FRAMEWORK} chip.
+ * hand-wired topics are not in it. The component graph uses it to name each component lane and place its mailboxes
+ * (docs/component-graph.md).
  *
- * @param chips     every component and non-component publisher, in the order they are drawn
+ * @param chips     every component and non-component publisher, in the order they were declared
  * @param mailboxes every {@code @Subscribe} method
  * @param publishes every topic each chip declares it publishes
  */
@@ -21,10 +22,7 @@ public record BusGraph(List<Chip> chips, List<Mailbox> mailboxes, List<Publishes
     /** The first line of every graph this reads. */
     public static final String HEADER = "# vexelray bus graph 1";
 
-    /** The chip that stands for everything not declared: the framework's own topics. */
-    public static final String FRAMEWORK = "framework";
-
-    /** No declared graph: only the framework chip will be drawn. */
+    /** No declared graph. */
     public static final BusGraph NONE = new BusGraph(List.of(), List.of(), List.of());
 
     /**

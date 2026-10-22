@@ -49,7 +49,7 @@ public final class Inspector {
 
     /** Window size on a first run, in the engine's logical coordinates. */
     static final int W = 1040;
-    static final int H = 860;
+    static final int H = 940;
 
     /**
      * The mark, from the class path's root: {@code src/main/rc/vexelray-inspector.ico}, which the pom also puts there and
@@ -67,7 +67,7 @@ public final class Inspector {
      * ({@code ottermate --size 51emx35em shot}) is the picture that shows a panel outgrowing it.
      */
     static final float MIN_W_EM = 51;
-    static final float MIN_H_EM = 50;
+    static final float MIN_H_EM = 58;
 
     /**
      * Entry point.

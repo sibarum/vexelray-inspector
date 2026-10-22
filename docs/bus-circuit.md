@@ -40,8 +40,10 @@ them, and the Inspector draws two traces. Order is not meaningful; the processor
 then mailboxes, then `publishes`, each sorted, so that two builds of the same declarations give the same text.
 
 **What it does not hold:** sends that are not declared, subscribers in another compilation unit, and the framework's
-own hand-wired topics (`vexelray.gui.*`, `tactroller.input`, `vexelray.engine.*`). The Inspector draws everything not
-in the graph as one **framework** chip at the edge of the circuit.
+own hand-wired topics (`vexelray.gui.*`, `tactroller.input`, `vexelray.engine.*`). The circuit drew everything not
+in the graph as one **framework** chip at the edge. Since 2026-10-21 the component graph
+([component-graph.md](component-graph.md)) is the bus view: it shows the framework's parts as parts, and uses this
+graph only to name each component lane and place its mailboxes.
 
 ## 2. Where the graph comes from (vexelray-framework)
 

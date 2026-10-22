@@ -18,18 +18,21 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       follow the new process instead. The discovery file would have to say which pid a run replaces (it has
       `--restart.after=<pid>`, and does not write it down), so this needs a `replaces=` fact upstream first.
 
-## The bus (M3)
+## The component graph (M3)
 
-- [ ] **See a declared graph live**: no application declares `@Subscribe`/`@Publishes` yet, so the circuit has only
-      been seen live with the framework chip (the calculator). The framework's components witness answers `bus graph`,
-      but vexelray-framework's acceptance harness is broken on develop (its own TODO); once it runs, launch the witness
-      under `--launch` and look.
-- [ ] **A real-time scale on the board**: a tick every 1 or 10 ms of the target's time, spread apart while a burst is
-      stretched and bunched while the clock catches up, so a stretched burst still reads as its true length.
-- [ ] **Records per build**: keep each run's biggest burst in the history, so `NEW RECORD` can mean "bigger than any
-      run of this build" and a build whose bursts grew is plain from the strip.
-- [ ] **Strings inside the frame**: the show runs on the timeline inside the frame, and the readouts, the governor
-      and the combo counter format a string when they change. Small and bounded, but against the frame-loop rule;
-      digits drawn from a fixed set of glyphs, or text written only on change of the shown value, would remove it.
+- [ ] **Hold a flow's messages**: selecting an arrow or a table row keeps its last messages, with their payloads, on
+      screen until it is let go (docs/component-graph.md, *Not in this slice*).
+- [ ] **More than eight flows**: the table shows eight, and past that its last row only counts the rest. A real
+      application has more; the table needs to scroll, or to fold flows by part.
+- [ ] **Arrows between components hide behind the boxes between them**: the lanes stand in one column, so an arrow
+      from the fourth to the second runs under the third. Lay the column out by flow, or route those arrows round it.
+- [ ] **See it on an application with components, live**: the physics lanes of the rigid and fluid sim demos are real
+      `@Component`s with named mailboxes (no `@Publishes`). Launch one under `--launch` and look. The made-up
+      `samples/circuit-bus.csv` with `samples/circuit-graph.txt` is the only component run seen so far.
+- [ ] **The window is too short for the graph and the movement**: they need about 58em, which is now the minimum,
+      but a window size saved from before (860 px) still opens shorter, and the movement scrolls under the graph.
+- [ ] **Strings inside the frame**: the show runs on the timeline inside the frame, and the readouts, the parts'
+      counts, the flow table and the governor format a string when they change, at most ten times a second. Small and
+      bounded, but against the frame-loop rule; digits drawn from a fixed set of glyphs would remove it.
 - [ ] **`settle` never answers on the Inspector**: the picker's one-second discovery timer keeps the timeline busy,
       so `ottermate settle`, `--size` and `resize` time out (the resize still happens). Scripts wait on landmarks.

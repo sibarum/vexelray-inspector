@@ -249,6 +249,14 @@ graph, as a backplane of chips and copper traces, with each message an electron 
 graph, mailbox names and per-mailbox `enqueue`/`deliver`/`drop` rows are being added upstream (vexelray-framework,
 atchung, vexelray-gui) to a contract written here; until they land the Inspector reads a hand-written graph.
 
+**2026-10-21: the component graph** (docs/component-graph.md) replaces the circuit and the combo counter. The circuit
+drew only declared wiring, and no application declares any, so it showed nothing. The graph shows the application's
+parts (Host OS, Graphics, Input devices, Automation, GUI subsystem, App logic, and each component lane), an arrow for
+each pair a message has crossed between, and a table of every flow with its rate and its total, held for the run.
+Senders are read from the thread and the topic, and receivers from named mailboxes or a stand-in table. Host OS and
+Graphics are not on the bus at all, and handlers are called directly, not by message. Those three, and measured
+senders and receivers, are framework-notes.md FN-7 to FN-11.
+
 ### M4 — Time
 
 - The pinned cylinder: live shreds and their states (the SPORK…END trace), scheduled entries, effects and their

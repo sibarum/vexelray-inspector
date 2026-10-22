@@ -1,7 +1,6 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.clock.BusRows;
-import dev.sibarum.inspector.clock.Combo;
 import dev.sibarum.inspector.clock.Pending;
 import dev.sibarum.inspector.clock.ShowClock;
 import dev.sibarum.inspector.rows.Row;
@@ -18,11 +17,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>Each row goes two ways:
  * <ul>
  *   <li><b>At once, to {@code measure}</b>, on the source's thread: the escapement whose beats the history keeps. A
- *       run is measured as it happened, never as it was shown; and each publish is counted into the
- *       {@link Combo}, which is real time by definition.</li>
+ *       run is measured as it happened, never as it was shown.</li>
  *   <li><b>Into {@link Pending}</b>, released on the timeline as show time reaches it: frame rows to {@code view},
- *       the escapement the window shows, so the balance wheel and the beads share one clock and never disagree
- *       about which frame something happened in; bus rows to the {@link CircuitView}, as electrons.</li>
+ *       the escapement the window shows, so the balance wheel and the graph share one clock and never disagree
+ *       about which frame something happened in; bus rows to the {@link GraphView}, as messages between parts.</li>
  * </ul>
  *
  * <h2>Real time</h2>
@@ -48,10 +46,9 @@ final class Show implements RowSink {
     private final KronoGui krono;
     private final RowSink measure;
     private final RowSink view;
-    private final CircuitView bus;
+    private final GraphView bus;
     private final Pending pending = new Pending(1 << 16);
     private final ShowClock clock = ShowClock.standard();
-    private final Combo combo = Combo.standard();
     private final AtomicBoolean armed = new AtomicBoolean();
 
     // The source's own, read by the timeline.
@@ -65,7 +62,7 @@ final class Show implements RowSink {
     // The timeline's own.
     private long last;
 
-    Show(KronoGui krono, RowSink measure, RowSink view, CircuitView bus) {
+    Show(KronoGui krono, RowSink measure, RowSink view, GraphView bus) {
         this.krono = krono;
         this.measure = measure;
         this.view = view;
@@ -78,7 +75,6 @@ final class Show implements RowSink {
     public void begin(String origin) {
         measure.begin(origin);
         offset = Long.MIN_VALUE;
-        combo.reset();
         frames = 0;
         busRows = 0;
         hinted = false;
@@ -95,9 +91,6 @@ final class Show implements RowSink {
         }
         if (row.lane().equals(BusRows.LANE)) {
             busRows++;
-            if (BusRows.publish(row)) {
-                combo.event(row.monoNanos());
-            }
         } else if (row.kind().equals(Row.FRAME_PRESENT) && ++frames == 120 && busRows == 0 && !hinted) {
             hinted = true;
             bus.hint("no bus rows in 120 frames: the target needs -Dprobe=all -Dprobe.format=csv");
@@ -138,7 +131,7 @@ final class Show implements RowSink {
         }
     }
 
-    /** One frame: move show time on, release what it reached, move the beads. Whether anything is left to show. */
+    /** One frame: move show time on, release what it reached, move the messages. Whether anything is left to show. */
     private boolean step() {
         long now = System.nanoTime();
         long dt = Math.min(LONGEST_FRAME, Math.max(0, now - last));
@@ -163,7 +156,7 @@ final class Show implements RowSink {
                 }
             }
         }
-        boolean moving = bus.frame(now, dt, clock, real == Long.MIN_VALUE ? 0 : real, combo);
+        boolean moving = bus.frame(now, dt, clock, real == Long.MIN_VALUE ? 0 : real, show);
         return moving || !pending.isEmpty() || (real != Long.MIN_VALUE && clock.lag(real) > 0);
     }
 }

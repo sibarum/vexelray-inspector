@@ -85,9 +85,9 @@ final class Recipes {
     }
 
     /**
-     * The bus graph the circuit is drawn from (docs/bus-circuit.md): {@code --bus.graph=<file>}, a hand-written graph
-     * until applications declare theirs over the link. None draws the framework chip alone. A file that is not a
-     * graph stops the start, naming the line.
+     * The declared bus graph (docs/bus-circuit.md), which names the component graph's lanes and places its mailboxes:
+     * {@code --bus.graph=<file>}, for a replay or an application that does not declare its own over the link. A file
+     * that is not a graph stops the start, naming the line.
      */
     private static BusGraph busGraph(String file) {
         if (file.isBlank()) {
@@ -142,11 +142,11 @@ final class Recipes {
 
     /**
      * Where the rows go ({@link Show}): measured as they arrive, by an escapement whose beats the history keeps; and
-     * shown on the show clock, by an escapement the window shows and by the bus's beads, released together.
+     * shown on the show clock, by an escapement the window shows and by the component graph, released together.
      */
     @Provides
     RowSink escapement(KronoGui krono, Ui ui, Runs runs) {
-        return new Show(krono, new Escapement(runs), new Escapement(ui), ui.bus());
+        return new Show(krono, new Escapement(runs), new Escapement(ui), ui.graph());
     }
 
     /**
@@ -178,8 +178,8 @@ final class Recipes {
                 ui.title(now.describe());
                 now.build().ifPresent(runs::look);
                 runs.begin(now.build().orElse(null));
-                // The circuit: the graph the application declares, when it said; else the hand-written one.
-                ui.bus().graph(now.busGraph().map(text -> declared(text, ui)).orElse(fallback));
+                // The component lanes: the graph the application declares, when it said; else the hand-written one.
+                ui.graph().graph(now.busGraph().map(text -> declared(text, ui)).orElse(fallback));
             }
 
             @Override
@@ -196,12 +196,12 @@ final class Recipes {
         return new Started();
     }
 
-    /** An application's declared graph; one that cannot be read is said beside the governor, and none is drawn. */
+    /** An application's declared graph; one that cannot be read is said beside the governor, and none is used. */
     private static BusGraph declared(String text, Ui ui) {
         try {
             return BusGraph.parse(text);
         } catch (BusGraph.Refused e) {
-            ui.bus().hint("its bus graph was refused: " + e.getMessage());
+            ui.graph().hint("its bus graph was refused: " + e.getMessage());
             return BusGraph.NONE;
         }
     }

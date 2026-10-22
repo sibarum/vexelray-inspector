@@ -15,8 +15,8 @@ import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
 /**
- * The window: the framework's title bar, the escapement beside its readouts, the bus under them, and a status line
- * saying where the rows come from.
+ * The window: the framework's title bar, the component graph, the escapement beside its readouts under it, and a
+ * status line saying where the rows come from.
  *
  * <p>It is the listener of the {@link Escapement} that {@link Show} feeds on the show clock, so it is called on the
  * timeline with the whole new {@link Beat} each time. A prop written off the GUI thread is queued and applied by the next drain, which is the
@@ -27,7 +27,7 @@ final class Ui implements Escapement.Listener {
     private final TitleBar titleBar;
     private final StatusBar status;
     private final Movement movement;
-    private final CircuitView bus;
+    private final GraphView graph;
     private final Node inspecting;
     private final Picker picker;
     private final Node history;
@@ -41,13 +41,14 @@ final class Ui implements Escapement.Listener {
     private final Node lost;
     private final Node stalls;
 
-    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker, dev.sibarum.inspector.circuit.BusGraph graph) {
+    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker, dev.sibarum.inspector.circuit.BusGraph declared) {
         this.titleBar = titleBar;
         this.movement = new Movement(gui, krono);
-        this.bus = new CircuitView(gui, graph);
+        this.graph = new GraphView(gui);
+        this.graph.graph(declared);
         this.picker = picker;
 
-        // Two columns of four, so the panel is no taller than the movement and the circuit fits under them. Each is
+        // Two columns of four, so the panel is no taller than the movement, which sits under the graph. Each is
         // fixed and wide enough for its longest value on one line (#12345  (12345 seen), rested 12.3 ms of forever,
         // vexelray-caret-blink), so the panel keeps its shape while the values change under it.
         Node left = gui.column().width(Length.rem(14.5f)).gap(Length.rem(0.6f));
@@ -93,10 +94,10 @@ final class Ui implements Escapement.Listener {
         inspecting = gui.column()
                 .alignItems(AlignItems.CENTER)
                 .gap(Length.rem(0.8f))
-                .children(gui.row()
+                .children(graph.node(), gui.row()
                         .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
                         .gap(Length.rem(2.5f))
-                        .children(movement.node(), readouts), bus.node(), history);
+                        .children(movement.node(), readouts), history);
         picker.node().visible(false);
         Node body = gui.row()
                 .width(Length.FILL).height(Length.grow(1f))
@@ -112,9 +113,9 @@ final class Ui implements Escapement.Listener {
                 .children(titleBar.node(), body, status.node());
     }
 
-    /** The bus panel, which {@link Show} moves. */
-    CircuitView bus() {
-        return bus;
+    /** The component graph, which {@link Show} moves. */
+    GraphView graph() {
+        return graph;
     }
 
     /** A name over a value, which never wraps: a longer one is cut at the column's edge; returns the value. */

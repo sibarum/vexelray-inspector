@@ -186,12 +186,14 @@ final class Recipes {
                 runs.begin(now.build().orElse(null));
                 // The component lanes: the graph the application declares, when it said; else the hand-written one.
                 ui.graph().graph(now.busGraph().map(text -> declared(text, ui)).orElse(fallback));
+                ui.graphics(now.graphics());
             }
 
             @Override
             public void ended(String why) {
                 ui.title("nothing attached");
                 ui.picking(true);
+                ui.graphics(dev.sibarum.inspector.graphics.Graphics.NONE);
                 runs.finish();
             }
         });

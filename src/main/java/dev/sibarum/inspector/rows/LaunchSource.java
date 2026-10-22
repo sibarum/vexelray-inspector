@@ -275,6 +275,12 @@ public final class LaunchSource implements RowSource {
     }
 
     @Override
+    public dev.sibarum.inspector.graphics.Graphics graphics() {
+        LinkSource l = link;
+        return l == null ? dev.sibarum.inspector.graphics.Graphics.NONE : l.graphics();
+    }
+
+    @Override
     public String describe() {
         LinkSource l = link;
         return l != null ? l.describe() : command.getFirst();

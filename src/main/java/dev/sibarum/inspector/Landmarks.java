@@ -84,6 +84,25 @@ final class Landmarks {
     static final String STATUS = "status";
     static final String STATUS_SOURCE = "status.source";
 
+    /**
+     * What the inspected application draws with, at the right of the status line: {@code GPU · <device> · DXGI},
+     * {@code SOFTWARE · llvmpipe · swapchain}, or {@code graphics not reported}. Clicking it opens {@link #GRAPHICS}.
+     */
+    static final String STATUS_GRAPHICS = "status.graphics";
+
+    /** The strip above the status line with the graphics facts, and each fact's value. */
+    static final String GRAPHICS = "graphics";
+    static final String GRAPHICS_DEVICE = "graphics.device";
+    static final String GRAPHICS_KIND = "graphics.kind";
+    static final String GRAPHICS_VENDOR = "graphics.vendor";
+    static final String GRAPHICS_DRIVER = "graphics.driver";
+    static final String GRAPHICS_VULKAN = "graphics.vulkan";
+    static final String GRAPHICS_PRESENT = "graphics.present";
+    static final String GRAPHICS_VALIDATION = "graphics.validation";
+
+    /** Why the application did not say, as it answered: {@code not available yet: gpu needs ...}. */
+    static final String GRAPHICS_REASON = "graphics.reason";
+
     private Landmarks() {
     }
 }

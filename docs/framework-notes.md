@@ -230,6 +230,34 @@ Worked around: the graph draws GUI → App logic dashed, labelled with this note
 rows then follow on its thread. If handlers become subscriptions with owners (FN-7), the row is that subscription's
 `deliver`.
 
+## FN-12 · An application cannot say what it draws with 🔬
+
+Wanted: the Inspector to say which device the inspected application draws on, its driver, the Vulkan version, how
+frames reach the screen (DXGI or a Vulkan swapchain), and above all whether it is a real GPU or a software rasterizer
+(llvmpipe, lavapipe, SwiftShader, WARP). Asked as: "idk if its even running with hardware acceleration or not."
+
+`GuiApp` knows all of it at startup and keeps it to itself: the `DeviceSelection` (`GuiApp.java`, near line 340) and
+the `PresenterProvider.Backend` are private, and nothing writes them to the log, the discovery file, a probe row or a
+verb. The `gpu` verb answers `err not available yet: gpu needs presenter statistics from GuiApp` (`Domains.java`).
+Under it, supirvast's `VulkanInstance` reads `VkPhysicalDeviceProperties` whole but makes only the name and
+`deviceType` public (`DeviceInfo`); `apiVersion`, `driverVersion` and `vendorID` stay private, and
+`VkPhysicalDeviceDriverProperties` is not read at all.
+
+Worked around: the Inspector asks `gpu device` over the link once per run, as it asks `bus graph`, and shows the
+reply's reason until there is an answer (`graphics/Graphics`, the status line's right end, and the strip it opens).
+
+**What supirvast and vexelray-gui could do:** supirvast exposes the device's properties (`apiVersion`,
+`driverVersion`, `vendorID`, `deviceType`) and, on Vulkan 1.2+, `driverName` and `driverInfo`. `GuiApp` keeps what it
+chose and answers `gpu device` on the automation socket and the link with `ok gpu device` and one `key=value` per line,
+the numbers undecoded so every client decodes them one way:
+
+    device=<deviceName>  type=<deviceType>  vendor=<vendorID>  driver=<driverVersion>
+    driver.name=<driverName>  driver.info=<driverInfo>  api=<apiVersion>
+    present=dxgi|swapchain  present.mode=<fifo|mailbox|immediate>  images=<n>  validation=on|off
+
+It is a startup fact, so the reply needs no recorder; it could equally go in the discovery file (`gpu.*`) beside the
+build facts, which would show it in the picker before attaching. Every application wants this line in its log too.
+
 ## FN-13 · A segment's options cannot be named for automation 🔬
 
 Wanted: an `ottermate` check that clicks the tape's *1 min* and *5 min* by name, as every control a script reaches

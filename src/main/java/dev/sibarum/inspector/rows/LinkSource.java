@@ -46,6 +46,7 @@ public final class LinkSource implements RowSource {
     private volatile boolean closed;
     private volatile Thread thread;
     private volatile String busGraph;
+    private volatile dev.sibarum.inspector.graphics.Graphics graphics = dev.sibarum.inspector.graphics.Graphics.NONE;
 
     /**
      * @param endpoint where the link listens: {@code uds:<path>} or {@code tcp:<port>}, from a discovery file
@@ -93,6 +94,7 @@ public final class LinkSource implements RowSource {
             return;
         }
         busGraph = graph(c);
+        graphics = graphics(c);
         sink.begin(who + ", live");
         c.onClose(() -> {
             if (!closed) {
@@ -129,6 +131,23 @@ public final class LinkSource implements RowSource {
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /**
+     * What the application draws with, asked once before the run begins, as the bus graph is. An error reply is its
+     * reason; a link that throws is said as such.
+     */
+    private static dev.sibarum.inspector.graphics.Graphics graphics(LinkClient c) {
+        try {
+            return dev.sibarum.inspector.graphics.Graphics.parse(c.query("gpu device").text());
+        } catch (RuntimeException e) {
+            return dev.sibarum.inspector.graphics.Graphics.unanswered(String.valueOf(e.getMessage()));
+        }
+    }
+
+    @Override
+    public dev.sibarum.inspector.graphics.Graphics graphics() {
+        return graphics;
     }
 
     @Override

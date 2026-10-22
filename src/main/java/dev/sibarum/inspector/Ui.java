@@ -27,6 +27,7 @@ final class Ui implements Escapement.Listener {
 
     private final TitleBar titleBar;
     private final StatusBar status;
+    private final GraphicsView graphics;
     private final Movement movement;
     private final GraphView graph;
     private final TapeView tape;
@@ -115,10 +116,11 @@ final class Ui implements Escapement.Listener {
         status = new StatusBar(gui).slot(Landmarks.STATUS_SOURCE, StatusBar.Side.LEFT, "");
         gui.landmark(Landmarks.STATUS, status.node());
         gui.landmark(Landmarks.STATUS_SOURCE, status.slot(Landmarks.STATUS_SOURCE));
+        graphics = new GraphicsView(gui, status);
 
         gui.root().direction(Direction.COLUMN)
                 .background(gui.theme().color(Role.PAGE))
-                .children(titleBar.node(), body, status.node());
+                .children(titleBar.node(), body, graphics.node(), status.node());
     }
 
     /** The component graph, which {@link Show} moves. */
@@ -209,6 +211,11 @@ final class Ui implements Escapement.Listener {
         lost.text(beat.lostRows() == 0 ? "none" : beat.lostRows() == 1 ? "1 row" : beat.lostRows() + " rows");
         stalls.text((beat.stalls() == 0 ? "none" : String.valueOf(beat.stalls()))
                 + (beat.stalled() ? " · now " + Durations.text(beat.uncoveredNanos()) : ""));
+    }
+
+    /** What the application being inspected draws with; {@link dev.sibarum.inspector.graphics.Graphics#NONE} clears it. */
+    void graphics(dev.sibarum.inspector.graphics.Graphics g) {
+        graphics.show(g);
     }
 
     /** The window's title says what is being inspected. */

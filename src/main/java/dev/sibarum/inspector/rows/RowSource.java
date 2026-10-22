@@ -54,6 +54,14 @@ public interface RowSource extends AutoCloseable {
         return java.util.Optional.empty();
     }
 
+    /**
+     * What the application draws with, when the source can ask: a live application answers {@code gpu device} over its
+     * link (FN-12). Known once the run has begun; a recording does not say.
+     */
+    default dev.sibarum.inspector.graphics.Graphics graphics() {
+        return dev.sibarum.inspector.graphics.Graphics.RECORDED;
+    }
+
     /** Stop delivering. The sink may see one more row in flight; it never sees one after this returns. */
     @Override
     void close();

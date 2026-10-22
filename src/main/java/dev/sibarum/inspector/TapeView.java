@@ -14,6 +14,7 @@ import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
 import dev.vexelray.gui.widget.Button;
+import dev.vexelray.gui.widget.Segment;
 import sibarum.tactroller.api.Key;
 import sibarum.tactroller.api.Modifier;
 
@@ -99,6 +100,16 @@ final class TapeView {
     private final Node cursor;
     private final Node mark;
     private final Node nowLabel;
+    private final Node farLabel;
+    private final Node midLabel;
+
+    /** The reaches the window offers, and each one's ruler words, made once. */
+    private final long[] reaches;
+    private final String[] farLabels;
+    private final String[] midLabels;
+
+    /** The usual reaches, in seconds. */
+    static final int[] REACHES = {5, 10, 30, 60, 300};
     private final Node[] names = new Node[Tape.TRACKS];
     private final Node[] lines = new Node[LINES];
     private final Slot[] slots = new Slot[SLOTS];
@@ -130,6 +141,7 @@ final class TapeView {
 
     // The timeline's own.
     private long refreshedAt;
+    private long drawnReach;
 
     TapeView(Gui gui, Tape tape) {
         this.tape = tape;
@@ -142,8 +154,24 @@ final class TapeView {
         reachLine = gui.text("").font("mono").textSize(Length.rem(0.7f)).textColor(gui.theme().color(Role.FAINT))
                 .wordWrap(false);
         gui.landmark(Landmarks.TAPE_REACH, reachLine);
+        // How far back: the usual few, and --tape.seconds among them when it is none of them. Each choice's ruler
+        // words are made here, so a change of reach writes only words that already exist.
+        int initial = (int) (tape.reach() / 1_000_000_000L);
+        int[] choices = choices(initial);
+        reaches = new long[choices.length];
+        farLabels = new String[choices.length];
+        midLabels = new String[choices.length];
+        Segment<Integer> reachChoice = new Segment<Integer>(gui).undoable(false);
+        for (int c = 0; c < choices.length; c++) {
+            reaches[c] = choices[c] * 1_000_000_000L;
+            farLabels[c] = "−" + seconds(reaches[c]);
+            midLabels[c] = "−" + seconds(reaches[c] / 2);
+            reachChoice.option(seconds(reaches[c]), choices[c]);
+        }
+        reachChoice.show(initial).onChange(tape::reach);
+        gui.landmark(Landmarks.TAPE_SECONDS, reachChoice.node());
         Node header = gui.row().alignItems(AlignItems.CENTER).gap(Length.rem(0.8f)).width(Length.FILL)
-                .children(heading, pause.node(), reachLine);
+                .children(heading, pause.node(), reachChoice.node(), reachLine);
 
         Node nameColumn = gui.column().width(Length.rem(NAMES_W));
         for (int t = 0; t < Tape.TRACKS; t++) {
@@ -182,8 +210,11 @@ final class TapeView {
             }
         });
         nowLabel = ruler(gui, "now");
+        farLabel = ruler(gui, "−" + seconds(tape.reach()));
+        midLabel = ruler(gui, "−" + seconds(tape.reach() / 2));
+        drawnReach = tape.reach();
         Node ruler = gui.row().width(Length.rem(AREA_W)).justify(Justify.SPACE_BETWEEN).children(
-                ruler(gui, "−" + seconds(tape.reach())), ruler(gui, "−" + seconds(tape.reach() / 2)), nowLabel);
+                farLabel, midLabel, nowLabel);
 
         node = gui.column()
                 .gap(Length.rem(0.35f))
@@ -225,6 +256,26 @@ final class TapeView {
                 gui.releaseClaim(node, chords[i]);
             }
         }
+    }
+
+    /** {@link #REACHES}, with {@code seconds} put in its place among them when it is not one of them. */
+    static int[] choices(int seconds) {
+        int[] out = new int[REACHES.length + 1];
+        int n = 0;
+        boolean placed = false;
+        for (int r : REACHES) {
+            if (!placed && seconds <= r) {
+                placed = true;
+                if (seconds < r) {
+                    out[n++] = seconds;
+                }
+            }
+            out[n++] = r;
+        }
+        if (!placed) {
+            out[n++] = seconds;
+        }
+        return java.util.Arrays.copyOf(out, n);
     }
 
     private static Node ruler(Gui gui, String text) {
@@ -287,11 +338,10 @@ final class TapeView {
             return;                     // gone on from, or paused again, while copying
         }
         shown = frozen;
-        long len = Math.max(1, tape.reach() / SEGMENTS);
         for (Slot s : slots) {
             long k = s.seg;
             if (k != Long.MIN_VALUE) {
-                s.upTo = Math.min((k + 1) * len, at);
+                s.upTo = Math.min((k + 1) * s.len, at);
                 s.request();
             }
         }
@@ -324,7 +374,7 @@ final class TapeView {
         if (!looking) {
             return;
         }
-        long t = frozenAt - (long) ((1 - e.fractionX()) * tape.reach());
+        long t = frozenAt - (long) ((1 - e.fractionX()) * frozen.reach());
         int track = Math.min(Tape.TRACKS - 1, (int) (e.fractionY() * Tape.TRACKS));
         select(frozen.nearest(t, track));
     }
@@ -335,7 +385,7 @@ final class TapeView {
             return;
         }
         selected = i;
-        float x = (float) (AREA_W * (1 - (double) (frozenAt - frozen.nanos(i)) / tape.reach()));
+        float x = (float) (AREA_W * (1 - (double) (frozenAt - frozen.nanos(i)) / frozen.reach()));
         cursor.translate(x - CURSOR_W / 2, 0f).visible(true);
         mark.translate(x - 0.35f, frozen.track(i) * TRACK_H).visible(true);
         for (int n = 0; n < LINES; n++) {
@@ -380,7 +430,19 @@ final class TapeView {
         if (show == Long.MIN_VALUE) {
             return;
         }
-        long len = Math.max(1, tape.reach() / SEGMENTS);
+        long reach = shown.reach();
+        if (reach != drawnReach) {
+            // A new reach from the window: segments of another length, redrawn from scratch, and the ruler's words.
+            drawnReach = reach;
+            reset();
+            for (int c = 0; c < reaches.length; c++) {
+                if (reaches[c] == reach) {
+                    farLabel.text(farLabels[c]);
+                    midLabel.text(midLabels[c]);
+                }
+            }
+        }
+        long len = Math.max(1, reach / SEGMENTS);
         long k = Math.floorDiv(show, len);
         if (k != current) {
             // The segment show time just left is complete: drawn once more, to its end, and then left alone.
@@ -394,12 +456,13 @@ final class TapeView {
         for (long j = k - SEGMENTS; j <= k; j++) {
             Slot s = slots[(int) Math.floorMod(j, (long) SLOTS)];
             if (s.seg != j) {
+                s.len = len;
                 s.seg = j;
                 s.upTo = j < k ? (j + 1) * len : show;
                 s.node.picture(EMPTY);
                 s.request();
             }
-            double x = AREA_W * (1 - (double) (show - j * len) / tape.reach());
+            double x = AREA_W * (1 - (double) (show - j * len) / reach);
             s.node.translate((float) x, 0f);
         }
         if (now - refreshedAt >= REFRESH) {
@@ -413,7 +476,7 @@ final class TapeView {
     /** {@code 10 s}, {@code 2.5 s}, {@code 5 min}. */
     static String seconds(long nanos) {
         double s = nanos / 1e9;
-        if (s >= 120 && s % 60 == 0) {
+        if (s >= 60 && s % 60 == 0) {
             return (long) (s / 60) + " min";
         }
         return (s == Math.rint(s) ? Long.toString((long) s) : String.valueOf(Math.round(s * 10) / 10.0)) + " s";
@@ -430,8 +493,9 @@ final class TapeView {
         final AtomicBoolean queued = new AtomicBoolean();
         volatile boolean dirty;
 
-        /** The segment this slot shows, and how far into it: written on the timeline. */
+        /** The segment this slot shows, how long segments are, and how far into it: written on the timeline. */
         volatile long seg = Long.MIN_VALUE;
+        volatile long len = 1;
         volatile long upTo;
 
         Slot(Node node) {
@@ -449,10 +513,11 @@ final class TapeView {
         public void run() {
             while (dirty) {
                 dirty = false;
+                long l = len;
                 long k = seg;
                 if (k != Long.MIN_VALUE) {
-                    Picture p = draw(k, upTo);
-                    if (seg == k) {
+                    Picture p = draw(k, l, upTo);
+                    if (seg == k && len == l) {
                         node.picture(p);
                     }
                 }
@@ -463,10 +528,12 @@ final class TapeView {
             }
         }
 
-        /** Segment {@code k}, counted up to {@code upTo}; the newest segment also brings the words up to date. */
-        private Picture draw(long k, long upTo) {
+        /**
+         * Segment {@code k}, {@code len} long, counted up to {@code upTo}; the newest segment also brings the words up
+         * to date.
+         */
+        private Picture draw(long k, long len, long upTo) {
             double w = pxW, h = pxH;
-            long len = Math.max(1, tape.reach() / SEGMENTS);
             long from = k * len;
             if (w <= 0 || h <= 0 || !shown.bin(from, from + len, upTo, BINS, counts)) {
                 return EMPTY;

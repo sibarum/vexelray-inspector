@@ -12,10 +12,14 @@ import java.util.Map;
  *
  * <h2>How far back it reaches</h2>
  *
- * {@code --tape.seconds}, ten by default. The ring is sized for that many seconds at {@link #RATE} rows a second, and
- * never more than {@link #MOST} rows, allocated once, when the tape is made. A storm faster than that pushes the oldest
- * rows out early: {@link #held} says how far back the tape really reaches, and {@link #overwritten} how many rows went
- * before their time, so a short tape is said rather than hidden.
+ * {@code --tape.seconds} to begin with, ten by default, and {@link #reach(int)} from the window after. The ring is sized
+ * for that many seconds at {@link #RATE} rows a second, and never more than {@link #MOST} rows. A storm faster than
+ * that pushes the oldest rows out early: {@link #held} says how far back the tape really reaches, and
+ * {@link #overwritten} how many rows went before their time, so a short tape is said rather than hidden.
+ *
+ * <p>A new reach is the reach at once. The ring it needs is made by the writer, at the next row, holding the rows the
+ * old one held as far as they fit; so a longer reach starts with what the tape already had and fills from there, and a
+ * shorter one lets the oldest go.
  *
  * <h2>Names</h2>
  *
@@ -27,7 +31,8 @@ import java.util.Map;
  *
  * One writer, the source's thread ({@link #begin}, {@link #row}). Readers on any thread: a row's index is published
  * by {@link #written}, and a reader that copied a row checks {@link #valid} afterwards, because the writer never waits
- * and may have reused its slot meanwhile.
+ * and may have reused its slot meanwhile. A row keeps its index in every ring, so a reader that reads one row from
+ * the ring before a resize and the next from the ring after it reads the same rows.
  */
 public final class Tape {
 
@@ -46,16 +51,56 @@ public final class Tape {
     /** The name of every name past {@link #NAMES}. */
     public static final String OTHER = "(other)";
 
-    private final long reach;
-    private final int mask;
-    private final long[] seq;
-    private final long[] mono;
-    private final long[] frame;
-    private final long[] after;
-    private final short[] thread;
-    private final short[] lane;
-    private final short[] kind;
-    private final byte[] track;
+    /** The rows, as columns: replaced whole when the reach needs another size, never resized in place. */
+    private static final class Ring {
+        final int mask;
+        final long[] seq;
+        final long[] mono;
+        final long[] frame;
+        final long[] after;
+        final short[] thread;
+        final short[] lane;
+        final short[] kind;
+        final byte[] track;
+
+        Ring(int n) {
+            mask = n - 1;
+            seq = new long[n];
+            mono = new long[n];
+            frame = new long[n];
+            after = new long[n];
+            thread = new short[n];
+            lane = new short[n];
+            kind = new short[n];
+            track = new byte[n];
+        }
+
+        int capacity() {
+            return mask + 1;
+        }
+
+        /** Row {@code i} of {@code from} into its own slot here. */
+        void take(Ring from, long i, long j) {
+            int s = (int) (i & from.mask);
+            int d = (int) (j & mask);
+            seq[d] = from.seq[s];
+            mono[d] = from.mono[s];
+            frame[d] = from.frame[s];
+            after[d] = from.after[s];
+            thread[d] = from.thread[s];
+            lane[d] = from.lane[s];
+            kind[d] = from.kind[s];
+            track[d] = from.track[s];
+        }
+    }
+
+    private volatile Ring ring;
+
+    /** How far back the tape reaches, in nanos; read by everyone, set by {@link #reach(int)} and by a copy. */
+    private volatile long reach;
+
+    /** The capacity the reach asks for; the writer makes a ring that size at its next row. */
+    private volatile int wanted;
 
     /** Whose names these are: this tape's own, or, for a frozen copy, the live tape's it was copied from. */
     private final Tape origin;
@@ -85,24 +130,11 @@ public final class Tape {
 
     /** @param seconds how far back the tape reaches, at least one */
     public Tape(int seconds) {
-        if (seconds < 1) {
-            throw new IllegalArgumentException("--tape.seconds=" + seconds + ": the tape reaches back at least 1 s");
-        }
-        reach = seconds * 1_000_000_000L;
-        long wanted = Math.min(MOST, (long) seconds * RATE);
-        int n = Integer.highestOneBit((int) Math.max(2, wanted - 1)) << 1;
-        mask = n - 1;
-        seq = new long[n];
-        mono = new long[n];
-        frame = new long[n];
-        after = new long[n];
-        thread = new short[n];
-        lane = new short[n];
-        kind = new short[n];
-        track = new byte[n];
         origin = this;
         names = new String[NAMES];
         trackNames = new String[TRACKS];
+        reach(seconds);
+        ring = new Ring(wanted);
         name(OTHER);
         presentKind = name(Row.FRAME_PRESENT);
         frameLane = name("frame");
@@ -110,27 +142,37 @@ public final class Tape {
 
     /** A tape as large as {@code live}, sharing its names, for {@link #copy} to freeze a moment into. */
     private Tape(Tape live) {
-        reach = live.reach;
-        mask = live.mask;
-        int n = mask + 1;
-        seq = new long[n];
-        mono = new long[n];
-        frame = new long[n];
-        after = new long[n];
-        thread = new short[n];
-        lane = new short[n];
-        kind = new short[n];
-        track = new byte[n];
         origin = live;
         names = live.names;
         trackNames = live.trackNames;
+        reach = live.reach;
+        wanted = live.wanted;
+        ring = new Ring(live.wanted);
         presentKind = live.presentKind;
         frameLane = live.frameLane;
     }
 
+    /** The ring {@code seconds} need: {@link #RATE} rows a second, a power of two, at most {@link #MOST}. */
+    static int capacityFor(int seconds) {
+        long rows = Math.min(MOST, (long) seconds * RATE);
+        return Integer.highestOneBit((int) Math.max(2, rows - 1)) << 1;
+    }
+
     /**
-     * Where this tape's moments are frozen: as large as it, allocated now, once, so a pause allocates nothing. Only
-     * {@link #copy} writes it; never {@link #row}.
+     * Reach back {@code seconds} from now on. Any thread. Shown at once; the ring that holds it is made by the writer
+     * at its next row. A frozen copy keeps the reach it was frozen with.
+     */
+    public void reach(int seconds) {
+        if (seconds < 1) {
+            throw new IllegalArgumentException("--tape.seconds=" + seconds + ": the tape reaches back at least 1 s");
+        }
+        wanted = capacityFor(seconds);
+        reach = seconds * 1_000_000_000L;
+    }
+
+    /**
+     * Where this tape's moments are frozen: as large as it, allocated now, so a pause allocates nothing unless the
+     * reach has grown since. Only {@link #copy} writes it; never {@link #row}.
      */
     public Tape frozen() {
         return new Tape(this);
@@ -138,29 +180,29 @@ public final class Tape {
 
     /**
      * Freeze the tape's reach before {@code until} into {@code into}, one of this tape's {@link #frozen} copies: the
-     * rows a reader of {@code into} sees from now on, until the next copy. Any thread but the writer's, one copy at a
-     * time; the writer goes on meanwhile, and rows it overtook during the copy are left out rather than shown torn.
+     * rows a reader of {@code into} sees from now on, until the next copy, with the reach they were frozen with. Any
+     * thread but the writer's, one copy at a time; the writer goes on meanwhile, and rows it overtook during the copy
+     * are left out rather than shown torn.
      */
     public void copy(Tape into, long until) {
         if (into.origin != this) {
             throw new IllegalArgumentException("not a frozen copy of this tape");
         }
-        long from = at(until - reach);
+        Ring r = ring;
+        long reachNow = reach;
+        long from = at(until - reachNow);
         long to = at(until);
         into.written = 0;
+        if (into.ring.capacity() < r.capacity()) {
+            into.ring = new Ring(r.capacity());     // the reach grew since the last pause
+        }
+        Ring d = into.ring;
         int n = 0;
         for (long i = from; i < to; i++, n++) {
-            int s = (int) (i & mask);
-            into.seq[n] = seq[s];
-            into.mono[n] = mono[s];
-            into.frame[n] = frame[s];
-            into.after[n] = after[s];
-            into.thread[n] = thread[s];
-            into.lane[n] = lane[s];
-            into.kind[n] = kind[s];
-            into.track[n] = track[s];
+            d.take(r, i, n);
         }
         long torn = Math.max(0, first() - from);
+        into.reach = reachNow;
         into.runFrom = Math.min(n, torn);
         into.overwritten = overwritten;
         into.written = n;
@@ -177,23 +219,46 @@ public final class Tape {
 
     /** The next row, as its header. */
     public void row(Row row) {
+        Ring r = ring;
+        if (r.capacity() != wanted) {
+            r = resize(r);
+        }
         long i = written;
-        int s = (int) (i & mask);
-        if (i - capacity() >= runFrom && row.monoNanos() - mono[s] < reach) {
+        int s = (int) (i & r.mask);
+        if (i - r.capacity() >= runFrom && row.monoNanos() - r.mono[s] < reach) {
             overwritten++;
         }
-        seq[s] = row.seq();
-        mono[s] = row.monoNanos();
-        frame[s] = row.presentedFrame();
-        after[s] = lastPresented;
-        if (frame[s] != Row.NO_FRAME && row.is("frame", Row.FRAME_PRESENT)) {
-            lastPresented = frame[s];
+        r.seq[s] = row.seq();
+        r.mono[s] = row.monoNanos();
+        long f = row.presentedFrame();
+        r.frame[s] = f;
+        r.after[s] = lastPresented;
+        if (f != Row.NO_FRAME && row.is("frame", Row.FRAME_PRESENT)) {
+            lastPresented = f;
         }
-        thread[s] = name(row.thread());
-        lane[s] = name(row.lane());
-        kind[s] = name(row.kind());
-        track[s] = track(row.lane());
+        r.thread[s] = name(row.thread());
+        r.lane[s] = name(row.lane());
+        r.kind[s] = name(row.kind());
+        r.track[s] = track(row.lane());
         written = i + 1;
+    }
+
+    /**
+     * A ring the size the reach wants, holding the newest rows of this run the old one held, as many as fit, each at
+     * its own index. The writer's, so no row is written while it copies.
+     */
+    private Ring resize(Ring old) {
+        Ring next = new Ring(wanted);
+        long w = written;
+        long from = Math.max(Math.max(runFrom, w - old.capacity()), w - next.capacity());
+        for (long i = from; i < w; i++) {
+            next.take(old, i, i);
+        }
+        if (from > runFrom) {
+            runFrom = from;             // what did not fit is no longer held, and is not this run's to read
+        }
+        ring = next;
+        return next;
     }
 
     private short name(String name) {
@@ -231,14 +296,14 @@ public final class Tape {
 
     // ------------------------------------------------------------------ readers
 
-    /** How far back the tape is meant to reach, in nanos. */
+    /** How far back the tape reaches, in nanos: for a frozen copy, the reach it was frozen with. */
     public long reach() {
         return reach;
     }
 
-    /** How many rows it holds at most. */
+    /** How many rows it holds at most, now. */
     public int capacity() {
-        return mask + 1;
+        return ring.capacity();
     }
 
     /** The index the next row will have; the rows written are those before it. */
@@ -248,7 +313,8 @@ public final class Tape {
 
     /** The index of the oldest row still held in this run. */
     public long first() {
-        return Math.max(runFrom, written - capacity());
+        long w = written;
+        return Math.max(runFrom, w - ring.capacity());
     }
 
     /** Rows of this run pushed out while still within reach: a storm faster than {@link #RATE}. */
@@ -263,7 +329,7 @@ public final class Tape {
         if (w - f < 2) {
             return 0;
         }
-        long span = mono[(int) ((w - 1) & mask)] - mono[(int) (f & mask)];
+        long span = nanos(w - 1) - nanos(f);
         return Math.min(reach, Math.max(0, span));
     }
 
@@ -279,9 +345,10 @@ public final class Tape {
     public long at(long nanos) {
         long lo = first();
         long hi = written;
+        Ring r = ring;
         while (lo < hi) {
             long mid = (lo + hi) >>> 1;
-            if (mono[(int) (mid & mask)] < nanos) {
+            if (r.mono[(int) (mid & r.mask)] < nanos) {
                 lo = mid + 1;
             } else {
                 hi = mid;
@@ -291,16 +358,19 @@ public final class Tape {
     }
 
     public long seq(long i) {
-        return seq[(int) (i & mask)];
+        Ring r = ring;
+        return r.seq[(int) (i & r.mask)];
     }
 
     public long nanos(long i) {
-        return mono[(int) (i & mask)];
+        Ring r = ring;
+        return r.mono[(int) (i & r.mask)];
     }
 
     /** The frame the row happened in, or {@link Row#NO_FRAME}. */
     public long frame(long i) {
-        return frame[(int) (i & mask)];
+        Ring r = ring;
+        return r.frame[(int) (i & r.mask)];
     }
 
     /**
@@ -308,30 +378,36 @@ public final class Tape {
      * its own, is known to come after.
      */
     public long after(long i) {
-        return after[(int) (i & mask)];
+        Ring r = ring;
+        return r.after[(int) (i & r.mask)];
     }
 
     public String thread(long i) {
-        return names[thread[(int) (i & mask)]];
+        Ring r = ring;
+        return names[r.thread[(int) (i & r.mask)]];
     }
 
     public String lane(long i) {
-        return names[lane[(int) (i & mask)]];
+        Ring r = ring;
+        return names[r.lane[(int) (i & r.mask)]];
     }
 
     public String kind(long i) {
-        return names[kind[(int) (i & mask)]];
+        Ring r = ring;
+        return names[r.kind[(int) (i & r.mask)]];
     }
 
     /** The row's track on the strip: its lane's, in the order lanes were first seen. */
     public int track(long i) {
-        return track[(int) (i & mask)];
+        Ring r = ring;
+        return r.track[(int) (i & r.mask)];
     }
 
     /** Whether the row is a {@code frame.present}: a frame's ruled line. */
     public boolean present(long i) {
-        int s = (int) (i & mask);
-        return kind[s] == presentKind && lane[s] == frameLane;
+        Ring r = ring;
+        int s = (int) (i & r.mask);
+        return r.kind[s] == presentKind && r.lane[s] == frameLane;
     }
 
     /**
@@ -343,23 +419,24 @@ public final class Tape {
      */
     public boolean bin(long from, long to, long until, int bins, int[] counts) {
         java.util.Arrays.fill(counts, 0, (TRACKS + 1) * bins, 0);
+        Ring r = ring;
         long start = at(from);
         long end = written;
         long width = Math.max(1, to - from);
         long stop = Math.min(to, until);
         for (long i = start; i < end; i++) {
-            int s = (int) (i & mask);
-            long t = mono[s];
+            int s = (int) (i & r.mask);
+            long t = r.mono[s];
             if (t >= stop) {
                 break;
             }
             int b = (int) Math.min(bins - 1, Math.max(0, (t - from) * bins / width));
-            counts[track[s] * bins + b]++;
-            if (kind[s] == presentKind && lane[s] == frameLane) {
+            counts[r.track[s] * bins + b]++;
+            if (r.kind[s] == presentKind && r.lane[s] == frameLane) {
                 counts[TRACKS * bins + b]++;
             }
         }
-        return start >= first();
+        return start >= first() && r == ring;
     }
 
     /** Tracks named so far. */

@@ -227,8 +227,8 @@ cost.
 
 **Started 2026-10-22: the tape.** Every row's header for the last `--tape.seconds` (10 by default), one track per
 lane, ending at show time. Pausing (Space) holds show time for the whole window and freezes the tape to be looked
-through row by row and frame by frame, the target running on. **Next:** its reach set from the window, then the
-movement following the cursor (docs/TODO.md).
+through row by row and frame by frame, the target running on. Its reach is chosen in the window, from 5 s to
+5 min. **Next:** the movement following the cursor (docs/TODO.md).
 
 ### M3 — Messages
 

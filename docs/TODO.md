@@ -15,8 +15,9 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 - [ ] **A replay looping while paused clears the graph on going on**: the graph's counts are reset when the new run
       begins, and the board catches up when the pause ends. The tape's frozen copy is not affected.
-- [ ] **Change its reach from the window** (slice 3): 5 s, 10 s, 30 s, 1 min, 5 min, resizing the ring once on the
-      source's thread. Today it is `--tape.seconds` only.
+- [ ] **Remember the reach chosen**: the window's choice lasts the run; the next starts from `--tape.seconds` again.
+- [ ] **A reach chosen while paused is drawn on going on**: the frozen strip keeps the reach it was frozen with, while
+      the reach line above it already names the new one.
 - [ ] **The movement follows the cursor**: while paused, the escapement and the readouts show the selected moment,
       rebuilt from the tape (roadmap: step through the rings frame by frame).
 - [ ] **Collapse it**: the strip adds about 9em under the movement, in a window that is already too short (below).

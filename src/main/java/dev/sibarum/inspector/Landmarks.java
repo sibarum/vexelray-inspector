@@ -62,6 +62,9 @@ final class Landmarks {
     /** How far back the tape reaches: {@code last 10 s}, or how much less it holds after a storm. */
     static final String TAPE_REACH = "tape.reach";
 
+    /** How far back the tape reaches, chosen in the window: {@code 5 s}, {@code 10 s}, {@code 30 s}, {@code 1 min}... */
+    static final String TAPE_SECONDS = "tape.seconds";
+
     /** The button that pauses the show and freezes the tape ({@code Pause}), and goes on ({@code Go on}). Space too. */
     static final String TAPE_PAUSE = "tape.pause";
 

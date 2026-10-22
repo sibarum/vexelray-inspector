@@ -158,6 +158,62 @@ class TapeTest {
     }
 
     @Test
+    void aLongerReachKeepsWhatTheTapeHadAndGrowsAtTheNextRow() {
+        Tape tape = new Tape(1);
+        tape.begin();
+        for (int i = 0; i < 1000; i++) {
+            tape.row(row(i, i * MS, "bus", "k"));
+        }
+        int before = tape.capacity();
+        tape.reach(30);
+        assertEquals(30_000 * MS, tape.reach(), "the reach is the new one at once");
+        assertEquals(before, tape.capacity(), "the ring follows at the writer's next row");
+        tape.row(row(1000, 1000 * MS, "bus", "k"));
+        assertTrue(tape.capacity() >= 30 * Tape.RATE);
+        assertEquals(0, tape.first(), "every row it had is still held");
+        assertEquals(1001, tape.written());
+        assertEquals(500, tape.seq(500));
+        assertEquals(500 * MS, tape.nanos(500), "each at its own index");
+        assertEquals(0, tape.overwritten());
+    }
+
+    @Test
+    void aShorterReachLetsTheOldestGo() {
+        Tape tape = new Tape(30);
+        tape.begin();
+        int n = 3 * new Tape(1).capacity();
+        for (int i = 0; i < n; i++) {
+            tape.row(row(i, i * MS / 10, "bus", "k"));
+        }
+        tape.reach(1);
+        tape.row(row(n, n * MS / 10, "bus", "k"));
+        assertEquals(Tape.capacityFor(1), tape.capacity());
+        assertEquals(n + 1 - tape.capacity(), tape.first(), "the newest that fit are kept");
+        assertEquals(n, tape.seq(tape.written() - 1));
+        assertFalse(tape.valid(0));
+    }
+
+    @Test
+    void aFrozenCopyKeepsTheReachItWasFrozenWithAndGrowsWithTheTape() {
+        Tape tape = new Tape(1);
+        Tape frozen = tape.frozen();
+        tape.begin();
+        for (int i = 0; i < 1000; i++) {
+            tape.row(row(i, i * MS, "bus", "k"));
+        }
+        tape.copy(frozen, 1000 * MS);
+        tape.reach(60);
+        tape.row(row(1000, 1000 * MS, "bus", "k"));
+        assertEquals(1_000 * MS, frozen.reach(), "frozen with a second");
+        for (int i = 1001; i < 70_000; i++) {
+            tape.row(row(i, i * MS, "bus", "k"));
+        }
+        tape.copy(frozen, 70_000 * MS);
+        assertEquals(60_000 * MS, frozen.reach());
+        assertEquals(60_000, frozen.written() - frozen.first(), "a minute of rows, in a copy grown to hold them");
+    }
+
+    @Test
     void aCopyFromAnotherTapeIsRefused() {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
                 () -> new Tape(1).copy(new Tape(1).frozen(), 0));

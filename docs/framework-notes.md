@@ -229,3 +229,15 @@ Worked around: the graph draws GUI → App logic dashed, labelled with this note
 `<event>` is the input's kind (`click`, `key`, `drag`) and `<node>` the target's landmark or id. The handler's own
 rows then follow on its thread. If handlers become subscriptions with owners (FN-7), the row is that subscription's
 `deliver`.
+
+## FN-13 · A segment's options cannot be named for automation 🔬
+
+Wanted: an `ottermate` check that clicks the tape's *1 min* and *5 min* by name, as every control a script reaches
+gets a landmark (CLAUDE.md). `Segment` makes each option's node inside `option(label, value)` and keeps it private,
+and `Node` has no way to reach a child, so an option cannot be given a landmark, and `ottermate` has no click by text.
+
+Worked around in the check only: `click tape.seconds` presses the middle option, and `find 5 min` gives a node number
+that is stable between identical runs, which the next run clicks. Nothing in the application works around it.
+
+**What vexelray-gui could do:** `Segment.option(label, value, landmark)`, or a `cell(value)` that returns the option's
+node so the caller can name it, as `Button.node()` does for a button. `Tabs` and `Select` are worth the same look.

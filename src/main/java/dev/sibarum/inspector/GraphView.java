@@ -131,6 +131,8 @@ final class GraphView {
     private boolean warm;
     private float fanAngle;
     private long governorAt;
+    private boolean paused;
+    private boolean clearOwed;
 
     GraphView(Gui gui) {
         this.gui = gui;
@@ -256,11 +258,34 @@ final class GraphView {
         next = declared;
     }
 
-    /** A new run: no flows, no dots. */
+    /**
+     * Paused: the board holds what it shows, dots where they stand and the table as it was, while messages are still
+     * counted; going on brings it up to date. On the timeline.
+     */
+    void paused(boolean paused) {
+        this.paused = paused;
+        if (!paused) {
+            if (clearOwed) {
+                clearOwed = false;
+                clear();
+            }
+            refreshedAt = 0;
+        }
+    }
+
+    /** A new run: no flows, no dots. While paused, the board is cleared on going on. */
     void reset() {
         adopt();
         graph.reset();
         pool.clear();
+        if (paused) {
+            clearOwed = true;
+            return;
+        }
+        clear();
+    }
+
+    private void clear() {
         for (Node d : dots) {
             d.opacity(0f);
         }
@@ -292,7 +317,7 @@ final class GraphView {
     /** A message crossed from one part to another: its dot sets off. */
     private void message(int from, int to) {
         int w = wireOf[from][to];
-        if (w < 0) {
+        if (w < 0 || paused) {
             return;
         }
         int slot = pool.spawn(w, true, now);
@@ -312,6 +337,9 @@ final class GraphView {
     boolean frame(long now, long dt, ShowClock clock, long real, long show) {
         adopt();
         this.now = now;
+        if (paused) {
+            return false;
+        }
         boolean moving = false;
         for (int i = 0; i < DOTS; i++) {
             if (!pool.live(i)) {

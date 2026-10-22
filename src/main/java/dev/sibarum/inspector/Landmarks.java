@@ -62,6 +62,18 @@ final class Landmarks {
     /** How far back the tape reaches: {@code last 10 s}, or how much less it holds after a storm. */
     static final String TAPE_REACH = "tape.reach";
 
+    /** The button that pauses the show and freezes the tape ({@code Pause}), and goes on ({@code Go on}). Space too. */
+    static final String TAPE_PAUSE = "tape.pause";
+
+    /** The cursor on the frozen tape, at the selected row's time. */
+    static final String TAPE_CURSOR = "tape.cursor";
+
+    /**
+     * The event panel's lines are {@code tape.event.1} to {@code .5}; the selected row is the third, also named
+     * {@code tape.event}: {@code ▸ #3305  −1,204.380 ms  frame #12  main  frame  frame.present}. Live, it says so.
+     */
+    static final String TAPE_EVENT = "tape.event";
+
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";
 

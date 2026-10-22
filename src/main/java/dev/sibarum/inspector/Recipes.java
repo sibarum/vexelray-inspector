@@ -152,7 +152,7 @@ final class Recipes {
      */
     @Provides
     RowSink escapement(KronoGui krono, Ui ui, Runs runs) {
-        return new Show(krono, new Escapement(runs), new Escapement(ui), ui.graph(), ui.tape());
+        return new Show(krono, new Escapement(runs), new Escapement(ui), ui);
     }
 
     /**

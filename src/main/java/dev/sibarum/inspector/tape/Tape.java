@@ -34,8 +34,8 @@ public final class Tape {
     /** Rows a second the reach is sized for: a full trace of a busy application. */
     public static final int RATE = 20_000;
 
-    /** The most rows the tape holds, however long its reach: about 500 MB. */
-    public static final int MOST = 1 << 24;
+    /** The most rows the tape holds, however long its reach: about 300 MB, and as much again for its frozen copy. */
+    public static final int MOST = 1 << 23;
 
     /** Distinct names kept. */
     public static final int NAMES = 1024;
@@ -51,14 +51,18 @@ public final class Tape {
     private final long[] seq;
     private final long[] mono;
     private final long[] frame;
+    private final long[] after;
     private final short[] thread;
     private final short[] lane;
     private final short[] kind;
     private final byte[] track;
 
-    // Written by the writer only; read by anyone, behind the volatile below.
-    private final String[] names = new String[NAMES];
-    private final String[] trackNames = new String[TRACKS];
+    /** Whose names these are: this tape's own, or, for a frozen copy, the live tape's it was copied from. */
+    private final Tape origin;
+
+    // Written by the live tape's writer only; read by anyone, behind the volatile below. A frozen copy shares them.
+    private final String[] names;
+    private final String[] trackNames;
     private final Map<String, Short> index = new HashMap<>();
     private final Map<String, Byte> tracks = new HashMap<>();
     private int nameCount;
@@ -76,6 +80,9 @@ public final class Tape {
     private final short presentKind;
     private final short frameLane;
 
+    /** The writer's own: the last frame presented in this run. */
+    private long lastPresented = Row.NO_FRAME;
+
     /** @param seconds how far back the tape reaches, at least one */
     public Tape(int seconds) {
         if (seconds < 1) {
@@ -88,13 +95,75 @@ public final class Tape {
         seq = new long[n];
         mono = new long[n];
         frame = new long[n];
+        after = new long[n];
         thread = new short[n];
         lane = new short[n];
         kind = new short[n];
         track = new byte[n];
+        origin = this;
+        names = new String[NAMES];
+        trackNames = new String[TRACKS];
         name(OTHER);
         presentKind = name(Row.FRAME_PRESENT);
         frameLane = name("frame");
+    }
+
+    /** A tape as large as {@code live}, sharing its names, for {@link #copy} to freeze a moment into. */
+    private Tape(Tape live) {
+        reach = live.reach;
+        mask = live.mask;
+        int n = mask + 1;
+        seq = new long[n];
+        mono = new long[n];
+        frame = new long[n];
+        after = new long[n];
+        thread = new short[n];
+        lane = new short[n];
+        kind = new short[n];
+        track = new byte[n];
+        origin = live;
+        names = live.names;
+        trackNames = live.trackNames;
+        presentKind = live.presentKind;
+        frameLane = live.frameLane;
+    }
+
+    /**
+     * Where this tape's moments are frozen: as large as it, allocated now, once, so a pause allocates nothing. Only
+     * {@link #copy} writes it; never {@link #row}.
+     */
+    public Tape frozen() {
+        return new Tape(this);
+    }
+
+    /**
+     * Freeze the tape's reach before {@code until} into {@code into}, one of this tape's {@link #frozen} copies: the
+     * rows a reader of {@code into} sees from now on, until the next copy. Any thread but the writer's, one copy at a
+     * time; the writer goes on meanwhile, and rows it overtook during the copy are left out rather than shown torn.
+     */
+    public void copy(Tape into, long until) {
+        if (into.origin != this) {
+            throw new IllegalArgumentException("not a frozen copy of this tape");
+        }
+        long from = at(until - reach);
+        long to = at(until);
+        into.written = 0;
+        int n = 0;
+        for (long i = from; i < to; i++, n++) {
+            int s = (int) (i & mask);
+            into.seq[n] = seq[s];
+            into.mono[n] = mono[s];
+            into.frame[n] = frame[s];
+            into.after[n] = after[s];
+            into.thread[n] = thread[s];
+            into.lane[n] = lane[s];
+            into.kind[n] = kind[s];
+            into.track[n] = track[s];
+        }
+        long torn = Math.max(0, first() - from);
+        into.runFrom = Math.min(n, torn);
+        into.overwritten = overwritten;
+        into.written = n;
     }
 
     // ------------------------------------------------------------------ the writer
@@ -103,6 +172,7 @@ public final class Tape {
     public void begin() {
         runFrom = written;
         overwritten = 0;
+        lastPresented = Row.NO_FRAME;
     }
 
     /** The next row, as its header. */
@@ -115,6 +185,10 @@ public final class Tape {
         seq[s] = row.seq();
         mono[s] = row.monoNanos();
         frame[s] = row.presentedFrame();
+        after[s] = lastPresented;
+        if (frame[s] != Row.NO_FRAME && row.is("frame", Row.FRAME_PRESENT)) {
+            lastPresented = frame[s];
+        }
         thread[s] = name(row.thread());
         lane[s] = name(row.lane());
         kind[s] = name(row.kind());
@@ -229,6 +303,14 @@ public final class Tape {
         return frame[(int) (i & mask)];
     }
 
+    /**
+     * The last frame presented before the row, or {@link Row#NO_FRAME}: what a row from a file, which has no frame of
+     * its own, is known to come after.
+     */
+    public long after(long i) {
+        return after[(int) (i & mask)];
+    }
+
     public String thread(long i) {
         return names[thread[(int) (i & mask)]];
     }
@@ -282,7 +364,67 @@ public final class Tape {
 
     /** Tracks named so far. */
     public int tracks() {
-        return trackCount;
+        return origin.trackCount;
+    }
+
+    /** The row {@code by} rows on from {@code i}, kept within this run's rows; -1 if there are none. */
+    public long step(long i, long by) {
+        long f = first(), w = written;
+        if (w <= f) {
+            return -1;
+        }
+        long j = i + by;
+        return j < f ? f : j >= w ? w - 1 : j;
+    }
+
+    /** The next frame presented after row {@code i} ({@code dir} 1) or before it (-1); {@code i} if there is none. */
+    public long frameStep(long i, int dir) {
+        long f = first(), w = written;
+        for (long j = i + dir; j >= f && j < w; j += dir) {
+            if (present(j)) {
+                return j;
+            }
+        }
+        return i;
+    }
+
+    /** How far {@link #nearest} looks either way for a row on the track asked for. */
+    static final int LOOK = 20_000;
+
+    /**
+     * The row nearest {@code nanos} on {@code track}, looking up to {@link #LOOK} rows either way, else the row
+     * nearest {@code nanos} on any track; -1 with no rows.
+     */
+    public long nearest(long nanos, int track) {
+        long f = first(), w = written;
+        if (w <= f) {
+            return -1;
+        }
+        long j = at(nanos);
+        long best = -1;
+        long bestGap = Long.MAX_VALUE;
+        for (long k = j; k < w && k < j + LOOK; k++) {
+            if (track(k) == track) {
+                best = k;
+                bestGap = nanos(k) - nanos;
+                break;
+            }
+        }
+        for (long k = j - 1; k >= f && k > j - LOOK; k--) {
+            if (track(k) == track) {
+                if (nanos - nanos(k) <= bestGap) {
+                    best = k;
+                }
+                break;
+            }
+        }
+        if (best >= 0) {
+            return best;
+        }
+        if (j >= w) {
+            return w - 1;
+        }
+        return j > f && nanos - nanos(j - 1) <= nanos(j) - nanos ? j - 1 : j;
     }
 
     /** Track {@code t}'s lane, or {@link #OTHER} for the last when lanes outnumber tracks. */

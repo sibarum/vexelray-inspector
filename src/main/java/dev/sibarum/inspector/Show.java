@@ -49,6 +49,7 @@ final class Show implements RowSink {
     private final KronoGui krono;
     private final RowSink measure;
     private final RowSink view;
+    private final Ui ui;
     private final GraphView bus;
     private final Tape tape;
     private final TapeView strip;
@@ -64,16 +65,47 @@ final class Show implements RowSink {
     private long busRows;
     private boolean hinted;
 
+    /** Paused, as asked for from any thread; the timeline takes it up at its next turn ({@link #flip}). */
+    private volatile boolean pauseAsked;
+
     // The timeline's own.
     private long last;
+    private boolean paused;
+    private long shown = Long.MIN_VALUE;   // the show time last drawn, which a pause holds
 
-    Show(KronoGui krono, RowSink measure, RowSink view, GraphView bus, TapeView strip) {
+    Show(KronoGui krono, RowSink measure, RowSink view, Ui ui) {
         this.krono = krono;
         this.measure = measure;
         this.view = view;
-        this.bus = bus;
+        this.ui = ui;
+        this.bus = ui.graph();
+        this.strip = ui.tape();
         this.tape = strip.tape();
-        this.strip = strip;
+        strip.onToggle(this::toggle);
+    }
+
+    // ------------------------------------------------------------------ pausing
+
+    /**
+     * Pause, or go on: any thread. While paused, show time is held for everything drawn (the movement, its readouts,
+     * the graph and the tape), and the tape is frozen at that moment to be looked through. The release goes on behind
+     * it, so nothing piles up: rows still reach the escapement and the graph's counts, and going on shows them as
+     * they are now.
+     */
+    void toggle() {
+        pauseAsked = !pauseAsked;
+        krono.onTimeline(this::flip);
+    }
+
+    private void flip() {
+        boolean want = pauseAsked;
+        if (want == paused || (want && shown == Long.MIN_VALUE)) {
+            pauseAsked = paused;        // nothing shown yet: nothing to hold
+            return;
+        }
+        paused = want;
+        ui.paused(want, shown);
+        arm();
     }
 
     // ------------------------------------------------------------------ the source's thread
@@ -159,7 +191,9 @@ final class Show implements RowSink {
                 if (m.begin()) {
                     clock.reset();
                     bus.reset();
-                    strip.reset();
+                    if (!paused) {
+                        strip.reset();      // while paused the strip is the frozen moment; going on resets it
+                    }
                     view.begin(m.text());
                 } else {
                     view.end(m.text());
@@ -167,7 +201,10 @@ final class Show implements RowSink {
             }
         }
         boolean moving = bus.frame(now, dt, clock, real == Long.MIN_VALUE ? 0 : real, show);
-        strip.frame(show, now);
+        if (!paused) {
+            shown = show;
+            strip.frame(show, now);
+        }
         return moving || !pending.isEmpty() || (real != Long.MIN_VALUE && clock.lag(real) > 0);
     }
 }

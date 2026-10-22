@@ -136,6 +136,61 @@ class TapeTest {
     }
 
     @Test
+    void aFrozenMomentHoldsItsReachAndRowsArrivingAfterDoNotMoveIt() {
+        Tape tape = new Tape(1);
+        Tape frozen = tape.frozen();
+        tape.begin();
+        for (int i = 0; i < 3000; i++) {
+            tape.row(row(i, i * MS, i % 2 == 0 ? "frame" : "bus", "k" + (i % 3)));
+        }
+        // Frozen at 2.5 s: the second before it, 1.5 s up to but not including 2.5 s.
+        tape.copy(frozen, 2500 * MS);
+        assertEquals(1000, frozen.written() - frozen.first());
+        assertEquals(1500 * MS, frozen.nanos(frozen.first()));
+        assertEquals(1500, frozen.seq(frozen.first()));
+        for (int i = 3000; i < 3000 + 2 * tape.capacity(); i++) {
+            tape.row(row(i, i * MS, "gpu", "later"));
+        }
+        assertEquals(1000, frozen.written() - frozen.first(), "the live tape went on; the frozen one did not");
+        assertEquals(2499 * MS, frozen.nanos(frozen.written() - 1));
+        assertEquals("bus", frozen.lane(frozen.written() - 1), "names are shared with the live tape");
+        assertEquals("k0", frozen.kind(frozen.first()));
+    }
+
+    @Test
+    void aCopyFromAnotherTapeIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new Tape(1).copy(new Tape(1).frozen(), 0));
+    }
+
+    @Test
+    void theCursorStepsByRowByFrameAndFindsTheNearestOnATrack() {
+        Tape tape = new Tape(5);
+        tape.begin();
+        // A frame at 0, 10, 20 ms; between them two bus rows.
+        long seq = 0;
+        for (int f = 0; f < 3; f++) {
+            tape.row(new Row(seq++, f * 10 * MS, "", "main", "frame", Row.FRAME_PRESENT, "#" + f, Row.NO_FRAME));
+            tape.row(row(seq++, f * 10 * MS + 3 * MS, "bus", "a"));
+            tape.row(row(seq++, f * 10 * MS + 6 * MS, "bus", "b"));
+        }
+        assertEquals(Row.NO_FRAME, tape.frame(4), "a file's bus row has no frame of its own");
+        assertEquals(1, tape.after(4), "but it comes after frame #1");
+        assertEquals(Row.NO_FRAME, tape.after(0), "and the first frame comes after none");
+        assertEquals(1, tape.step(0, 1));
+        assertEquals(0, tape.step(0, -1), "held at the first row");
+        assertEquals(8, tape.step(7, 5), "and at the last");
+        assertEquals(3, tape.frameStep(0, 1));
+        assertEquals(6, tape.frameStep(4, 1));
+        assertEquals(3, tape.frameStep(5, -1));
+        assertEquals(6, tape.frameStep(6, 1), "no frame after the last: it stays");
+        int bus = tape.track(1);
+        assertEquals(4, tape.nearest(14 * MS, bus), "the bus row at 13 ms, not the frame at 10");
+        assertEquals(5, tape.nearest(16 * MS, bus));
+        assertEquals(3, tape.nearest(11 * MS, tape.track(0)));
+    }
+
+    @Test
     void aSliceStillBeingShownKeepsItsBinsAndStopsAtShowTime() {
         Tape tape = new Tape(5);
         tape.begin();

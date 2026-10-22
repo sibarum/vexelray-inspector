@@ -226,8 +226,9 @@ cost.
   `--insert-command`. Every later milestone gives its data the menu as that data lands.
 
 **Started 2026-10-22: the tape.** Every row's header for the last `--tape.seconds` (10 by default), one track per
-lane, ending at show time. **Next:** pausing it to look through its events, then its reach set from the window
-(docs/TODO.md).
+lane, ending at show time. Pausing (Space) holds show time for the whole window and freezes the tape to be looked
+through row by row and frame by frame, the target running on. **Next:** its reach set from the window, then the
+movement following the cursor (docs/TODO.md).
 
 ### M3 — Messages
 

@@ -13,9 +13,8 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## The tape (M2)
 
-- [ ] **Pause it** (slice 2): Space and a button freeze show time; the frozen window is copied once into a second
-      buffer, so rows still arriving cannot move it; Left/Right step event by event, Ctrl+Left/Right frame by frame,
-      a click selects, and a panel gives the selected row's header and its neighbours. Resume goes back to live.
+- [ ] **A replay looping while paused clears the graph on going on**: the graph's counts are reset when the new run
+      begins, and the board catches up when the pause ends. The tape's frozen copy is not affected.
 - [ ] **Change its reach from the window** (slice 3): 5 s, 10 s, 30 s, 1 min, 5 min, resizing the ring once on the
       source's thread. Today it is `--tape.seconds` only.
 - [ ] **The movement follows the cursor**: while paused, the escapement and the readouts show the selected moment,

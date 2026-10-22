@@ -43,6 +43,10 @@ final class Ui implements Escapement.Listener {
     private final Node lost;
     private final Node stalls;
 
+    // The timeline's own.
+    private boolean paused;
+    private Beat last = Beat.NONE;
+
     Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker, dev.sibarum.inspector.circuit.BusGraph declared,
        Tape rows) {
         this.titleBar = titleBar;
@@ -140,23 +144,48 @@ final class Ui implements Escapement.Listener {
 
     @Override
     public void tick(Beat beat) {
-        movement.tick();
-        show(beat);
+        last = beat;
+        if (!paused) {
+            movement.tick();
+            show(beat);
+        }
     }
 
     @Override
     public void rest(Beat beat) {
-        show(beat);
+        held(beat);
     }
 
     @Override
     public void wake(Beat beat) {
-        show(beat);
+        held(beat);
     }
 
     @Override
     public void lost(Beat beat) {
-        show(beat);
+        held(beat);
+    }
+
+    /** Show {@code beat}, unless paused: then it is only kept, to be shown on going on. */
+    private void held(Beat beat) {
+        last = beat;
+        if (!paused) {
+            show(beat);
+        }
+    }
+
+    /**
+     * Pause at show time {@code at}, or go on: on the timeline, from {@link Show}. Paused, the movement, its
+     * readouts and the graph hold what they showed, and the tape freezes at {@code at} to be looked through; going on
+     * shows the latest beat at once.
+     */
+    void paused(boolean paused, long at) {
+        this.paused = paused;
+        graph.paused(paused);
+        tape.paused(paused, at);
+        if (!paused) {
+            show(last);
+        }
     }
 
     @Override

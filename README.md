@@ -10,6 +10,8 @@ from its `vexel-desktop` template, and a **framework witness** like Vexplore: th
   `vexelray-gui/docs/plans/flight-recorder.md`.
 - **What is not done**: [docs/TODO.md](docs/TODO.md).
 - **What the framework did to us**: [docs/framework-notes.md](docs/framework-notes.md).
+- **What each milestone showed**: [docs/retrospective.md](docs/retrospective.md), the pass over those notes at the end
+  of each milestone.
 
 ![The component graph and the main loop, replaying a calculator session](docs/screenshots/component-graph.png)
 

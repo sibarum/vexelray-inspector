@@ -50,6 +50,18 @@ final class Landmarks {
     /** How fast show time runs against real time, and how far behind: {@code real time}, {@code ×0.1 · 182 ms behind}. */
     static final String GOVERNOR = "graph.governor";
 
+    /** The tape's panel: the tracks, their names, the ruler and the reach line. */
+    static final String TAPE = "tape";
+
+    /** The tracks, one per lane, ending at show time. */
+    static final String TAPE_TRACKS = "tape.tracks";
+
+    /** Each track's name is {@code tape.track.<n>}, in the order the lanes were first seen. */
+    static final String TAPE_TRACK = "tape.track";
+
+    /** How far back the tape reaches: {@code last 10 s}, or how much less it holds after a storm. */
+    static final String TAPE_REACH = "tape.reach";
+
     /** The attach picker, shown while nothing is being inspected. Each entry is {@code picker.<app>-<pid>}. */
     static final String PICKER = "picker";
 

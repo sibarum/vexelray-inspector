@@ -3,6 +3,7 @@ package dev.sibarum.inspector;
 import dev.sibarum.inspector.clock.Beat;
 import dev.sibarum.inspector.clock.Durations;
 import dev.sibarum.inspector.clock.Escapement;
+import dev.sibarum.inspector.tape.Tape;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.layout.LayoutEnums.AlignItems;
@@ -15,8 +16,8 @@ import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
 /**
- * The window: the framework's title bar, the component graph, the escapement beside its readouts under it, and a
- * status line saying where the rows come from.
+ * The window: the framework's title bar, the component graph, the escapement beside its readouts under it, the tape
+ * under them, and a status line saying where the rows come from.
  *
  * <p>It is the listener of the {@link Escapement} that {@link Show} feeds on the show clock, so it is called on the
  * timeline with the whole new {@link Beat} each time. A prop written off the GUI thread is queued and applied by the next drain, which is the
@@ -28,6 +29,7 @@ final class Ui implements Escapement.Listener {
     private final StatusBar status;
     private final Movement movement;
     private final GraphView graph;
+    private final TapeView tape;
     private final Node inspecting;
     private final Picker picker;
     private final Node history;
@@ -41,10 +43,12 @@ final class Ui implements Escapement.Listener {
     private final Node lost;
     private final Node stalls;
 
-    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker, dev.sibarum.inspector.circuit.BusGraph declared) {
+    Ui(Gui gui, KronoGui krono, TitleBar titleBar, Picker picker, dev.sibarum.inspector.circuit.BusGraph declared,
+       Tape rows) {
         this.titleBar = titleBar;
         this.movement = new Movement(gui, krono);
         this.graph = new GraphView(gui);
+        this.tape = new TapeView(gui, rows);
         this.graph.graph(declared);
         this.picker = picker;
 
@@ -97,7 +101,7 @@ final class Ui implements Escapement.Listener {
                 .children(graph.node(), gui.row()
                         .justify(Justify.CENTER).alignItems(AlignItems.CENTER)
                         .gap(Length.rem(2.5f))
-                        .children(movement.node(), readouts), history);
+                        .children(movement.node(), readouts), tape.node(), history);
         picker.node().visible(false);
         Node body = gui.row()
                 .width(Length.FILL).height(Length.grow(1f))
@@ -116,6 +120,11 @@ final class Ui implements Escapement.Listener {
     /** The component graph, which {@link Show} moves. */
     GraphView graph() {
         return graph;
+    }
+
+    /** The tape's strip, which {@link Show} moves. */
+    TapeView tape() {
+        return tape;
     }
 
     /** A name over a value, which never wraps: a longer one is cut at the column's edge; returns the value. */

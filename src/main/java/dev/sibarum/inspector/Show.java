@@ -5,6 +5,7 @@ import dev.sibarum.inspector.clock.Pending;
 import dev.sibarum.inspector.clock.ShowClock;
 import dev.sibarum.inspector.rows.Row;
 import dev.sibarum.inspector.rows.RowSink;
+import dev.sibarum.inspector.tape.Tape;
 import dev.vexelray.gui.krono.KronoGui;
 import sibarum.kronometer.Dur;
 import sibarum.kronometer.anim.Ease;
@@ -18,6 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ul>
  *   <li><b>At once, to {@code measure}</b>, on the source's thread: the escapement whose beats the history keeps. A
  *       run is measured as it happened, never as it was shown.</li>
+ *   <li><b>At once, to the {@link Tape}</b>, as its header, so the tape holds what happened whatever has been shown;
+ *       the {@link TapeView} draws it up to show time.</li>
  *   <li><b>Into {@link Pending}</b>, released on the timeline as show time reaches it: frame rows to {@code view},
  *       the escapement the window shows, so the balance wheel and the graph share one clock and never disagree
  *       about which frame something happened in; bus rows to the {@link GraphView}, as messages between parts.</li>
@@ -47,6 +50,8 @@ final class Show implements RowSink {
     private final RowSink measure;
     private final RowSink view;
     private final GraphView bus;
+    private final Tape tape;
+    private final TapeView strip;
     private final Pending pending = new Pending(1 << 16);
     private final ShowClock clock = ShowClock.standard();
     private final AtomicBoolean armed = new AtomicBoolean();
@@ -62,11 +67,13 @@ final class Show implements RowSink {
     // The timeline's own.
     private long last;
 
-    Show(KronoGui krono, RowSink measure, RowSink view, GraphView bus) {
+    Show(KronoGui krono, RowSink measure, RowSink view, GraphView bus, TapeView strip) {
         this.krono = krono;
         this.measure = measure;
         this.view = view;
         this.bus = bus;
+        this.tape = strip.tape();
+        this.strip = strip;
     }
 
     // ------------------------------------------------------------------ the source's thread
@@ -74,6 +81,7 @@ final class Show implements RowSink {
     @Override
     public void begin(String origin) {
         measure.begin(origin);
+        tape.begin();
         offset = Long.MIN_VALUE;
         frames = 0;
         busRows = 0;
@@ -85,6 +93,7 @@ final class Show implements RowSink {
     @Override
     public void row(Row row) {
         measure.row(row);
+        tape.row(row);
         long o = row.monoNanos() - System.nanoTime();
         if (o > offset) {
             offset = o;
@@ -150,6 +159,7 @@ final class Show implements RowSink {
                 if (m.begin()) {
                     clock.reset();
                     bus.reset();
+                    strip.reset();
                     view.begin(m.text());
                 } else {
                     view.end(m.text());
@@ -157,6 +167,7 @@ final class Show implements RowSink {
             }
         }
         boolean moving = bus.frame(now, dt, clock, real == Long.MIN_VALUE ? 0 : real, show);
+        strip.frame(show, now);
         return moving || !pending.isEmpty() || (real != Long.MIN_VALUE && clock.lag(real) > 0);
     }
 }

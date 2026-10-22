@@ -12,6 +12,7 @@ import dev.sibarum.inspector.rows.ReplaySource;
 import dev.sibarum.inspector.rows.RowSink;
 import dev.sibarum.inspector.rows.RowSource;
 import dev.sibarum.inspector.rows.Sources;
+import dev.sibarum.inspector.tape.Tape;
 import dev.vexelray.gui.automation.Discovery;
 import dev.vexelray.framework.api.Configuration;
 import dev.vexelray.framework.api.Provides;
@@ -120,11 +121,16 @@ final class Recipes {
     /**
      * The window's contents. Needs the {@code Gui}, its clock and its title bar, and no window, so a test can build
      * the real tree headless ({@code VexelApplication.tree}).
+     *
+     * <p>The tape is made here: every row's header for the last {@code --tape.seconds} (ten by default; any whole
+     * number of seconds, at least one), its ring allocated once, sized for that reach at {@link Tape#RATE} rows a
+     * second. The window's strip draws it and {@link #escapement} fills it. A recipe may not return a class of this
+     * application's own, and an interface over a ring would be ceremony, so it is not a part of its own.
      */
     @Provides
     Ui ui(Gui gui, KronoGui krono, TitleBar titleBar, Sources sources, Picker picker,
-          @Setting("bus.graph") String graph) {
-        Ui ui = new Ui(gui, krono, titleBar, picker, busGraph(graph));
+          @Setting("bus.graph") String graph, @Setting(value = "tape.seconds", def = "10") int tapeSeconds) {
+        Ui ui = new Ui(gui, krono, titleBar, picker, busGraph(graph), new Tape(tapeSeconds));
         ui.title(sources.describe());
         zoomShortcuts(gui);
         return ui;
@@ -146,7 +152,7 @@ final class Recipes {
      */
     @Provides
     RowSink escapement(KronoGui krono, Ui ui, Runs runs) {
-        return new Show(krono, new Escapement(runs), new Escapement(ui), ui.graph());
+        return new Show(krono, new Escapement(runs), new Escapement(ui), ui.graph(), ui.tape());
     }
 
     /**

@@ -11,6 +11,17 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] **The recorder's own cost**, shown from day one (roadmap M1). The link's `Snap` carries the loop and ring
       counters but no cost yet, and `LinkSource` does not read snapshots: both ends need it.
 
+## The tape (M2)
+
+- [ ] **Pause it** (slice 2): Space and a button freeze show time; the frozen window is copied once into a second
+      buffer, so rows still arriving cannot move it; Left/Right step event by event, Ctrl+Left/Right frame by frame,
+      a click selects, and a panel gives the selected row's header and its neighbours. Resume goes back to live.
+- [ ] **Change its reach from the window** (slice 3): 5 s, 10 s, 30 s, 1 min, 5 min, resizing the ring once on the
+      source's thread. Today it is `--tape.seconds` only.
+- [ ] **The movement follows the cursor**: while paused, the escapement and the readouts show the selected moment,
+      rebuilt from the tape (roadmap: step through the rings frame by frame).
+- [ ] **Collapse it**: the strip adds about 9em under the movement, in a window that is already too short (below).
+
 ## Restart in debug mode
 
 - [ ] **Follow a restart**: an Inspector attached to an application that restarts (into or out of a debug run) says

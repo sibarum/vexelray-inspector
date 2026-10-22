@@ -225,6 +225,10 @@ cost.
 - The command menu, on the escapement first. It needs discovery (for the working directory) and MainFrame's
   `--insert-command`. Every later milestone gives its data the menu as that data lands.
 
+**Started 2026-10-22: the tape.** Every row's header for the last `--tape.seconds` (10 by default), one track per
+lane, ending at show time. **Next:** pausing it to look through its events, then its reach set from the window
+(docs/TODO.md).
+
 ### M3 — Messages
 
 - The bus topology, built from the processor graph and confirmed by the live tap.

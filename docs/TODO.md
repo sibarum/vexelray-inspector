@@ -40,8 +40,11 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] **See it on an application with components, live**: the physics lanes of the rigid and fluid sim demos are real
       `@Component`s with named mailboxes (no `@Publishes`). Launch one under `--launch` and look. The made-up
       `samples/circuit-bus.csv` with `samples/circuit-graph.txt` is the only component run seen so far.
-- [ ] **The window is too short for the graph and the movement**: they need about 58em, which is now the minimum,
-      but a window size saved from before (860 px) still opens shorter, and the movement scrolls under the graph.
+- [ ] **The window is too short for the graph and the movement**: they need about 58em, and a window size saved from
+      before (860 px), or a screen under about 1080 px, opens shorter, so the movement scrolls under the graph. The
+      minimum is no fix: it was 58em for a while, and a window under it scrolled twice, the root as well as the body
+      (two scrollbars, the status bar scrolled away). It is back to 35em, and the body is the one scroller. A shorter
+      graph is.
 - [ ] **Strings inside the frame**: the show runs on the timeline inside the frame, and the readouts, the parts'
       counts, the flow table and the governor format a string when they change, at most ten times a second. Small and
       bounded, but against the frame-loop rule; digits drawn from a fixed set of glyphs would remove it.

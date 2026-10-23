@@ -62,12 +62,18 @@ public final class Inspector {
      * The smallest this UI is still coherent at, in root ems — a floor, not the design size: the movement and
      * its readouts side by side, neither clipped.
      *
+     * <p>The height is the title bar, the graphics strip and the status bar with a body worth scrolling under them,
+     * not the content's height: the body scrolls the graph, the movement and the tape by itself. A window shorter
+     * than this floor is laid out on a canvas of the floor's height that the root scrolls too, so a floor sized to
+     * the content (58em, once) gave every window shorter than the content two scrollbars, one inside the other, and
+     * scrolled the status bar off the bottom.
+     *
      * <p>Named here rather than written at each use because it is read from two places that have to agree:
      * {@link Recipes#look} declares it to the framework, and a screenshot at exactly the minimum
      * ({@code ottermate --size 51emx35em shot}) is the picture that shows a panel outgrowing it.
      */
     static final float MIN_W_EM = 51;
-    static final float MIN_H_EM = 58;
+    static final float MIN_H_EM = 35;
 
     /**
      * Entry point.

@@ -262,6 +262,10 @@ Senders are read from the thread and the topic, and receivers from named mailbox
 Graphics are not on the bus at all, and handlers are called directly, not by message. Those three, and measured
 senders and receivers, are framework-notes.md FN-7 to FN-11.
 
+**2026-10-23: the tachometer.** Beside the governor, a dial of the frames the target drew a second, against its
+display's refresh. Every rate in the graph is now given a second and a frame drawn. The refresh is the target's to say,
+and it does not yet (FN-14).
+
 ### M4 — Time
 
 - The pinned cylinder: live shreds and their states (the SPORK…END trace), scheduled entries, effects and their
@@ -279,6 +283,10 @@ senders and receivers, are framework-notes.md FN-7 to FN-11.
 - The resource ledger with bytes and owners, and validation messages linked to the frame they occurred in.
 - Frame thumbnails through `readFrame`, taken on demand. `shot` already does this.
 - Port: `gpu` and `ledger`.
+
+**Started 2026-10-22: what it draws with.** The status line's right end says the target's device, whether it is a
+GPU or a software rasterizer, and its present path; a click opens the driver, Vulkan version and validation. The link
+asks `gpu device` once a run, and no application answers yet (FN-12), so today it shows why not.
 
 ### M6 — Threads and the JVM
 

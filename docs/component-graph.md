@@ -20,6 +20,11 @@ a closed list: a part can be added, split or merged when the stack can tell it a
 | **App logic** | what the application defines: its handlers, and its code on the main thread | live |
 | **Components** | each `@Component` lane: a thread and its mailboxes. One node per lane, named for the components on it | live, with its real mailboxes |
 
+![Four component lanes beside App logic, from a made-up run](screenshots/component-graph-lanes.png)
+
+*`samples/circuit-bus.csv` with `--bus.graph=samples/circuit-graph.txt`, both made up: the component lanes stand in a
+column at the right, each named for its components, and the shared lane is one node for both.*
+
 ## What moves, and what it means
 
 - **An arrow is a part sending to another part.** It appears the first time a message crosses it and stays for the
@@ -33,6 +38,11 @@ a closed list: a part can be added, split or merged when the stack can tell it a
   passed: which topics, between which parts, and how many.
 - **A message within a part** (the GUI's caret timer writing to the tree, say) is a row in the table with the same
   part as both ends, and no arrow.
+- **Beside the title, the tachometer and the governor's line.** The needle is the frames the target drew a second,
+  full scale at its display's refresh and into the ruby past it; a turn of its loop that skipped its draw is not a
+  frame. The line says it in numbers, then how dilated show time is and how far behind it runs:
+  `62 fps · of 60 Hz · ×1 · real time`. No application says its refresh yet (FN-14), so the dial has no scale and no
+  needle, and the line says `vsync not reported (FN-14)`.
 - **A dashed arrow is a path that exists and does not reach the bus**: Host OS → GUI, Graphics → GUI, and GUI → App
   logic, because the GUI calls handlers directly (FN-11). Each is labelled with the note that would make it real.
 

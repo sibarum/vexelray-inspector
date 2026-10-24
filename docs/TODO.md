@@ -20,6 +20,9 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       forever", so `settle` and `zoom` wait out their timeout once a `--replay.loop=false` run has ended. Already so at
       069f1aa; found, not chased.
 
+- [ ] **The plaque wraps `AT REST · UNTIL WOKEN`** onto two lines at 1100 px wide (docs/screenshots/component-graph.png);
+      the other plaques fit on one. Found while retaking the screenshots, not chased.
+
 ## The tape (M2)
 
 - [ ] **A replay looping while paused clears the graph on going on**: the graph's counts are reset when the new run

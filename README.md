@@ -15,9 +15,12 @@ from its `vexel-desktop` template, and a **framework witness** like Vexplore: th
 
 ![The component graph and the main loop, replaying a calculator session](docs/screenshots/component-graph.png)
 
-*The calculator demo, replayed from `samples/calculator.csv`. Input devices and Automation send `tactroller.input` to
-the GUI, the app's handlers send it mutations, and the table under the graph names every flow with its rate and its
-total. Host OS and Graphics are drawn faint: nothing they do reaches the bus yet. Under the graph, the main loop.*
+*The calculator demo, replayed from `samples/calculator.csv`, at the end of its first pass. Input devices and Automation send
+`tactroller.input` to the GUI, the app's handlers send it mutations, and the table under the graph names every flow
+with its rate a second and a frame and its total. Host OS and Graphics are drawn faint: nothing they do reaches the bus
+yet. Beside the graph's title, the tachometer (no needle: a recording does not say its display's refresh, FN-14) and
+the governor's line. Under the graph, the main loop resting until woken, then the tape of the last 5 s, one track per
+lane; the status line says what is inspected and, at its right, what it draws with.*
 
 ## Status
 
@@ -39,7 +42,20 @@ the application's Inspector link, or it plays a recording.
 | **History by build**: every live run of an application whose build is known is kept (frames, frame time p50/p95/p99, stalls, rows lost, parks), keyed by its exact source and its stack's, and the strip under the movement compares this build with the ones before | Saying, at a glance, that this build is worse than the last (M8's rules) |
 | **The tape**: every row's header (seq, time, thread, lane, kind, frame; not its detail) for the last 5 s, 10 s, 30 s, 1 min or 5 min, chosen beside its *Pause* (`--tape.seconds` sets where it starts, any whole number), one track per lane in the order seen, ending at show time so it moves with the movement. A mark is the rows in a slice of time, taller the more there are; a ruled line is a frame. Sized for 20,000 rows a second; a storm faster than that shortens it, and the strip says by how much. A longer reach starts with what the tape already held | Remembering the reach chosen for the next run |
 | **Pause**: Space or the tape's *Pause* holds show time, so the movement, its readouts, the graph and the tape all stop at one moment while the target runs on. The tape is frozen there in a copy, a cursor marks one row and the panel under it gives that row's header and its neighbours: Left/Right a row, Ctrl+Left/Right a frame, Home/End, or a press or drag on a track. *Go on* goes back to live | The movement following the cursor back in time |
+| **What it draws with**: the status line's right end says the inspected application's GPU or software rasterizer, its device and its present path, and a click opens device, driver, Vulkan version, present path and validation above it | Any application answering (FN-12): today it says `graphics not reported` and why |
 | 110 tests, none of which needs a window; one builds the real tree headless, one streams from a real link, one launches a real child and stops it, and the show clock is played against made-up bursts and storms and the recorded sample, and the graph reads the recorded sample | |
+
+![Paused: the tape frozen, the cursor on a frame.present, and the rows around it](docs/screenshots/tape-paused.png)
+
+*Paused at the end of the same replay (Space), then Ctrl+Left twice and Left once: the cursor is on `#5171`, the
+`frame.present` of frame #43 on `main`, and the panel under the tape gives it and its neighbours, each with its time
+before show time and the frame it fell in or after. The target, a recording here, runs on behind the pause.*
+
+![The component graph of a made-up application with component lanes](docs/screenshots/component-graph-lanes.png)
+
+*`samples/circuit-bus.csv` with its declared graph, `samples/circuit-graph.txt` (both made up): App logic sends
+`doc.edit` to three component lanes, and the Parser lane passes `doc.parsed` on. Dots ride the arrows as the messages
+cross; past eight flows the table counts the rest.*
 
 ## Run it
 
@@ -65,6 +81,9 @@ mvn compile exec:exec "-Dapp.args=--launch mvn.cmd -q -f ../calculator-vexel-dem
                                                                            # start one, inspect it, stop it on close
 mvn compile exec:exec "-Dapp.args=--replay=run.csv --replay.speed=0.25"   # a quarter of the recorded pace
 mvn compile exec:exec "-Dapp.args=--replay=run.csv --replay.loop=false"   # once, then rest
+mvn compile exec:exec "-Dapp.args=--replay=samples/circuit-bus.csv --bus.graph=samples/circuit-graph.txt"
+                                                                           # a declared graph from a file, for a replay
+mvn compile exec:exec "-Dapp.args=--replay=run.csv --tape.seconds=30"     # the tape's reach to start with
 mvn compile exec:exec -Dautomation=0                                       # a driving socket on a free port
 mvn test
 ```
@@ -95,7 +114,7 @@ clock reaches it.
 | `graph/` | **the component graph as state, with no `Gui` in it** (docs/component-graph.md). `Graph` keeps the parts and every flow this run: one topic from one part to another, its total and a rate held over about a second. `Senders` says which part sent a message, from its thread and topic; `Receivers` is the stand-in table of who receives a topic when no named mailbox says so. |
 | `circuit/` | **the declared bus graph.** `BusGraph` reads it (docs/bus-circuit.md); the component graph uses it to name each component lane and place its mailboxes. |
 | `clock/` | **the mechanisms as state.** `Escapement` reads the `frame` lane (`frame.present` ticks, `loop.park` rests, the `frame` span and the first `wake` after a park) into a `Beat`, one immutable value, and tells a listener. `ShowClock` is the time the movement is shown at: real time, stretched for bursts within its slack, caught up past it. `Pending` is the ring between the source's thread and the timeline. `BeadPool` is the fixed set of message dots in flight; one closer than the gap to the last on its arrow rides on that dot. `BusRows` says what the `bus` lane's rows mean. |
-| `history/` | **every run kept, by build.** `Build` is what an application advertises in its discovery file: coordinates, its exact source (commit, plus `+dirty.<digest>` of uncommitted changes) and a digest of every stamped stack part, so two runs are one build only if all of it matches. `Session` measures a run from the escapement's beats; `History` keeps one CSV line per run in `~/.vexelray-inspector/history/<group>/<artifact>.csv` and sums runs per build; `Recorder` (behind `Runs`) begins and ends runs as sources switch. A replay, or an application built without `vexelray-build-maven-plugin`, is shown and not kept. |
+| `history/` | **every run kept, by build.** `Build` is what an application advertises in its discovery file: coordinates, its exact source (commit, plus `+dirty.<digest>` of uncommitted changes) and a digest of every stamped stack part, so two runs are one build only if all of it matches. `Session` measures a run from the escapement's beats; `History` keeps one CSV line per run in `~/.inspector/history/<group>/<artifact>.csv` (moved from `~/.vexelray-inspector/` on the first launch after the rename) and sums runs per build; `Recorder` (behind `Runs`) begins and ends runs as sources switch. A replay, or an application built without `vexelray-build-maven-plugin`, is shown and not kept. |
 | `tape/` | **the tape, with no `Gui` in it.** `Tape` is a ring of row headers, numbers only (thread, lane and kind are indexes into one table of names), sized for its reach at `Tape.RATE` rows a second and replaced whole, by the writer at its next row, when the reach changes; a row keeps its index in every ring. It counts the rows a storm pushed out early, finds a time, and counts a stretch of time into bins for the strip. |
 | `graphics/` | **what the inspected application draws with, with no `Gui` in it.** `Graphics` reads its answer to `gpu device` (device, type, vendor, driver, Vulkan version, present path), decodes the vendors' driver versions and says whether it is a software rasterizer. Not answered yet upstream (FN-12), so it shows the reason. `GraphicsView.java` puts it at the right of the status line, and a click opens the facts above it. |
 | `TapeView.java` | the tape on screen: ten segments across, each one picture built on the offload lane and only translated inside the frame; and, paused, the frozen copy, the cursor and the event panel. |
@@ -178,19 +197,36 @@ The plug's tooltip and the switches' window say the same in words, with the port
 
 ## Taking a screenshot
 
-Screenshots are `ottermate`'s (`vexelray-gui/vexelray-gui-automation-cli`). The plaque is the thing to wait on:
+Screenshots are `ottermate`'s (`vexelray-gui/vexelray-gui-automation-cli`). The ones in `docs/screenshots/` are
+1100x1060, and wait on a readout or the plaque for the moment they show. `component-graph.png` and `tape-paused.png`:
 
 ```
-await plaque AT REST · 200ms
-shot docs/screenshots/resting.png
+resize 1100x1060
+await readout.park forever
+shot docs/screenshots/component-graph.png
+key SPACE
+await tape.pause Go on
+key CTRL+LEFT
+key CTRL+LEFT
+key LEFT
+shot docs/screenshots/tape-paused.png
 ```
 
 ```
-ottermate --script check.txt --launch mvn.cmd -q compile exec:exec -Dautomation=0 "-Dapp.args=--replay=samples/calculator.csv"
+ottermate --keep-going --script shots.txt --launch mvn.cmd -q compile exec:exec -Dautomation=0 "-Dapp.args=--replay=samples/calculator.csv --tape.seconds=5"
 ```
 
-`settle` works too, and returns between beats (a swing is a 130 ms ramp, and the replay thread is not on the
-timeline), but it does not say *which* beat; `await` on a landmark does.
+`component-graph-lanes.png` is `resize 1100x1060`, `await readout.frame (2`, `shot`, launched with
+`"-Dapp.args=--replay=samples/circuit-bus.csv --bus.graph=samples/circuit-graph.txt --tape.seconds=5"`.
+
+- **`--keep-going`, because `resize` answers `err`**: it waits for the timeline to go quiet, which the Inspector's
+  timers never let it do (docs/TODO.md), and it has resized the window all the same. `settle` fails the same way, so
+  wait on a landmark.
+- **A replay that loops starts its tape afresh**, so a shot of a full tape is taken at the end of the first pass:
+  the calculator's last frame parks `forever`, and nothing earlier in it does. An `await` on a frame number can miss
+  it, because a readout is polled and frames come faster than that.
+- **`shot` takes a path the Inspector can open**: relative to the Inspector's working directory, or a Windows one.
+  An MSYS path such as `/c/Users/...` is not one.
 
 ## A native executable
 
@@ -205,5 +241,5 @@ sockets, off until asked for ([Automation](#automation)). Not yet built natively
 ## Logging
 
 Through `sibarum.probe.Log`, as `Log.of("vexelray-inspector.<area>")`. From a checkout the console shows info and
-`target/logs/vexelray-inspector.log` has debug; under `ottermate` the file is at trace with a probe trace beside it.
+`target/logs/inspector.log` has debug; under `ottermate` the file is at trace with a probe trace beside it.
 `--log=debug` changes the level for one launch.

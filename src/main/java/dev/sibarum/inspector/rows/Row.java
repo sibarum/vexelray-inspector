@@ -36,6 +36,15 @@ public record Row(long seq, long monoNanos, String wall, String thread, String l
     /** The frame span: {@code detail} is how long the frame took ({@code 2.39ms}, {@code 777.4us}). */
     public static final String FRAME_SPAN = "frame";
 
+    /** A window's turn drew nothing: no reason to. Written before that turn's {@link #FRAME_PRESENT}. */
+    public static final String DRAW_SKIPPED = "draw skipped";
+
+    /**
+     * How long one refresh of the target's display lasts ({@code 6944us}), as it would write it: not written by any
+     * VexelRay yet (docs/framework-notes.md, FN-14).
+     */
+    public static final String DISPLAY_REFRESH = "display.refresh";
+
     public boolean is(String lane, String kind) {
         return this.kind.equals(kind) && this.lane.equals(lane);
     }

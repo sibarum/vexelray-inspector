@@ -80,6 +80,7 @@ class GraphTest {
 
     @Test
     void aRateIsMessagesASecondAndIsHeldOverAboutASecond() {
+        graph.row(present(-10 * Graph.TAU));             // a run long under way, so none of it is young
         for (int i = 0; i < 10; i++) {
             graph.row(bus(i * 1_000_000L, "main", "tactroller.input", "3.1us"));
         }
@@ -87,6 +88,89 @@ class GraphTest {
         assertEquals(10, graph.rate(0, last), 0.2);
         assertEquals(10 / Math.E, graph.rate(0, last + Graph.TAU), 0.1);
         assertEquals(10, graph.total(0), "the total stays");
+    }
+
+    private Row present(long t) {
+        return new Row(++seq, t, "-", "main", "frame", Row.FRAME_PRESENT, "#" + seq, seq);
+    }
+
+    @Test
+    void framesAreCountedAsAFlowsMessagesAreSoARateReadsAsMessagesAFrame() {
+        assertEquals(0, graph.frameRate(0));
+        assertTrue(Double.isNaN(graph.perFrame(5, 0)), "no frame yet: a frame measures nothing");
+        long frame = 1_000_000_000L / 60;
+        long t = 0;
+        for (int i = 0; i < 600; i++, t += frame) {
+            graph.row(present(t));
+            for (int m = 0; m < 3; m++) {
+                graph.row(bus(t + m, "main", "tactroller.input", "3.1us"));
+            }
+        }
+        long last = t - frame;
+        assertEquals(60, graph.frameRate(last), 1);
+        assertEquals(180, graph.rate(0, last), 3);
+        assertEquals(3, graph.perFrame(graph.rate(0, last), last), 0.05);
+        long rested = last + 2 * Graph.TAU;
+        assertEquals(60 / Math.E / Math.E, graph.frameRate(rested), 0.5, "a rest decays the frame rate");
+        assertEquals(3, graph.perFrame(graph.rate(0, rested), rested), 0.05, "and leaves the ratio");
+        graph.reset();
+        assertEquals(0, graph.frameRate(rested), "a new run has seen no frames");
+    }
+
+    @Test
+    void aTurnThatDrewNothingIsNotAFrameSoATurningLoopThatDrawsNothingReadsZero() {
+        long frame = 1_000_000_000L / 60;
+        long t = 0;
+        for (int i = 0; i < 600; i++, t += frame) {
+            graph.row(new Row(++seq, t, "-", "main", "frame", Row.DRAW_SKIPPED, "1", Row.NO_FRAME));
+            graph.row(present(t + 1));
+        }
+        long last = t - frame + 1;
+        assertEquals(60, graph.turnRate(last), 1);
+        assertEquals(0, graph.frameRate(last), "every turn skipped its draw");
+        graph.row(present(t));
+        assertEquals(1, graph.frameRate(t), 1e-3, "a turn with no skip since the one before drew");
+    }
+
+    @Test
+    void theRefreshIsTheTargetsToSayAndIsNeverGuessed() {
+        long frame = 1_000_000_000L / 144;
+        for (int i = 0; i < 300; i++) {
+            graph.row(present(i * frame));
+        }
+        assertEquals(-1, graph.refreshNanos(), "frames at 144 a second do not say the display is 144 Hz");
+        graph.row(new Row(++seq, 300 * frame, "-", "main", "frame", Row.DISPLAY_REFRESH, "6944us", Row.NO_FRAME));
+        assertEquals(6_944_000, graph.refreshNanos());
+        graph.row(new Row(++seq, 301 * frame, "-", "main", "frame", Row.DISPLAY_REFRESH, "16667us vrr 48..60Hz",
+                Row.NO_FRAME));
+        assertEquals(16_667_000, graph.refreshNanos(), "a window moved to another display");
+        graph.reset();
+        assertEquals(-1, graph.refreshNanos(), "a new run has not said");
+    }
+
+    @Test
+    void aYoungRunReadsItsRateAndNotTheShareOfASecondItHasBeenSeenFor() {
+        long frame = 1_000_000_000L / 60;
+        for (int i = 0; i < 60; i++) {
+            graph.row(present(i * frame));
+            graph.row(bus(i * frame + 1, "main", "tactroller.input", "3.1us"));
+        }
+        long last = 59 * frame + 1;
+        assertEquals(60, graph.frameRate(last), 2, "one second in, not 63% of it");
+        assertEquals(60, graph.rate(0, last), 2);
+        assertEquals(1, graph.perFrame(graph.rate(0, last), last), 1e-6, "one factor for both, so the ratio is untouched");
+    }
+
+    @Test
+    void aNewRunsFlowsStartFromNothingAndNotFromTheLastRuns() {
+        for (int i = 0; i < 500; i++) {
+            graph.row(bus(i * 1_000_000L, "main", "tactroller.input", "3.1us"));
+        }
+        graph.reset();
+        graph.row(present(-10 * Graph.TAU));             // long under way, so none of it is young
+        graph.row(bus(0, "main", "tactroller.input", "3.1us"));
+        assertEquals(1, graph.total(0), "a replay's second pass, or the next application attached");
+        assertEquals(1, graph.rate(0, 0), 0.01);
     }
 
     @Test

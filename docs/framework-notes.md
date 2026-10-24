@@ -82,7 +82,9 @@ point. Two consequences:
   tight curve will show notches at every joint.
 
 Worked around in `Parts.cock`: the taper is lines that all start at the foot, each longer and narrower than the
-last, so no line is shorter than its thickness.
+last, so no line is shorter than its thickness. And in `Tachometer.arc`, whose track as a `polyline` (6° segments,
+shorter than the track is thick) drew as a ring of beads: each segment is drawn half its thickness longer at both
+ends, the capsule a round cap should have been.
 
 **What the framework could do:** extend the box by the radius at both ends (a true capsule, as SVG's
 `stroke-linecap="round"` is, which is also what `SvgSink` would have to match), or document that caps are inside
@@ -269,3 +271,36 @@ that is stable between identical runs, which the next run clicks. Nothing in the
 
 **What vexelray-gui could do:** `Segment.option(label, value, landmark)`, or a `cell(value)` that returns the option's
 node so the caller can name it, as `Button.node()` does for a button. `Tabs` and `Select` are worth the same look.
+
+## FN-14 · An application does not say its display's refresh rate 🔬
+
+Wanted: the Inspector's tachometer to read the frames the target drew a second against the rate its display refreshes
+at: full scale at vsync, a short overflow past it, zero while the loop turns and draws nothing. That full scale has to
+be the target's own answer. The Inspector cannot measure it: it may be on another monitor, a replay may come from
+another machine, and a refresh rate read off frame intervals is a guess that a loop which never runs flat out never
+confirms.
+
+The target knows. `GuiApp.followDisplay` reads `NativeWindow.refreshIntervalNanos()` about once a second, holds the
+loop's ceiling to it, and writes it only to its own log at debug (`frame ceiling follows the display: … Hz`). Nothing
+puts it on the probe stream, the link or the discovery file. And on Windows the answer is not quite the window's:
+`Win32Window.refreshIntervalNanos()` returns `Dwmapi.refreshIntervalNanos()`, which its own javadoc calls "the
+compositor's, not the window's", so on a machine with a 144 Hz and a 60 Hz monitor it can be the other display's.
+
+Worked around: the Inspector reads a `display.refresh` row on the `frame` lane (below) if one comes, and until one
+does the dial has no scale and no needle, and the line says `vsync not reported (FN-14)`. Nothing is inferred.
+
+Found beside it, not a gap but worth writing down: `frame.present` is the loop's heartbeat, one per turn, and a turn
+whose draw was skipped still writes it, after a `draw skipped` count (`GuiWindow.pull`). A frame drawn is a
+`frame.present` with no `draw skipped` since the one before. The Inspector counts it so; with two windows a turn that
+drew one and skipped the other is counted as not drawn, which only a per-window row could settle.
+
+**What vexelray and vexelray-gui could do:**
+
+- `Win32Window.refreshIntervalNanos()` answers for the window's own monitor: `MonitorFromWindow`, then that monitor's
+  current mode (`EnumDisplaySettingsW` on its device name, `dmDisplayFrequency`, or DXGI's output mode for the exact
+  rational rate), with DWM's as the fallback. Other platforms the same, per window.
+- `GuiApp` writes `Probe.mark(Lane.FRAME, "display.refresh", "<interval>us")` (`6944us` for 144 Hz) when the probe
+  arms and whenever `followDisplay` sees the interval change, so a replay carries it and a window dragged to another
+  display says so at the moment it happens. A variable-refresh display adds its range: `6944us vrr 48..144Hz`.
+- Because a stream attached mid-run misses the first row, the same fact in the answer to `gpu device` (FN-12) as
+  `refresh=<interval>us`, which the Inspector already asks once per run.

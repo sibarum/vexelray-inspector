@@ -47,8 +47,15 @@ final class Landmarks {
     /** Why the graph shows no traffic, when there is a reason. */
     static final String GRAPH_HINT = "graph.hint";
 
-    /** How fast show time runs against real time, and how far behind: {@code real time}, {@code ×0.1 · 182 ms behind}. */
+    /**
+     * The target's frames drawn a second against its display, how fast show time runs against real time, and how far
+     * behind: {@code 60 fps of 60 Hz · ×1 · real time}, {@code 25 fps · vsync not reported (FN-14) · ×0.1 · 71 ms
+     * behind}.
+     */
     static final String GOVERNOR = "graph.governor";
+
+    /** The tachometer: its needle is the frames drawn a second, full scale at the display's refresh. */
+    static final String TACHOMETER = "graph.tachometer";
 
     /** The tape's panel: the tracks, their names, the ruler and the reach line. */
     static final String TAPE = "tape";

@@ -11,6 +11,15 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] **The recorder's own cost**, shown from day one (roadmap M1). The link's `Snap` carries the loop and ring
       counters but no cost yet, and `LinkSource` does not read snapshots: both ends need it.
 
+## Frames and rates
+
+- [ ] **The frame readout and the history count turns, not frames**: `Escapement` and `Session` count every
+      `frame.present`, so `(43 seen)` and the history's frames include turns that drew nothing (FN-14). The graph and
+      the tachometer count frames drawn; the two should agree on what a frame is.
+- [ ] **A finished replay never lets the timeline go quiet**: `effect@frames` "reads something varying until
+      forever", so `settle` and `zoom` wait out their timeout once a `--replay.loop=false` run has ended. Already so at
+      069f1aa; found, not chased.
+
 ## The tape (M2)
 
 - [ ] **A replay looping while paused clears the graph on going on**: the graph's counts are reset when the new run

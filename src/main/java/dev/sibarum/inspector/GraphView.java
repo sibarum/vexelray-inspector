@@ -52,8 +52,14 @@ final class GraphView {
     /** Rows in the flow table; past them the last row says how many more there are. */
     static final int ROWS = 8;
 
+    /** A row of the table: from, to, topic, its rate a second and a frame, and its total. */
+    private static final String TABLE = "%-14s%-14s%-30s%9s%9s%10s";
+
     /** The board, in root ems. */
     static final float BOARD_W = 48, BOARD_H = 19.5f;
+
+    /** The tachometer's face, in root ems. */
+    private static final float TACH_EM = 2.1f;
 
     private static final float DOT_EM = 0.45f, WIRE_EM = 0.12f, HEAD_EM = 0.7f, SIDE_EM = 0.3f;
 
@@ -92,6 +98,8 @@ final class GraphView {
     private final Node hint;
     private final Node fan;
     private final Node governor;
+    private final Node tach;
+    private final Node needle;
 
     // The parts.
     private final Node[] boxes = new Node[Graph.PARTS];
@@ -131,6 +139,11 @@ final class GraphView {
     private boolean warm;
     private float fanAngle;
     private long governorAt;
+    private float needleAngle = Tachometer.FROM;
+    private volatile boolean faceScaled;
+
+    /** The tachometer's size on screen, from the layout pass: written there, read on the timeline. */
+    private volatile double tachPx;
     private boolean paused;
     private boolean clearOwed;
 
@@ -140,13 +153,23 @@ final class GraphView {
                 .textColor(gui.theme().color(Role.ACCENT));
         fan = gui.box().size(Length.rem(1.5f), Length.rem(1.5f)).hitInert(true);
         gui.onResizeUi(fan, l -> fan.picture(fanPicture(l.rect().w())));
-        governor = gui.text("real time").font("mono").textSize(Length.rem(0.75f))
+        needle = gui.box().size(Length.rem(TACH_EM), Length.rem(TACH_EM)).floatAt(Length.rem(0), Length.rem(0))
+                .rotate(Tachometer.FROM).hitInert(true);
+        gui.onResizeUi(needle, l -> needle.picture(Tachometer.needle(l.rect().w())));
+        needle.visible(false);
+        tach = gui.box().size(Length.rem(TACH_EM), Length.rem(TACH_EM)).hitInert(true).children(needle);
+        gui.onResizeUi(tach, l -> {
+            tachPx = l.rect().w();
+            tach.picture(Tachometer.face(tachPx, faceScaled));
+        });
+        gui.landmark(Landmarks.TACHOMETER, tach);
+        governor = gui.text(fps(0) + " · " + vsync(-1) + " · ×1 · real time").font("mono").textSize(Length.rem(0.75f))
                 .textColor(gui.theme().color(Role.FAINT));
         gui.landmark(Landmarks.GOVERNOR, governor);
         hint = gui.text("").textSize(Length.rem(0.7f)).textColor(gui.theme().color(Role.FAINT));
         gui.landmark(Landmarks.GRAPH_HINT, hint);
         Node header = gui.row().alignItems(AlignItems.CENTER).gap(Length.rem(0.6f)).width(Length.FILL)
-                .children(heading, fan, governor, hint);
+                .children(heading, tach, fan, governor, hint);
 
         board = gui.box().size(Length.rem(BOARD_W), Length.rem(BOARD_H)).clip(true).hitInert(true)
                 .background(BOARD).corner(Length.rem(0.4f));
@@ -223,7 +246,7 @@ final class GraphView {
         }
 
         Node table = gui.column().gap(Length.rem(0.1f)).width(Length.FILL);
-        table.append(gui.text(String.format("%-14s%-14s%-30s%9s%10s", "FROM", "TO", "TOPIC", "NOW", "THIS RUN"))
+        table.append(gui.text(String.format(TABLE, "FROM", "TO", "TOPIC", "A SECOND", "A FRAME", "THIS RUN"))
                 .font("mono").textSize(Length.rem(0.6f)).textColor(gui.theme().color(Role.FAINT)).wordWrap(false));
         for (int r = 0; r < ROWS; r++) {
             rows[r] = gui.text("").font("mono").textSize(Length.rem(0.6f))
@@ -298,7 +321,7 @@ final class GraphView {
         refreshedAt = 0;
     }
 
-    /** A bus row has been reached by show time, at {@code now} on the wall clock. */
+    /** A bus or frame-lane row has been reached by show time, at {@code now} on the wall clock. */
     void row(Row row, long now) {
         adopt();
         this.now = now;
@@ -359,7 +382,7 @@ final class GraphView {
             refreshedAt = now;
             refresh(show);
         }
-        boolean dilated = governor(now, dt, clock, real);
+        boolean dilated = governor(now, dt, clock, real, show);
         return moving || warm || dilated;
     }
 
@@ -401,9 +424,10 @@ final class GraphView {
             if (part == null || !part.live()) {
                 continue;
             }
-            say(sent, sentText, p, count("sent", graph.total(p, false), known ? graph.rate(p, false, show) : 0));
-            say(got, gotText, p, count("got", graph.total(p, true), known ? graph.rate(p, true, show) : 0));
+            say(sent, sentText, p, count("sent", graph.total(p, false), known ? graph.rate(p, false, show) : 0, show));
+            say(got, gotText, p, count("got", graph.total(p, true), known ? graph.rate(p, true, show) : 0, show));
         }
+        warm |= known && graph.frameRate(show) > 0.05;
         for (int w = 0; w < wires; w++) {
             if (shownLevel[w] == 0 && !graph.seen(wireFrom[w], wireTo[w])) {
                 continue;
@@ -420,8 +444,9 @@ final class GraphView {
             } else if (r < flows) {
                 double rate = known ? graph.rate(r, show) : 0;
                 warm |= rate > 0.05;
-                text = String.format("%-14s%-14s%-30s%9s%10s", name(graph.from(r)), name(graph.to(r)),
-                        cut(graph.topic(r), 29), perSecond(rate), grouped(graph.total(r)));
+                text = String.format(TABLE, name(graph.from(r)), name(graph.to(r)), cut(graph.topic(r), 29),
+                        perSecond(rate), perFrame(rate, known ? graph.perFrame(rate, show) : Double.NaN),
+                        grouped(graph.total(r)));
             } else {
                 text = "";
             }
@@ -451,8 +476,10 @@ final class GraphView {
         }
     }
 
-    private static String count(String verb, long total, double rate) {
-        return total == 0 ? verb + " none" : verb + " " + grouped(total) + "  " + perSecond(rate);
+    private String count(String verb, long total, double rate, long show) {
+        double each = show == Long.MIN_VALUE ? Double.NaN : graph.perFrame(rate, show);
+        return total == 0 ? verb + " none"
+                : verb + " " + grouped(total) + "  " + perSecond(rate) + " " + perFrame(rate, each);
     }
 
     /** A flow's end: a part's short name, {@code nobody} or {@code ?}. */
@@ -478,6 +505,27 @@ final class GraphView {
             return "—";
         }
         return r >= 10 ? Math.round(r) + "/s" : Math.round(r * 10) / 10.0 + "/s";
+    }
+
+    /**
+     * {@code 3/f}, {@code 0.7/f}, {@code 0.04/f}: {@code each} messages a frame, for a flow at {@code rate} a second;
+     * {@code —} for a flow gone quiet, or before the run's first frame.
+     */
+    static String perFrame(double rate, double each) {
+        if (rate < 0.05 || !(each >= 0.005)) {
+            return "—";
+        }
+        return (each >= 10 ? Long.toString(Math.round(each)) : each >= 1 ? String.valueOf(Math.round(each * 10) / 10.0)
+                : String.valueOf(Math.round(each * 100) / 100.0)) + "/f";
+    }
+
+    /** {@code 60 fps}, {@code 2.5 fps}, {@code 0 fps}: the target's frames a second; {@code — fps} before any. */
+    static String fps(double f) {
+        if (!(f > 0)) {
+            return "— fps";
+        }
+        return (f >= 10 ? Long.toString(Math.round(f)) : f < 0.05 ? "0" : String.valueOf(Math.round(f * 10) / 10.0))
+                + " fps";
     }
 
     /** {@code 3,000}. */
@@ -550,8 +598,11 @@ final class GraphView {
 
     // ------------------------------------------------------------------ the governor
 
-    /** The governor: turns while show time is not real time, and says how far off it is. */
-    private boolean governor(long now, long dt, ShowClock clock, long real) {
+    /**
+     * The governor: turns while show time is not real time, and says the target's frames a second at show time, how
+     * much show time is dilated ({@code ×0.1} is a burst stretched ten times) and how far behind it is.
+     */
+    private boolean governor(long now, long dt, ShowClock clock, long real, long show) {
         long lag = clock.lag(real);
         double speed = clock.speed();
         boolean dilated = lag > 1_000_000L || Math.abs(speed - 1) > 1e-6;
@@ -559,16 +610,49 @@ final class GraphView {
             fanAngle = (float) ((fanAngle + 360.0 * speed * dt / 1e9) % 360.0);
             fan.rotate(fanAngle);
         }
+        double drawn = show == Long.MIN_VALUE ? 0 : graph.frameRate(show);
+        long refresh = graph.refreshNanos();
+        tachometer(drawn, refresh);
         if (now - governorAt >= 100_000_000L) {
             governorAt = now;
-            governor.text(dilated ? "×" + speed(speed) + " · " + lag / 1_000_000L + " ms behind" : "real time");
+            governor.text(fps(drawn) + " · " + vsync(refresh) + " · ×" + speed(speed) + " · "
+                    + (dilated ? lag / 1_000_000L + " ms behind" : "real time"));
         }
         return dilated;
     }
 
+    /**
+     * The needle at {@code drawn} frames a second against one refresh of {@code refreshNanos}: no scale and no needle
+     * until the target has said its refresh, for a full scale guessed would be a reading made up (FN-14).
+     */
+    private void tachometer(double drawn, long refreshNanos) {
+        boolean scaled = refreshNanos > 0;
+        if (scaled != faceScaled) {
+            faceScaled = scaled;
+            needle.visible(scaled);
+            double px = tachPx;
+            if (px > 0) {
+                tach.picture(Tachometer.face(px, scaled));
+            }
+        }
+        if (!scaled) {
+            return;
+        }
+        float angle = Tachometer.angle(drawn * refreshNanos / 1e9);
+        if (Math.abs(angle - needleAngle) >= 0.25f) {
+            needleAngle = angle;
+            needle.rotate(angle);
+        }
+    }
+
+    /** {@code of 144 Hz}, or that the target has not said. */
+    static String vsync(long refreshNanos) {
+        return refreshNanos > 0 ? "of " + Math.round(1e9 / refreshNanos) + " Hz" : "vsync not reported (FN-14)";
+    }
+
     private static String speed(double v) {
-        return v >= 10 ? Long.toString(Math.round(v)) : v >= 1 ? String.valueOf(Math.round(v * 10) / 10.0)
-                : String.valueOf(Math.round(v * 100) / 100.0);
+        return Math.abs(v - 1) < 1e-6 ? "1" : v >= 10 ? Long.toString(Math.round(v))
+                : v >= 1 ? String.valueOf(Math.round(v * 10) / 10.0) : String.valueOf(Math.round(v * 100) / 100.0);
     }
 
     /** The governor's fan fly: two vanes on an arbor, as a music box's. */

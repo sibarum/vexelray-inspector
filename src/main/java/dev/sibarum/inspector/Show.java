@@ -23,7 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       the {@link TapeView} draws it up to show time.</li>
  *   <li><b>Into {@link Pending}</b>, released on the timeline as show time reaches it: frame rows to {@code view},
  *       the escapement the window shows, so the balance wheel and the graph share one clock and never disagree
- *       about which frame something happened in; bus rows to the {@link GraphView}, as messages between parts.</li>
+ *       about which frame something happened in; bus rows to the {@link GraphView}, as messages between parts,
+ *       and the frame lane to it too, for the frames drawn that its rates and its tachometer are read against.</li>
  * </ul>
  *
  * <h2>Real time</h2>
@@ -183,7 +184,7 @@ final class Show implements RowSink {
         Object item;
         while ((item = pending.poll(show)) != null) {
             if (item instanceof Row row) {
-                if (row.lane().equals(BusRows.LANE)) {
+                if (row.lane().equals(BusRows.LANE) || row.lane().equals("frame")) {
                     bus.row(row, now);
                 }
                 view.row(row);

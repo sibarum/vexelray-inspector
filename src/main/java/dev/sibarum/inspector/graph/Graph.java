@@ -2,6 +2,7 @@ package dev.sibarum.inspector.graph;
 
 import dev.sibarum.inspector.circuit.BusGraph;
 import dev.sibarum.inspector.clock.BusRows;
+import dev.sibarum.inspector.clock.Durations;
 import dev.sibarum.inspector.rows.Row;
 
 import java.util.ArrayList;
@@ -22,6 +23,15 @@ import java.util.Map;
  * message and decays by {@code e} every {@link #TAU}, in the target's time: messages a second, held over about a
  * second, so a burst stays readable after it has passed. A flow's receiver may be {@link #NOBODY} (published with no
  * subscriber) or {@link #UNKNOWN} (no one says who receives it).
+ *
+ * <h2>Frames</h2>
+ *
+ * The target's frames are counted the same way, so {@link #frameRate} is the frames it drew a second over the same
+ * second, and a rate over it ({@link #perFrame}) is messages a frame drawn over that second. Both decay alike, so the
+ * ratio holds while the loop rests. A {@code frame.present} is one turn of the loop ({@link #turnRate}), drawn or not;
+ * it drew unless a {@code draw skipped} came since the turn before (FN-14). The display's refresh is the target's to
+ * say ({@link #refreshNanos}), and is never guessed. Every rate read in the first second of a run is scaled up for the
+ * part of that second not seen yet, so a run just begun reads its rate and not a share of it.
  *
  * <h2>Who sent it, who received it</h2>
  *
@@ -111,6 +121,11 @@ public final class Graph {
     private final long[] at = new long[FLOWS];
     private int flows;
     private long unplaced;
+    private final Decay drawn = new Decay();
+    private final Decay turns = new Decay();
+    private boolean skipped;
+    private long refreshNanos;
+    private long startedAt;
 
     public Graph(Wire wire) {
         this.wire = wire;
@@ -155,13 +170,25 @@ public final class Graph {
         java.util.Arrays.fill(topic, null);
         flows = 0;
         unplaced = 0;
+        drawn.clear();
+        turns.clear();
+        skipped = false;
+        refreshNanos = -1;
+        startedAt = Long.MIN_VALUE;
         for (String lane : onLane.keySet()) {
             slot(lane);
         }
     }
 
-    /** A row has been reached by show time. Rows not on the bus lane are ignored. */
+    /** A row has been reached by show time. Rows on neither the bus lane nor the frame lane are ignored. */
     public void row(Row row) {
+        if (startedAt == Long.MIN_VALUE) {
+            startedAt = row.monoNanos();
+        }
+        if (row.lane().equals("frame")) {
+            frame(row);
+            return;
+        }
         if (!row.lane().equals(BusRows.LANE)) {
             return;
         }
@@ -242,12 +269,54 @@ public final class Graph {
             to[f] = receiver;
             topic[f] = name;
             at[f] = t;
+            total[f] = 0;           // the slot may be a run before's
+            rate[f] = 0;
         }
         total[f]++;
         rate[f] = decayed(f, t) + 1;
         at[f] = Math.max(at[f], t);
         if (receiver >= 0 && receiver != sender) {
             wire.message(sender, receiver);
+        }
+    }
+
+    private void frame(Row row) {
+        String kind = row.kind();
+        if (kind.equals(Row.DRAW_SKIPPED)) {
+            skipped = true;
+        } else if (kind.equals(Row.FRAME_PRESENT)) {
+            turns.add(row.monoNanos());
+            if (!skipped) {
+                drawn.add(row.monoNanos());
+            }
+            skipped = false;
+        } else if (kind.equals(Row.DISPLAY_REFRESH)) {
+            String d = row.detail().trim();
+            int space = d.indexOf(' ');
+            long n = Durations.nanos(space < 0 ? d : d.substring(0, space));
+            refreshNanos = n > 0 && n != Long.MAX_VALUE ? n : -1;
+        }
+    }
+
+    /** A count that rises by one each time and decays by {@code e} every {@link #TAU}, as a flow's rate does. */
+    private static final class Decay {
+        long count;
+        double rate;
+        long at;
+
+        void add(long t) {
+            rate = at(t) + 1;
+            at = count++ == 0 ? t : Math.max(at, t);
+        }
+
+        double at(long t) {
+            long dt = t - at;
+            return count == 0 ? 0 : dt <= 0 ? rate : rate * Math.exp(-(double) dt / TAU);
+        }
+
+        void clear() {
+            count = 0;
+            rate = 0;
         }
     }
 
@@ -354,7 +423,7 @@ public final class Graph {
 
     /** {@code flow}'s messages a second at {@code now}, the target's time. */
     public double rate(int flow, long now) {
-        return decayed(flow, now);
+        return decayed(flow, now) * young(now);
     }
 
     /** The messages a second from {@code sender} to {@code receiver}, over every topic, at {@code now}. */
@@ -365,7 +434,7 @@ public final class Graph {
                 r += decayed(f, now);
             }
         }
-        return r;
+        return r * young(now);
     }
 
     /** Whether any message has gone from {@code sender} to {@code receiver} this run. */
@@ -397,7 +466,42 @@ public final class Graph {
                 r += decayed(f, now);
             }
         }
-        return r;
+        return r * young(now);
+    }
+
+    /** The frames the target drew a second at {@code now}, held over the same second as the flows' rates; 0 before any. */
+    public double frameRate(long now) {
+        return drawn.at(now) * young(now);
+    }
+
+    /** The turns of the target's loop a second at {@code now}, drawn or not; 0 before any. */
+    public double turnRate(long now) {
+        return turns.at(now) * young(now);
+    }
+
+    /** One refresh of the target's display, as the target said it (FN-14); -1 until it has. */
+    public long refreshNanos() {
+        return refreshNanos;
+    }
+
+    /** {@code rate}, read from this graph at {@code now}, as messages a frame drawn; NaN before the first one. */
+    public double perFrame(double rate, long now) {
+        double f = frameRate(now);
+        return f > 0 ? rate / f : Double.NaN;
+    }
+
+    /**
+     * What a rate at {@code now} is multiplied by for the part of its second the run has not been seen for: a count
+     * that decays by {@code e} every {@link #TAU} holds a steady rate's {@code TAU} seconds only once the run is
+     * older than that, so one second in it holds 63% of them, and would read a loop at 60 fps as 38. Counted from the
+     * run's first row, and from no less than a quarter of {@code TAU}, so the first rows of a run are not a spike.
+     */
+    private double young(long now) {
+        if (startedAt == Long.MIN_VALUE) {
+            return 1;
+        }
+        double seen = Math.max(TAU / 4.0, (double) (now - startedAt));
+        return 1 / -Math.expm1(-seen / TAU);
     }
 
     /** Messages not placed on any flow because the run already had {@link #FLOWS}. */

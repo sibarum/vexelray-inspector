@@ -27,7 +27,7 @@ a closed list: a part can be added, split or merged when the stack can tell it a
 - **A dot on an arrow is a message**, crossing in 0.7 s of wall time. Several messages close together ride on one
   dot, which grows with how many it carries. The movement runs on the show clock, as everything else does: a burst
   is stretched so it can be followed, and the view is never more than 400 ms behind.
-- **The flow table under the graph names every flow**: from, to, topic, the rate now, and the total this run. A row
+- **The flow table under the graph names every flow**: from, to, topic, the rate now, a second and a frame (per frame the target drew in the same second), and the total this run. A row
   appears in the order the flow was first seen, and never moves or disappears during a run. A rate fades over about
   a second instead of dropping to nothing, and the total stays. So a storm leaves its record on screen after it has
   passed: which topics, between which parts, and how many.

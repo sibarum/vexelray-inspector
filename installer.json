@@ -20,6 +20,11 @@
         "addToPath": true,
         "shortcuts": { "desktop": true, "startMenu": true, "label": "VexelRay Inspector" }
       },
+      {
+        "name": "inspector-ffmpeg-record",
+        "source": "target/inspector-ffmpeg-record-windows-x86_64.zip",
+        "dir": "ffmpeg-record"
+      },
       { "name": "notices", "source": "THIRD-PARTY-NOTICES.txt" }
     ]
   },
@@ -33,6 +38,11 @@
         "icon": "src/main/rc/vexelray-inspector.ico",
         "addToPath": true,
         "shortcuts": { "desktop": true, "startMenu": true, "label": "VexelRay Inspector" }
+      },
+      {
+        "name": "inspector-ffmpeg-record",
+        "source": "target-linux/inspector-ffmpeg-record-linux-x86_64.tar.gz",
+        "dir": "ffmpeg-record"
       },
       { "name": "notices", "source": "THIRD-PARTY-NOTICES.txt" }
     ]

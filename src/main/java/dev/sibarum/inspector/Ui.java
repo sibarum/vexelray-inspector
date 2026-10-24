@@ -255,5 +255,6 @@ final class Ui implements Escapement.Listener {
     void picking(boolean picking) {
         inspecting.visible(!picking);
         picker.node().visible(picking);
+        picker.shown(picking);
     }
 }

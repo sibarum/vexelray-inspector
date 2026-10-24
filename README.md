@@ -47,8 +47,8 @@ the application's Inspector link, or it plays a recording.
 
 ![Paused: the tape frozen, the cursor on a frame.present, and the rows around it](docs/screenshots/tape-paused.png)
 
-*Paused at the end of the same replay (Space), then Ctrl+Left twice and Left once: the cursor is on `#5171`, the
-`frame.present` of frame #43 on `main`, and the panel under the tape gives it and its neighbours, each with its time
+*Paused at the end of the same replay (Space), then Ctrl+Left twice and Left once: the cursor is on the last
+`frame.present`, on `main`, and the panel under the tape gives it and its neighbours, each with its time
 before show time and the frame it fell in or after. The target, a recording here, runs on behind the pause.*
 
 ![The component graph of a made-up application with component lanes](docs/screenshots/component-graph-lanes.png)
@@ -150,7 +150,8 @@ wait. The timeline releases it as the show clock reaches it, to the escapement t
   is what `RowSink` asks for. The end of a run, when the application goes away, comes on that thread too.
 - **A launch** starts the child on `inspector-launch`, which waits for its discovery file, starts the live source and
   ends. `inspector-launch-output` reads the child's output into the log for as long as the child runs.
-- **The picker** reads the discovery folder on the offload lane, asked by a one-second timer on the timeline.
+- **The picker** reads the discovery folder on the offload lane, asked by a one-second timer on the timeline that
+  runs only while the picker is shown, so a quiet target leaves the Inspector quiet.
 - **The show** runs on the timeline, inside the frame, every frame there is something to show: a `KronoGui.ramp` re-armed
   while anything is waiting, moving or behind, and left to end when nothing is, so an idle target leaves the Inspector
   idle. It takes no lock. The message dots are a fixed pool of nodes moved with `translate`, so nothing is allocated per message;
@@ -219,12 +220,13 @@ ottermate --keep-going --script shots.txt --launch mvn.cmd -q compile exec:exec 
 `component-graph-lanes.png` is `resize 1100x1060`, `await readout.frame (2`, `shot`, launched with
 `"-Dapp.args=--replay=samples/circuit-bus.csv --bus.graph=samples/circuit-graph.txt --tape.seconds=5"`.
 
-- **`--keep-going`, because `resize` answers `err`**: it waits for the timeline to go quiet, which the Inspector's
-  timers never let it do (docs/TODO.md), and it has resized the window all the same. `settle` fails the same way, so
-  wait on a landmark.
+- **`--keep-going`, because `resize` answers `err`**: it waits for the timeline to go quiet, and the Inspector is
+  only quiet when nothing it shows is moving. A looping replay never stops, and the window is resized all the same.
+  `settle` waits the same way, so wait on a landmark. The picker reads the discovery folder every second while it is
+  shown, so the picker is never quiet either.
 - **A replay that loops starts its tape afresh**, so a shot of a full tape is taken at the end of the first pass:
-  the calculator's last frame parks `forever`, and nothing earlier in it does. An `await` on a frame number can miss
-  it, because a readout is polled and frames come faster than that.
+  the calculator's last two frames park `forever`, and nothing earlier in it does. An `await` on a frame number can
+  miss it, because a readout is polled and frames come faster than that.
 - **`shot` takes a path the Inspector can open**: relative to the Inspector's working directory, or a Windows one.
   An MSYS path such as `/c/Users/...` is not one.
 

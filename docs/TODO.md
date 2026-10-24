@@ -16,12 +16,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] **The frame readout and the history count turns, not frames**: `Escapement` and `Session` count every
       `frame.present`, so `(43 seen)` and the history's frames include turns that drew nothing (FN-14). The graph and
       the tachometer count frames drawn; the two should agree on what a frame is.
-- [ ] **A finished replay never lets the timeline go quiet**: `effect@frames` "reads something varying until
-      forever", so `settle` and `zoom` wait out their timeout once a `--replay.loop=false` run has ended. Already so at
-      069f1aa; found, not chased.
-
-- [ ] **The plaque wraps `AT REST · UNTIL WOKEN`** onto two lines at 1100 px wide (docs/screenshots/component-graph.png);
-      the other plaques fit on one. Found while retaking the screenshots, not chased.
 
 ## The tape (M2)
 
@@ -60,5 +54,3 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] **Strings inside the frame**: the show runs on the timeline inside the frame, and the readouts, the parts'
       counts, the flow table and the governor format a string when they change, at most ten times a second. Small and
       bounded, but against the frame-loop rule; digits drawn from a fixed set of glyphs would remove it.
-- [ ] **`settle` never answers on the Inspector**: the picker's one-second discovery timer keeps the timeline busy,
-      so `ottermate settle`, `--size` and `resize` time out (the resize still happens). Scripts wait on landmarks.

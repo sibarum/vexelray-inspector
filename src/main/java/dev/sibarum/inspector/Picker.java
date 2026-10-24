@@ -56,6 +56,8 @@ final class Picker {
     private volatile String filter = "";
     private volatile List<String> shown = null;
     private Scheduled refreshing;
+    private boolean started;
+    private boolean showing = true;
 
     /** One line of the list: an application, or, with no entry, the words for when none is running. */
     private record Line(String key, Discovery.Entry app) {
@@ -103,11 +105,32 @@ final class Picker {
         this.filter = spec == null ? "" : spec;
     }
 
-    /** Start reading the folder every {@link #REFRESH}. Once, from the start recipe, so a headless tree reads no disk. */
-    void start() {
-        if (refreshing == null) {
-            refreshing = krono.every(REFRESH, () -> gui.offload().execute(this::refresh));
+    /**
+     * Start reading the folder every {@link #REFRESH} while the picker is shown. Once, from the start recipe, so a
+     * headless tree reads no disk.
+     */
+    synchronized void start() {
+        started = true;
+        watch();
+    }
+
+    /**
+     * The picker is shown, or hidden behind the movement. Hidden, nothing reads the folder, so the timeline can go
+     * quiet while the target does. Any thread.
+     */
+    synchronized void shown(boolean shown) {
+        this.showing = shown;
+        watch();
+    }
+
+    private void watch() {
+        boolean want = started && showing;
+        if (want && refreshing == null) {
+            refreshing = krono.every("picker", REFRESH, () -> gui.offload().execute(this::refresh));
             gui.offload().execute(this::refresh);
+        } else if (!want && refreshing != null) {
+            refreshing.cancel();
+            refreshing = null;
         }
     }
 

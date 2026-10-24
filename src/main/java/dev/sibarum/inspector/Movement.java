@@ -88,12 +88,13 @@ final class Movement {
                 .textSize(Length.rem(0.85f))
                 .textColor(ticking)
                 .align(TextLayout.HAlign.CENTER, TextLayout.VAlign.MIDDLE)
-                .width(Length.rem(0.56f * SIDE))
+                // 24 characters on one line: AT REST · UNTIL WOKEN, and a stall's STALL · #12345 · 1.50 s.
+                .width(Length.rem(0.65f * SIDE))
                 .padding(Length.rem(0.35f))
                 .background(Color.rgb(0x1b1f25))
                 .border(Length.dp(1), Parts.PLATE_EDGE)
                 .corner(Length.rem(0.3f))
-                .floatAt(Length.rem(0.10f * SIDE), Length.rem(0.80f * SIDE))
+                .floatAt(Length.rem(0.04f * SIDE), Length.rem(0.80f * SIDE))
                 .hitInert(true);
         gui.landmark(Landmarks.PLAQUE, plaque);
 

@@ -18,8 +18,8 @@ import dev.vexelray.framework.automation.AutomationStarter;
  * executable, which the pom puts on the class path: the suite canvas's Inspector mark, "Loupe on the works", whose
  * source is {@code vexelray-inspector.svg} beside it (copied from {@code vexelray-icons/apps/inspector/}).
  */
-@VexelApp(name = Inspector.APP, title = Inspector.TITLE, width = Inspector.W, height = Inspector.H,
-        icon = Inspector.ICON, starters = AutomationStarter.class)
+@VexelApp(name = Inspector.APP, formerNames = Inspector.FORMER, title = Inspector.TITLE, width = Inspector.W,
+        height = Inspector.H, icon = Inspector.ICON, starters = AutomationStarter.class)
 final class InspectorApp {
 
     private InspectorApp() {

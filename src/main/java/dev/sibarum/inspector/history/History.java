@@ -25,7 +25,7 @@ public final class History {
 
     private final Path dir;
 
-    /** A history kept under {@code dir}: {@code AppHome.of("vexelray-inspector").dir().resolve("history")}. */
+    /** A history kept under {@code dir}: {@code AppHome.of("inspector").dir().resolve("history")}. */
     public History(Path dir) {
         this.dir = dir;
     }

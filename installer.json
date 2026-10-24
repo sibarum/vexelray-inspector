@@ -28,6 +28,7 @@
     "binaries": [
       {
         "name": "vexelray-inspector",
+        "appId": "dev.sibarum.vexelray-inspector",
         "source": "target-linux/vexelray-inspector",
         "icon": "src/main/rc/vexelray-inspector.ico",
         "addToPath": true,

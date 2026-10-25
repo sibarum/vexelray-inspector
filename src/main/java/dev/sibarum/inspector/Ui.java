@@ -190,9 +190,29 @@ final class Ui implements Escapement.Listener {
         }
     }
 
+    // Any thread: the source's state, and what stands in its place while the show has stopped.
+    private volatile String source = "";
+    private volatile String stopped;
+
     @Override
     public void source(String state) {
-        status.text(Landmarks.STATUS_SOURCE, state);
+        source = state;
+        String why = stopped;
+        status.text(Landmarks.STATUS_SOURCE, why != null ? why : state);
+    }
+
+    /**
+     * Say in the status line, in place of the source, that rows have stopped being shown and why; {@code null} when
+     * they are shown again, which puts the source back. Any thread: {@link Show} says it from the source's.
+     */
+    void stopped(String why) {
+        stopped = why;
+        status.text(Landmarks.STATUS_SOURCE, why != null ? why : source);
+    }
+
+    /** What the status line says in place of the source, or {@code null} while rows are shown. */
+    String stopped() {
+        return stopped;
     }
 
     /** Everything derived from the beat, from the whole of it, so no two readouts can disagree. */

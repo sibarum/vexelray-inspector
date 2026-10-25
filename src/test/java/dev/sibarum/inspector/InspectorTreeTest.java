@@ -13,6 +13,8 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The Inspector's real tree, built headless by the generated wiring: no window, no GPU, and (because the start
@@ -49,5 +51,18 @@ class InspectorTreeTest {
             sink.row(row);
         }
         sink.end("done");
+    }
+
+    /** Headless, nothing ticks the clock: the show is armed and never steps, as when its frame hook was stopped. */
+    @Test
+    void aShowWhoseClockHasStoppedSaysSo() throws Exception {
+        RowSink sink = wiring.escapement();
+        java.util.List<Row> rows = ReplaySource.read(Path.of("samples/calculator.csv"));
+        sink.begin("by hand");
+        sink.row(rows.get(0));
+        assertNull(wiring.ui().stopped(), "armed a moment ago is not stopped");
+        Thread.sleep(2_100);
+        sink.row(rows.get(1));
+        assertTrue(wiring.ui().stopped().startsWith("Stopped showing rows"), wiring.ui().stopped());
     }
 }

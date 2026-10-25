@@ -9,6 +9,7 @@ import dev.sibarum.inspector.tape.Tape;
 import dev.vexelray.gui.krono.KronoGui;
 import sibarum.kronometer.Dur;
 import sibarum.kronometer.anim.Ease;
+import sibarum.probe.Log;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,6 +58,21 @@ final class Show implements RowSink {
     private final Pending pending = new Pending(1 << 16);
     private final ShowClock clock = ShowClock.standard();
     private final AtomicBoolean armed = new AtomicBoolean();
+
+    /**
+     * How long the step may go unrun while it is armed before the window says rows have stopped being shown. The
+     * step is the one thing between a row and the screen, and when it stops the window still answers, so without
+     * this a stopped Inspector looks like an idle target.
+     */
+    private static final long STOPPED_AFTER = 2_000_000_000L;
+
+    private static final Log LOG = Log.of("vexelray-inspector.show");
+
+    // Written at each arming and by the step; read by the source, which is how a stopped show is noticed.
+    private volatile long ran = System.nanoTime();
+
+    // The source's own: whether the window is saying the show has stopped.
+    private boolean said;
 
     // The source's own, read by the timeline.
     private volatile long offset = Long.MIN_VALUE;
@@ -139,6 +155,24 @@ final class Show implements RowSink {
         }
         pending.row(row);
         arm();
+        watch();
+    }
+
+    /** On the source's thread, at each row: say so while the armed step has not run for {@link #STOPPED_AFTER}. */
+    private void watch() {
+        boolean stopped = armed.get() && System.nanoTime() - ran > STOPPED_AFTER;
+        if (stopped == said) {
+            return;
+        }
+        said = stopped;
+        if (stopped) {
+            LOG.error("rows are arriving and have not been shown for " + STOPPED_AFTER / 1_000_000_000L
+                    + "s: the show clock has stopped; an earlier error in this log says why");
+            ui.stopped("Stopped showing rows: the Inspector's clock has stopped. The reason is in inspector.log.");
+        } else {
+            LOG.info("rows are being shown again");
+            ui.stopped(null);
+        }
     }
 
     @Override
@@ -150,6 +184,7 @@ final class Show implements RowSink {
 
     private void arm() {
         if (armed.compareAndSet(false, true)) {
+            ran = System.nanoTime();    // armed now, so the wait for the step is counted from here
             krono.onTimeline(this::run);
         }
     }
@@ -176,6 +211,7 @@ final class Show implements RowSink {
     /** One frame: move show time on, release what it reached, move the messages. Whether anything is left to show. */
     private boolean step() {
         long now = System.nanoTime();
+        ran = now;
         long dt = Math.min(LONGEST_FRAME, Math.max(0, now - last));
         last = now;
         long o = offset;

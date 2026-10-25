@@ -393,3 +393,25 @@ Worked around: not yet; nothing is drawn. docs/threads.md sketches the reply.
 and `why`, replying one line per thread per turn (`state work_us wait_us rest_us unacc_us wakes wake_lat_us
 at_deadline`) and an `unknown` line, as `why` has. The fold is a pure function over rows, like `Frames.fold`; put it
 in a module the Inspector can depend on too, so the verb and the Inspector's view are the same code.
+
+## FN-20 · `KronoGui.ramp` under reduced motion calls `done` in the same step 🔬
+
+`Show` arms its per-frame step with `krono.ramp(SPAN, …, this::again)`, and `again` arms the next ramp while there
+is still something to show. With motion reduced (`simplifiedGraphics=true`, which the slow-frames offer saves to
+`~/.vexelray/settings.properties` for every application, the Inspector included), `ramp` delivers 1 and runs `done`
+at once on the timeline, so `again` → `run` → `ramp` → `again` recursed within one frame until the stack overflowed.
+Kronometer stopped the `FrameStage.CLOCK` hook for the rest of the run, and the Inspector, attached and responsive,
+never showed another row. Measured 2026-10-25, installed suite, attached to MainFrame by *Restart in debug mode*.
+
+The stack trace pointed at the Inspector, but the trap was upstream's: `ramp`'s javadoc promises `done` "the frame
+*after* the one that carried 1", and the reduced-motion branch did not keep that promise, so any consumer that
+re-arms from `done` looped. **Fixed upstream, no workaround here:** with motion reduced, `KronoGui.ramp`, `retarget`
+and `animate` now take one frame rather than none (`ReducedMotionTest.aRampStartedFromArrivalWaitsForTheNextFrame`).
+
+What made it cost time was that nothing said so: the stopped hook was one `ERROR` in a log, and the window, still
+answering, looked like an idle target. The Inspector now watches its own show (`Show.watch`): rows arriving while
+the armed step has not run for two seconds put *Stopped showing rows* in the status line in place of the source,
+until it runs again (`InspectorTreeTest.aShowWhoseClockHasStoppedSaysSo`).
+
+Still open, upstream, and not decided: one throwing shred stops `KronoGui.tick`, the whole clock and not just the
+shred; and a stopped frame hook is said only in the log, in every application.

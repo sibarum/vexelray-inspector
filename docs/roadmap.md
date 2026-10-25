@@ -295,6 +295,11 @@ asks `gpu device` once a run, and no application answers yet (FN-12), so today i
 - See the open questions for native-image support.
 - Port: `threads`, then `heap` after the native-image spike.
 
+**Proposed 2026-10-24: the thread ledger** (docs/threads.md). Per frame, every thread's time split into working,
+waiting, resting and unaccounted, its wakes and their latency, and what it was in when the frame ran out. The main
+thread, the timeline and component lanes can be read from today's rows. The pools, the waits, the deadline, CPU and
+the verb are FN-15 to FN-19.
+
 ### M7 — The tree and screen updates
 
 - The retained tree with a heatmap of mutations, and which nodes changed in each frame.

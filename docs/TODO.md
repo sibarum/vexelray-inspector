@@ -28,6 +28,11 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       rebuilt from the tape (roadmap: step through the rings frame by frame).
 - [ ] **Collapse it**: the strip adds about 9em under the movement, in a window that is already too short (below).
 
+## Threads (M6)
+
+- [ ] **The thread ledger** (docs/threads.md): proposed, nothing built. The verb comes first (FN-19); the paused
+      per-frame view after it, from today's rows for `main`, the timeline and component lanes.
+
 ## Restart in debug mode
 
 - [ ] **Follow a restart**: an Inspector attached to an application that restarts (into or out of a debug run) says

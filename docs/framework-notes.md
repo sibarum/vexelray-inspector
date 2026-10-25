@@ -304,3 +304,92 @@ drew one and skipped the other is counted as not drawn, which only a per-window 
   display says so at the moment it happens. A variable-refresh display adds its range: `6944us vrr 48..144Hz`.
 - Because a stream attached mid-run misses the first row, the same fact in the answer to `gpu device` (FN-12) as
   `refresh=<interval>us`, which the Inspector already asks once per run.
+
+## FN-15 · The handler and offload pools say nothing of their own work, rest, birth or death 🔬
+
+Wanted: the thread ledger (docs/threads.md) to say, for each frame, how long each handler and offload thread worked
+and rested, how often it was woken, and what it was in when the frame ran out. Surveyed 2026-10-24: `Lanes` makes the
+handler lane with `Executors.newCachedThreadPool(named("handler"))` and the offload lane as a fixed
+`ThreadPoolExecutor` with `allowCoreThreadTimeOut` (`Lanes.java:81,306`). Neither writes a row. A handler thread
+appears in the probe only through what its handler publishes (`vexel-handler-4` in `samples/calculator.csv`), and an
+offload thread not at all. The cached pool makes and retires threads as it likes, so a thread missing from a frame
+cannot be told apart from one that rested through it. The dispatcher's hand-off writes nothing either (FN-11).
+
+Worked around: not at all. The ledger shows these threads as `not reported (FN-15)`, never as idle.
+
+**What vexelray-framework could do:** wrap each task the two lanes run in a span on the worker that runs it, while
+`Probe.ON` (so nothing is wrapped or allocated with the probe off), named for what was handed over: the event and
+node from FN-11's `call <event> <node>` for a handler, and a label the caller may give for an offload task, else
+`task`. The pool's `ThreadFactory` writes `thread.start` and `thread.end` once per thread. A thread's rest is then
+the time between its tasks within its life, by rule, and a wake is each task that began after one. Which probe lane
+these go on is atchung's call; a `thread` lane of their own would let a reader stream exactly them.
+
+## FN-16 · A wait is a row only where somebody wrote one, and a wait is not told from a rest 🔬
+
+The probe has two kinds of span: ordinary ones, and idle zones (`Probe.idleZone`), "time the process spends
+deliberately doing nothing". The ledger needs a third: time a thread spent **blocked on another party**, which is
+neither work nor rest. Surveyed 2026-10-24, the waits that are rows are the main loop's `wait for events` (an idle
+zone, `GuiApp.java:1988`) and the presenters' `dxgi wait` and `wait fence` (ordinary spans). These are not rows:
+
+- **The host waiting for a timeline batch.** `Kron.pumpBody` opens the kernel's gate and then waits on
+  `batchLock.wait()` (`Kron.java:1018`), inside the `batch` span. In frame 16 of the calculator sample, `time batch`
+  is 366 µs of the main thread's frame, of which the timeline worked about 155 µs and the baton was in the
+  scheduler's hands about 172 µs; the main thread's own share is nowhere.
+- **A pump's park.** `Pump.drain(long)` parks outside the `pump drain` zone on purpose (`Pump.java:183`), and writes
+  nothing while parked, so a component's rest is the gap between two drains by rule rather than by row.
+- **The kernel's rest after a batch.** `Gate.await` marks `gate.woke` when a wait ends, and nothing marks the moment
+  the kernel goes back to `kernelStart.await()`, so its work in a batch has no end.
+- **A `BLOCK` publisher** parked for room in a full mailbox (`PumpedReg`), and **`State.await`**.
+
+Worked around: not at all. The ledger counts the gaps as unaccounted, and counts the `batch` span as the main thread's
+work, saying so.
+
+**What atchung, kronometer and vexelray-gui could do:** a `Probe.waitZone(lane, name)` beside `idleZone`, measured the
+same and kept out of the slow-span report the same way, but read as waiting; then a wait zone round
+`batchLock.wait()` (`wait timeline`), round a `BLOCK` publisher's park (`wait room <topic>`) and in `State.await`; an
+idle zone round `Pump.park` (`wait mail`), which is exactly what idle zones are for; and a `gate.rest` mark where the
+kernel returns to `kernelStart.await()`.
+
+## FN-17 · The loop marks no frame deadline 🔬
+
+Wanted: the ledger's "what was each thread doing when the frame ran out". `why` already names the gap
+(`unknown budget_us (the loop marks no frame budget, so over_us cannot be given)`). The loop decides a deadline every
+turn and keeps it to itself: `loop.park` gives the park's budget, which is how long it will sleep, not when the frame
+had to be done. The display's refresh is not reported either (FN-14).
+
+Worked around: the ledger uses the end of the `frame` span, and says `deadline not reported (FN-17)`.
+
+**What vexelray-gui could do:** `Probe.mark(Lane.FRAME, "frame.deadline", "<us>")` at the start of each frame: the
+time from the frame's start by which it must be presented to make the next vblank under FIFO, or the pacing ceiling
+(`maxFrameRate`) where there is no vsync to make. It is what `followDisplay` and the pacing already compute, and it
+fills `why`'s `budget_us` and `over_us` too.
+
+## FN-18 · Nothing says whether a thread was on a CPU 🔬
+
+A span says a thread was inside some work, not that it was running: preempted, faulting or descheduled looks the
+same. And the threads that most often take a frame's CPU (GC, JIT, Vulkan and DXGI driver threads) write no rows at
+all. meter.md §4 specifies `ProcessCpu` (`QueryThreadCycleTime` and `QueryProcessCycleTime`, the thread list from
+`CreateToolhelp32Snapshot`, names from `GetThreadDescription`) for its `meter` verb; as of 2026-10-24 neither is built
+(meter.md: "no verb yet"). The timeline's shreds and kernel are virtual threads, so their CPU is a carrier's, which
+the cycle counters would name.
+
+Worked around: not at all. The ledger says working, not running, and lists native threads as unknown.
+
+**What vexelray-os and vexelray-gui could do:** build `ProcessCpu` as meter.md §4 says, and have a sampler on a
+thread of its own read every native thread's cycles at each frame boundary (the loop posts the boundary; the sampler
+does the downcalls, never the loop), writing one row per thread whose count moved:
+`cpu <tid> <name> <cycles>` on a lane of its own. A virtual thread's row names its carrier.
+
+## FN-19 · No verb gives per-thread time per frame 🔬
+
+flight-recorder.md's domain table lists `threads` ("every native thread: lane, busy, parked or stalled, and CPU cycles
+over the span", from meter.md §4 and `Lanes` gauges), and it is not built. The ledger is its per-frame form, and the
+roadmap's rule is that the Inspector draws only what an agent can ask. Computing it in the Inspector alone would also
+break the promise that the two read one ring and cannot disagree.
+
+Worked around: not yet; nothing is drawn. docs/threads.md sketches the reply.
+
+**What vexelray-gui could do:** `threads [--frame N | last N | worst N]` in `vexelray-gui-recorder`, beside `frames`
+and `why`, replying one line per thread per turn (`state work_us wait_us rest_us unacc_us wakes wake_lat_us
+at_deadline`) and an `unknown` line, as `why` has. The fold is a pure function over rows, like `Frames.fold`; put it
+in a module the Inspector can depend on too, so the verb and the Inspector's view are the same code.

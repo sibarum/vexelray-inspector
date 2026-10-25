@@ -9,6 +9,7 @@ from its `vexel-desktop` template, and a **framework witness** like Vexplore: th
   for it, and the milestones. The data comes from the automation socket's flight recorder,
   `vexelray-gui/docs/plans/flight-recorder.md`.
 - **What is not done**: [docs/TODO.md](docs/TODO.md).
+- **What each thread did in a frame**: [docs/threads.md](docs/threads.md), the thread ledger, proposed.
 - **What the framework did to us**: [docs/framework-notes.md](docs/framework-notes.md).
 - **What each milestone showed**: [docs/retrospective.md](docs/retrospective.md), the pass over those notes at the end
   of each milestone.

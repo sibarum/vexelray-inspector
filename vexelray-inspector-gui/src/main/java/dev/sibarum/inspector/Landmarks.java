@@ -10,29 +10,20 @@ package dev.sibarum.inspector;
  *
  * <p>Where you can, carry <em>state in the accessible name</em>. {@code await <landmark> <text>} is how a driver
  * waits for the application to be ready, and it needs no hook when readiness is declared somewhere the read-model
- * can already see. {@link #STATUS_FILE} works that way: its name is the front tab's title, dot and all, so
- * {@code await status.file notes.md} waits for a file to open and {@code await status.file •} for it to go
- * unsaved.
+ * can already see. {@link #STATUS_RUN} works that way: it says which run is inspected, so
+ * {@code await status.run Inspecting} waits for the first rows to arrive.
  */
 final class Landmarks {
 
-    /** The tab bar and its pages. */
-    static final String TABS = "tabs";
+    /** The timeline: its lanes, the present at their right edge. */
+    static final String TIMELINE = "timeline";
 
-    /** What the editor area shows when no file is open. */
-    static final String EMPTY = "empty";
+    /** The lane of the main loop's passes. */
+    static final String LANE_PASSES = "lane.passes";
 
-    /** The navigator's path bar: type a folder to show it, a file to open it, a new name to create it. */
-    static final String PATH = "path";
-
-    /** The navigator's tree. */
-    static final String TREE = "navigator";
-
-    /** The status line, and its three slots. */
+    /** The status line, and its slot saying which run is inspected or why none is. */
     static final String STATUS = "status";
-    static final String STATUS_FILE = "status.file";
-    static final String STATUS_MESSAGE = "status.message";
-    static final String STATUS_POSITION = "status.position";
+    static final String STATUS_RUN = "status.run";
 
     private Landmarks() {
     }

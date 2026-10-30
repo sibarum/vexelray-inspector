@@ -1,111 +1,79 @@
 package dev.sibarum.inspector;
 
-import dev.sibarum.inspector.core.Markdown;
-import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.core.Gui;
-import dev.vexelray.gui.core.layout.LayoutEnums.Direction;
+import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.layout.Length;
+import dev.vexelray.gui.core.layout.LayoutEnums.Direction;
 import dev.vexelray.gui.core.style.Role;
-import dev.vexelray.gui.widget.Cue;
-import dev.vexelray.gui.widget.SplitPane;
 import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
 /**
- * The window: the framework's title bar, the navigator beside the open files, and a status line under both.
+ * The window: the framework's title bar, the timeline, and a status line under both.
+ *
+ * <h2>The timeline</h2>
+ *
+ * <p>One lane per clock, each a name beside a strip of marks, with the present at the right edge (vexelray-inspector's
+ * {@code docs/design.md} section 3). R1's first slice has one lane, the main loop's passes. A lane is a box that clips,
+ * holding one {@link #strip} the size of the lane, whose picture the view draws: the view slides the strip left as the
+ * present moves on, which is the frame contract's asked half, and the lane's clip is what keeps the slid strip inside
+ * it (a container's clip is anchored, so a child slides within it).
  *
  * <h2>It holds no state</h2>
  *
- * <p>Every label here says what the editor last told the view, and the view tells it ({@link #caption},
- * {@link #status}). Nothing is remembered here to be shown later, which is the rule worth keeping as this grows: a
- * label that remembers a value can disagree with the session, and a header that says a file is saved when it is not
- * is the application lying.
+ * <p>Every label here says what the bench last told the view, and the view tells it ({@link #status}). Nothing is
+ * remembered here to be shown later.
  *
  * <p>Built in the {@code TREE} phase, before there is a window, and needing none: that is what lets a test build the
- * real tree headless. Written to from the view's lane, which is the framework's own idiom: a prop written off the GUI
- * thread is queued and applied by the next drain.
- *
- * <p>The title bar is the framework's. Chrome placement belongs to whoever owns the window, so that the screenshot
- * instrument in it means the same thing in every window on the desk; this application places the node and
- * supplies every colour in it through {@link Look}.
+ * real tree headless. The title bar is the framework's; this application places it and supplies every colour in it
+ * through {@link Look}.
  */
 final class Ui {
 
-    /** The navigator's width on a first run. Type-relative, so it grows with the zoom like the text in it. */
-    private static final Length NAVIGATOR = Length.rem(16);
+    /** The column the lanes' names stand in. Type-relative, so it grows with the zoom like the names. */
+    private static final Length NAMES = Length.rem(7);
 
-    private final TitleBar titleBar;
+    /** A lane's height. */
+    private static final Length LANE = Length.rem(2.5f);
+
     private final StatusBar status;
-    private final Workspace workspace;
-    private final Navigator navigator;
-    private final Motion motion;
-    private final Color danger;
+    private final Node lane;
+    private final Node strip;
 
-    Ui(Gui gui, Motion motion, TitleBar titleBar) {
-        this.titleBar = titleBar;
-        this.motion = motion;
-        this.danger = gui.theme().color(Role.DANGER);
-
-        status = new StatusBar(gui)
-                .slot(Landmarks.STATUS_FILE, StatusBar.Side.LEFT, "")
-                .slot(Landmarks.STATUS_MESSAGE, StatusBar.Side.LEFT, "")
-                .slot(Landmarks.STATUS_POSITION, StatusBar.Side.RIGHT, "")
-                .minWidth(Landmarks.STATUS_POSITION, Length.rem(7));
+    Ui(Gui gui, TitleBar titleBar) {
+        status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "");
         gui.landmark(Landmarks.STATUS, status.node());
-        for (String slot : new String[] {Landmarks.STATUS_FILE, Landmarks.STATUS_MESSAGE, Landmarks.STATUS_POSITION}) {
-            gui.landmark(slot, status.slot(slot));
-        }
+        gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
 
-        // Markdown's colours are the theme's roles, and one of this application's own (Look.EMPHASIS). Resolved
-        // once, here, because a role resolves at the moment it is asked and the theme does not change under us.
-        Markdown.Style markup = new Markdown.Style(
-                gui.theme().color(Role.ACCENT),
-                gui.theme().color(Role.FAINT),
-                Look.EMPHASIS,
-                gui.theme().color(Role.ACCENT),
-                gui.theme().color(Role.DIM),
-                gui.theme().color(Role.INK),
-                gui.theme().color(Role.PANEL));
+        strip = gui.box().width(Length.FILL).height(Length.FILL);
+        lane = gui.box().width(Length.grow(1f)).height(LANE).clip(true)
+                .background(gui.theme().color(Role.PANEL))
+                .children(strip);
+        gui.landmark(Landmarks.LANE_PASSES, lane);
+        Node name = gui.text("Passes").width(NAMES).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        Node passes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(name, lane);
 
-        workspace = new Workspace(gui, motion, markup);
-        navigator = new Navigator(gui, motion);
-
-        SplitPane split = new SplitPane(gui, SplitPane.Orientation.SIDE_BY_SIDE, navigator.node(), workspace.node())
-                .size(NAVIGATOR);
-        split.node().width(Length.FILL).height(Length.grow(1f));
+        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT)
+                .children(passes);
+        gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
                 .background(gui.theme().color(Role.PAGE))
-                .children(titleBar.node(), split.node(), status.node());
+                .children(titleBar.node(), timeline, status.node());
     }
 
-    Workspace workspace() {
-        return workspace;
+    /** A lane: what the view measures to draw the strip for. */
+    Node lane() {
+        return lane;
     }
 
-    Navigator navigator() {
-        return navigator;
+    /** The strip in the lane: what the view draws its marks on, and slides. */
+    Node strip() {
+        return strip;
     }
 
-    /** The front file's title, dot and all, in the title bar and the status line; empty when nothing is open. */
-    void caption(String file) {
-        titleBar.title(file.isEmpty() ? Inspector.TITLE : file + " — " + Inspector.TITLE);
-        status.text(Landmarks.STATUS_FILE, file);
-        if (file.isEmpty()) {
-            status.text(Landmarks.STATUS_POSITION, "");
-        }
-    }
-
-    /** Where the caret is in the front file, on the status line. */
-    void position(String where) {
-        status.text(Landmarks.STATUS_POSITION, where);
-    }
-
-    /** Say something on the status line, and when {@code alert}, draw the eye to it: something was refused or failed. */
-    void status(String message, boolean alert) {
-        status.text(Landmarks.STATUS_MESSAGE, message);
-        if (alert) {
-            motion.cues.play(status.node(), Cue.ring(danger, 2));
-        }
+    /** What the status line says: which run is inspected, or why none is. */
+    void status(String message) {
+        status.text(Landmarks.STATUS_RUN, message);
     }
 }

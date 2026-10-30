@@ -4,7 +4,7 @@ import dev.vexelray.framework.shell.VexelApplication;
 
 
 /**
- * DevTools for VexelRay applications, drawn as clockwork.
+ * DevTools for VexelRay applications: plain panels on a timeline (docs/design.md).
  *
  * <h2>What this class is</h2>
  *
@@ -14,16 +14,16 @@ import dev.vexelray.framework.shell.VexelApplication;
  * its wakes and its pacing, installing the dialogs, parsing the command line and closing everything in the right
  * order are all done for you.
  *
- * <p>What this application builds — a text editor with tabs and a file navigator — is in two modules. This one,
- * {@code -gui}, is the view: {@link Recipes}, one method per part, and the {@link View}, which shows what the editor
- * decides. {@code -core} is the controller: the editor, which decides, and the jobs that touch the disk. They talk by
- * messages and nothing else ({@code Messages}, in {@code -core}). {@code InspectorAppWiring}, which builds all of it
- * in order, is generated from them and from the {@code @VexelApp} on {@code InspectorApp} while this module
- * compiles — so the facts below are stated once, here, and the wiring reads them.
+ * <p>What this application builds — a timeline of a running application, read over its link — is in two modules.
+ * This one, {@code -gui}, is the view: {@link Recipes}, one method per part, and the {@link View}, which shows what
+ * the bench decides. {@code -core} is the controller: the bench, which decides, the job that lists the runs and the
+ * source that reads one. They talk by messages and nothing else ({@code Messages}, in {@code -core}).
+ * {@code InspectorAppWiring}, which builds all of it in order, is generated from them and from the {@code @VexelApp}
+ * on {@code InspectorApp} while this module compiles — so the facts below are stated once, here, and the wiring
+ * reads them.
  *
  * <pre>
- * Inspector                     the editor, on the folder it was last showing (or the working directory)
- * Inspector &lt;path&gt;...          open these: a folder becomes the navigator's root, a file a tab
+ * Inspector                     inspect the newest application running with a link (--automation=0)
  * Inspector &lt;frames&gt;            run a fixed number of frames and quit (a script, not a session)
  * Inspector --key=value         override a setting for this launch
  * </pre>
@@ -56,8 +56,8 @@ public final class Inspector {
     static final String ICON = "/vexelray-inspector.ico";
 
     /**
-     * The smallest this UI is still coherent at, in root ems — a floor, not the design size: a navigator and a
-     * document side by side, each still wide enough to read.
+     * The smallest this UI is still coherent at, in root ems — a floor, not the design size: a lane still wide
+     * enough to read a second of passes in.
      *
      * <p>Named here rather than written at each use because it is read from two places that have to agree:
      * {@link Recipes#look} declares it to the framework, and a screenshot at exactly the minimum

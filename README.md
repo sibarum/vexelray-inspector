@@ -1,11 +1,10 @@
 # VexelRay Inspector
 
-DevTools for VexelRay applications, drawn as clockwork.
+DevTools for VexelRay applications: plain panels on a timeline that can be rewound ([docs/design.md](docs/design.md)).
 
-A VexelRay desktop application, generated from the `vexel-desktop` template: a small text editor with tabs, a file
-navigator and Markdown in colour. It is the reference implementation of this stack, so every seam the framework
-offers is wired in the tree you are reading — and it is a working editor, so it is also something to change into
-whatever you are actually building.
+A VexelRay desktop application, generated from the `vexel-desktop` template and being rebuilt for VexelRay 0.2. R1 is
+under way: today it attaches to the newest application running with its link open and draws its main loop's passes
+on a live timeline, the present at the right edge. Everything else in the design is still to come.
 
 ## Run it
 
@@ -16,14 +15,17 @@ mvn compile exec:exec
 ```
 
 `exec:exec` rather than `exec:java`, so native access can be enabled for Panama FFM. The window comes up where you
-last left it, at 1180x720 the first time, with the folder and the files you last had open. The first time,
-the navigator shows the working directory.
+last left it, at 1180x720 the first time.
+
+It inspects another VexelRay application, which has to be running with its link open and its probe recording: start
+that one with `--automation=0 -Dprobe=all -Dprobe.format=csv` (for one built from this template,
+`mvn compile exec:exec -Dautomation=0 "-Dapp.jvmArgs=-Dprobe=all -Dprobe.format=csv"`). Until one is, the status line
+says so, and the Inspector looks again every two seconds.
 
 ```
-mvn compile exec:exec "-Dapp.args=C:/notes"               # open a folder (or files) named on the command line
 mvn compile exec:exec -Dapp.args=120                      # 120 frames and quit
 mvn compile exec:exec -Dautomation=0                      # a driving socket on a free port (see Taking a screenshot)
-mvn test                                                  # the editor, the jobs, Markdown, the real tree headless
+mvn test                                                  # the bench, and the real tree headless
 ```
 
 ## A native executable
@@ -80,53 +82,38 @@ groups the button with other Java programs, and pinning it pins Java. The native
 
 ## Using it
 
-| Keys | Does |
-| --- | --- |
-| Ctrl+L | the path bar: type a folder to show it, a file to open it, a new name to create it; Enter goes |
-| Ctrl+S | save |
-| Ctrl+W | close the tab (asks if it is unsaved) |
-| Ctrl+Tab, Ctrl+PageDown / Ctrl+Shift+Tab, Ctrl+PageUp | next / previous tab |
-| Ctrl+Shift+E | put the keyboard in the navigator |
-| Ctrl+F | find in the file (Enter / Shift+Enter step, Escape closes) |
-| Ctrl+Z / Ctrl+Y | undo / redo |
-| Ctrl+= / Ctrl+- / Ctrl+0 | zoom |
-
-Selecting a file in the navigator opens it — a click, or walking the tree with the arrow keys, which keep the
-keyboard in the tree. A tab's menu has Save, Close, Close others, Close all and Reveal in navigator. A bullet in
-front of a tab's name means unsaved changes; closing anything unsaved asks first, and so does quitting.
-
-There is no file dialog, by choice: the path bar is the whole of "open", and it works the same in a test as in use. The
-framework brings native pickers (a `PickFile` message, answered by `Picked`) for a project that wants them.
+There is nothing to press yet. The window shows one lane, **Passes**: each pass of the inspected application's main
+loop, as a mark from when it started to when it ended, the present at the lane's right edge and ten seconds back to its
+left. While rows are arriving the lane follows the present; when the application goes away it stops where it was, and
+the status line says what happened. Choosing which application to inspect, pausing and rewinding are R1's later slices.
 
 ## How it is put together
 
-Two modules under this folder, split where the dependency edge falls, and four kinds of part that never hold each
-other: **components** (logic, reached only by messages: the editor runs on the framework's logic lane), **views**
+Two modules under this folder, split where the dependency edge falls, and five kinds of part that never hold each
+other: **components** (logic, reached only by messages: the bench runs on the framework's logic lane), **views**
 (presentation, run on the GUI thread in each frame, `@View`), **jobs** (slow work on the offload lane, a request in
-and a reply out), and **recipes** (a part built once and handed to whoever takes it). The parts talk by messages, and every message is in one file. Read these in this order.
+and a reply out), **sources** (something that keeps producing from outside for as long as it runs, on a thread of its
+own), and **recipes** (a part built once and handed to whoever takes it). The parts talk by messages, and every
+message is in one file. Read these in this order.
 
 **`vexelray-inspector-core`, the controller.** It builds against no widget, so its tests need no window.
 
 | File | What belongs in it |
 | --- | --- |
-| `Messages.java` | **every message the parts send each other**, grouped by who sends it to whom, each record beside its topic. A record crosses as itself, so it holds only immutable values; a list it holds is copied in its constructor. |
-| `Editor.java` | **the controller**: every decision (what a typed path names, whether a file is already open, when closing needs a question, what the status line says, what comes back next time) as a declared step on one immutable state, held by a ledger. Each message it hears runs one step; closing is a chain of them that waits on the person and the disk without anything waiting on a thread. It needs no lock, because only its steps change its state and they run one at a time. |
-| `Doc.java` | the shape of the session (which files, which in front, which unsaved, which folder) as one immutable value, part of the editor's state. |
-| `ReadFile.java`, `WriteFile.java`, `FindPath.java`, `CreateFile.java`, `ReadSession.java`, `WriteSession.java`, `ListFolder.java`, `MarkText.java` | the jobs: every touch of the disk, on the offload lane. What can go wrong is part of the reply. |
-| `TextFile.java`, `Markdown.java` | the policy between bytes and text, and Markdown as spans: pure functions. |
-| `Core.java` | the list of this module's component and jobs. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new component or job goes on it. |
+| `Messages.java` | **every message the parts send each other**, grouped by who sends it to whom, each record beside its topic. A record crosses as itself, so it holds only immutable values; a list it holds is copied in its constructor. Every time in it is on the machine's monotonic clock. |
+| `Bench.java` | **the controller**: which run is inspected, what has been read of it, and the model the panels show, as declared steps on one immutable state, held by a ledger. Each message it hears runs one step, and each step publishes the `Timeline` the view draws. |
+| `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
+| `LinkRows.java` | the source that reads one run's rows over its link for as long as it is attached, setting each row on the machine's clock as it crosses. |
+| `Durations.java` | a probe row's duration (`51.68ms`) read back into nanoseconds: a pure function a step may call. |
+| `Core.java` | the list of this module's component, job and source. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
 
 **`vexelray-inspector-gui`, the view and the framework integration.**
 
 | File | What belongs in it |
 | --- | --- |
-| `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components and jobs in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
-| `View.java` | **the view**, a `@View`: run on the GUI thread in each frame, hearing the editor, its jobs and the widgets as messages; the editor's messages shown (`AddTab` is a tab) and the person's gestures told (`Open`, `Close`, `Save`). It decides nothing. |
-| `Intent.java` | what a key chord asks of the view: the message the gesture was declared to send. |
-| `Ui.java` | the window. Holds no state; it shows what the view hands it. |
-| `Workspace.java`, `Buffer.java` | the tab bar and one `Buffer` per tab: a `TextField`, its spans, its save bookkeeping. |
-| `Navigator.java` | the path bar and the file tree. The tree asks for each level by message, and the view asks `ListFolder`, so the disk is read off the frame. |
-| `Motion.java` | the one tempo every widget moves at, on the framework's clock. |
+| `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components, jobs and sources in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
+| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lane's picture; asked by every frame (`@Draw`), it slides the lane to follow the present. It decides nothing. |
+| `Ui.java` | the window: the title bar, the timeline's lanes and the status line. Holds no state; it shows what the view hands it. |
 
 `Inspector.java` is the entry point and the constants, and nothing else. The application edge — input, the
 clipboard, window memory, the clock, the frame loop with its wakes and its pacing, the dialogs, the command line and
@@ -152,32 +139,29 @@ Open `vexelray-inspector-gui/target/generated-sources/annotations/.../InspectorA
 ### Threading, in one paragraph
 
 The GUI loop runs on the main thread, which owns Vulkan, the window and present, and nothing of this application's
-runs there but the view, which is presentation and nothing else (threading.md, T7.4). The editor runs on the
+runs there but the view, which is presentation and nothing else (threading.md, T7.4 and T7.6). The bench runs on the
 framework's logic lane and the view on the GUI thread, in each frame's widget tick; each handles one message at a
-time and owns its state outright, so there is no lock anywhere in the application. The editor's state is changed only
+time and owns its state outright, so there is no lock anywhere in the application. The bench's state is changed only
 by its declared steps, which the processor reads: a step that touches the disk, waits or reaches outside itself does
-not compile. A widget says what it did as a message, which the view hears in the frame the input arrived, and a key
-chord or a menu item is declared with the message it sends, so nothing of the application's runs at the click. Every
-read and write of a file is a job on the offload lane, so a slow disk is a slow reply and never a frozen window (the
-lanes are named in the framework's `docs/threading.md`).
+not compile. Reading the discovery folder is a job on the offload lane, and reading a run's link is a source on a
+thread of its own, so neither a slow disk nor a quiet link ever holds a frame.
 
 Two things follow from messages, and both are written where they bite. **One sender's messages to one receiver keep
-their order**: so the view says a tab went unsaved before it asks to close it, and the editor already knows when the
-`Close` arrives. **Jobs are in no order at all**: so the restored session asks for one file at a time. The processor
-checks every message it can see: a mailbox's payload is deeply immutable, a topic carries one type, and no cycle of
-sends can block.
+their order**: one run's batches reach the bench in the order the link sent them, because one thread sends them.
+**Jobs are in no order at all**: so the bench decides from each `Runs` as it comes, and a late one changes nothing once
+a run is attached. The processor checks every message it can see: a mailbox's payload is deeply immutable, a topic
+carries one type, and no cycle of sends can block.
 
-### Spans
+### The live timeline
 
-`Markdown.spans` is a pure function from text to `Span`s (foreground, background, underline). After each edit
-the view asks `MarkText` for them on the offload lane, and applies the answer only if the field still says the text it
-was computed for. The text is never changed; the field draws the colours and moves each span with its text as you type. A `.txt` file gets none.
-
-### Motion
-
-The widgets animate only when handed a ramp, and without one they cut — so leaving the clock out costs no error,
-only a stiffer window. `Motion` makes the ramps from the framework's clock: the tabs slide, folders open, and a cue
-rings a tab you asked to open that was already open, or the status line when something was refused.
+The one thing on screen that moves, and the frame contract's first application witness (vexelray-gui's
+`docs/plans/frame-contract.md`). **Told builds, asked chooses**: when the bench's `Timeline` arrives, the view builds
+the lane's picture with the newest row's moment at the right edge and replaces its one state field, a `Strip`; on
+every frame, the view's `@Draw` method slides the lane left by how far the present has moved on since that moment, and
+asks for the next frame while the run is live. The draw reads only its state and the frame and allocates nothing, which
+the processor checks. Both ends are on the machine's monotonic clock: the link says where the run's rows count from,
+`LinkRows` adds it, and the frame's `monoNanos` is the same clock. When no run is live nothing is due, so a detached
+timeline draws nothing, and `ottermate settle` succeeds only then: while a run is live, wait with `await` instead.
 
 ## The stack
 
@@ -239,8 +223,8 @@ ottermate --zoom 1.5 --dpi 2 --size 1600x900 shot big.png --launch ...   # pixel
 ottermate --size 36emx20em shot smallest.png --launch ...                # the minimum, in em
 ```
 
-The landmarks in `Landmarks.java` are the names a script uses: `await status.file notes.md` waits for a file to be in
-front, and `await path <folder>` for the navigator to be showing one. `ottermate help` lists every verb.
+The landmarks in `Landmarks.java` are the names a script uses: `await status.run Inspecting` waits for the first rows
+of an attached run, and `lane.passes` is the lane they are drawn in. `ottermate help` lists every verb.
 
 ## Logging
 

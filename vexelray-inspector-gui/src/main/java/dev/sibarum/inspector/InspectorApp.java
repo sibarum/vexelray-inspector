@@ -9,7 +9,7 @@ import dev.vexelray.framework.automation.AutomationStarter;
  * {@link Recipes} and the {@link View}.
  *
  * <ul>
- *   <li>{@link Core}: the {@code -core} module's editor and the jobs that touch the disk. The processor sees only this
+ *   <li>{@link Core}: the {@code -core} module's bench, the job that lists runs and the source that reads one. The processor sees only this
  *       module's sources, so those are class files to it; {@code Core} lists them, and naming it here is what gets
  *       them built. Without it the window opens and nothing answers it.</li>
  *   <li>{@link AutomationStarter}: the automation sockets (remote control and diagnostics), in every build, the release

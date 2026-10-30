@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; nothing built.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 under way (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -318,6 +318,14 @@ Each step ends with something to watch or something an agent can ask, and lands 
   lands. Measured: the link's latency, what 20,000 rows a second cost the bench and the view, and the reach memory
   allows. Inspected: the phase 7 witnesses (W1 to W3) and a freshly generated application, in both modes
   (`--logic=main`).
+  **Slice 1 done 2026-10-30:** the template's editor removed; `ListRuns` (a job over the discovery folder), `LinkRows`
+  (a source, the `frame` lane only) and `Bench` (a ledger: attach to the newest run, fold its passes over a 10 s
+  reach, say why it went away); the view's passes lane, told by `Timeline` and asked by `@Draw`, the first application
+  witness of the frame contract. Two gaps were found and fixed upstream on the way (framework-notes FN-1, FN-2): the
+  frame now carries the machine's monotonic present beside the tree clock's, and the link says where a run's rows
+  count from, so both ends are on one clock. Seen in a window with `ottermate`: the lane follows the present at
+  about 91 px a second on a 911 px, 10 s lane, and a detached timeline settles. Not yet: checkpoints and the cursor,
+  which slice 2 starts with.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

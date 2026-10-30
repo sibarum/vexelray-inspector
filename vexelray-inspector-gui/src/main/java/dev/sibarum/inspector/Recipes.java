@@ -17,13 +17,13 @@ import dev.vexelray.gui.widget.TitleBar;
  * parameters put it in: <b>a part's phase is the latest phase of anything it takes.</b> So the look exists before
  * the {@code Gui} does, and the window's contents wait for the {@code Gui}, its clock and its title bar. There is no
  * phase to declare and none to get wrong. Open the generated file after a build to see the order. Nothing here waits
- * for the window itself: what happens once it exists (the editor bringing back the last session) is heard as the
+ * for the window itself: what happens once it exists (the bench looking for a run to inspect) is heard as the
  * framework's {@code WindowOpened}, and no part takes the {@code Shell}, which the processor refuses.
  *
  * <h2>Where the rest comes from</h2>
  *
  * <p>Not every part is a recipe. The {@link View} is a {@code @Component}: a lane of its own, built from its one
- * constructor, reached by messages. The editor and the jobs that touch the disk are in {@code -core}, and reach the
+ * constructor, reached by messages. The bench, its job and its source are in {@code -core}, and reach the
  * wiring through {@code Core}, which {@code InspectorApp} names among its starters beside {@code AutomationStarter},
  * the automation sockets.
  *
@@ -50,14 +50,12 @@ final class Recipes {
     }
 
     /**
-     * The window's contents. Needs the {@code Gui}, its clock and its title bar, and no window — so a test can build
-     * the real tree headless ({@code VexelApplication.tree}), which {@code ViewTest} does.
-     *
-     * <p>The clock is for motion: {@link Motion} makes the ramps every widget here animates with.
+     * The window's contents. Needs the {@code Gui} and its title bar, and no window — so a test can build the real
+     * tree headless ({@code VexelApplication.tree}), which {@code ViewTest} does.
      */
     @Provides
     Ui ui(Gui gui, TitleBar titleBar) {
-        return new Ui(gui, new Motion(gui), titleBar);
+        return new Ui(gui, titleBar);
     }
 
 }

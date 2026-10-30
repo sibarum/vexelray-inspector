@@ -32,5 +32,31 @@ The markers are a filter, not decoration:
 
 ## Findings
 
-*(none yet)*
+## FN-1 · A frame's present was logical time, which nothing outside the process shares 🔬 (fixed upstream)
+
+The live timeline places another process's rows against the present. The frame contract's `Frame.presentNanos` was
+the tree's clock, which in a framework application is krono's logical time: it counts from its own zero and falls
+behind after a stall, so it cannot be set beside anything stamped elsewhere. Fixed in vexelray-gui (`07dc481`, ruled
+2026-10-30): `Frame.monoNanos` carries the same moment on `System.nanoTime()`'s clock. Due times stay on the tree clock.
+
+## FN-2 · A run's rows counted from a zero the link did not say 🔬 (fixed upstream)
+
+A probe row's `t_mono_ns` is `System.nanoTime()` less the probe's own start, and that start was not on the link, so
+the Inspector could not put a row on any clock it shares. Fixed upstream (ruled 2026-10-30): atchung's
+`Probe.originNanos` (`bb36290`), and the link's `StreamOpened.originNanos` since minor 1 (vexelray-gui `efa63e2`).
+`LinkRows` adds it as a row crosses, and refuses a run too old to say it, rather than guess.
+
+## FN-3 · `settle` never succeeds while a part is following the present 🔬
+
+`ottermate settle` waits until no frame is owed. A live timeline owes every frame by design, so `settle` times out
+("frame still owed") for as long as a run is attached, though nothing is wrong. The check script waits on a landmark
+instead (`await status.run Inspecting`). Every application with a part that follows the present (a video, a live
+chart) will hit this: `settle` could treat an asked half that is due every frame as continuous motion, as it already
+treats a widget's, and say so in its reply rather than time out.
+
+## FN-4 · No verb closes an application 🔬
+
+A run started outside `--launch` is closed by clicking where the title bar draws its close button
+(`click 1017,16`): the caption buttons are not nodes, so `find close` finds nothing and a script has to know pixel
+positions. A `close` verb, or landmarks on the caption buttons, would make it a name.
 

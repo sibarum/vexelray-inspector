@@ -1,9 +1,9 @@
 # The Inspector on 0.2
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
-model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29, nothing built.** It is
-phase 7½ of `vexelray-framework/ROADMAP.md`: the first application written for 0.2 from nothing, and the test of
-whether 0.2 is easy to use correctly. Section 9 lists the decisions that are the author's to make before code.
+model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
+9 ruled by the author 2026-10-30; nothing built.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
 Its `docs/roadmap.md`, `component-graph.md`, `threads.md` and `framework-notes.md` are cited here as *0.1*.

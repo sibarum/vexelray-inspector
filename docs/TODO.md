@@ -8,8 +8,9 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] The author's rulings on [design.md](design.md) §9 (the frame contract, a long-lived reader, the correlation
-      key, the clockwork, the old repository), then R1. Until then the template's editor stands as generated.
+- [ ] R1 ([design.md](design.md) §10). Upstream first: sources in vexelray-framework (T1.1 and T5.8 restated in
+      `threading.md` before code), and the frame contract's steps 2 and 3. Until then the template's editor stands as
+      generated.
 - [ ] Replace the palette anchors in `Look.java` with the design's, measured in Oklab. See the note in that file
       about which authored colours the construction can reproduce and which have to be declared.
 

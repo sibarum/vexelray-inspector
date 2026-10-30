@@ -192,6 +192,7 @@ repository's TODO when this design is accepted.
 | vexelray-framework | An input recorder and a replay driver | R6, and ROADMAP §5 item 5 |
 | vexelray-framework, -shell | Rows from `Timer`, `Jobs`, `Logic` and `Crew` | the job tray; declared lanes |
 | vexelray-present-dxgi | A row when the ready thread waits and wakes | the magazine |
+| vexelray-framework | **Sources** (ruled, 9.2): a part that keeps producing from outside for as long as it runs, with its own thread, named in the wiring, started after its listeners and stopped before them | reading the link, a recording and a launched child (R1); netcode and every other client of a stream |
 
 ## 8. How it is put together on 0.2
 
@@ -205,19 +206,20 @@ and publishes the model on **state topics**. Last-write-wins is exactly right fo
 a storm of rows costs the view one delivery a tick, not one per row, and the Inspector is a witness for fork 1 on
 itself. Discrete things (a stall, a run that went away, a gap) are **edges**.
 
-**Jobs for everything outside.** 0.1's three hand-made threads (0.1 FN-1) become jobs:
+**Sources for what keeps coming, jobs for what finishes.** 0.1's three hand-made threads (0.1 FN-1) were each
+something that keeps producing for as long as it runs. In 0.2 they become **sources**, a kind of part the framework
+does not have yet (ruled, 9.2):
+
+- `LinkRows`: the attached run's rows, a batch per message, for as long as the link is open.
+- `RecordingRows`: a recording's rows at their recorded pace.
+- `ChildOutput`: the launched child's output, for as long as it runs.
+
+What finishes stays a job:
 
 - `ListRuns`: read the discovery folder, once per request. The picker asks again while it is shown.
-- `ReadRows`: read the next batch from the link, blocking up to a bound (say 50 ms), and reply with what came,
-  possibly nothing. The bench asks for the next batch when the reply arrives, so exactly one read is in flight: a
-  **pull loop** of finite jobs instead of a reader that never returns. The same shape reads a recording at its
-  recorded pace (`ReadRecording`, sleeping inside the job to the next row's time) and the launched child's output.
-  It is the shape Pix's picture reader needs too (ROADMAP phase 8: a ledger that sends one job request at a time).
 - `Launch`: start the child with automation and the probe on, and reply when its discovery file appears. Stopping it
   is another job.
 - `Query`: one port verb, its reply as a record (the command menu, `gpu device`, `why`).
-
-Whether a pull loop is good enough, or the framework should have a source shape, is decision 9.2.
 
 **`-gui`: the view, told and asked.** Panels, the picker, the flow table and the tape's text are told, as in the
 template: the view hears the model and writes widgets. **The movement is asked**: the wheel's angle, the beads'
@@ -245,9 +247,13 @@ T2.4). Whether that holds 20,000 a second with nothing allocated per row is the 
    2. **Why:** a told-only movement is a bus message per draw, the cost the contract exists to remove, and it would be
    thrown away and would hide the gap this phase is for. *Rejected: (b)*, a movement only told, its state published
    at most once per draw, moved onto the contract later.
-2. **A long-lived reader.** A pull loop of finite jobs (section 8), or a source shape in the framework: one producer
-   that only emits, named in the wiring, started after its consumers (0.1 FN-1's proposal). The pull loop needs
-   nothing new; the source shape may be what every client of the stream wants.
+2. **A long-lived reader.** *Ruled 2026-10-30, by the author: a source, a new kind of part in the framework.* A
+   source is something that keeps producing messages from outside the application for as long as it runs: a socket,
+   a stream, a child process, a device. It only sends, has its own thread, is named in the wiring like any other
+   part, starts after the parts that hear it and stops before them. **Why:** it is the right shape, and it will be
+   needed for netcode and much else, so it belongs in the framework rather than worked around in each application.
+   It is built in vexelray-framework before the Inspector's R1 needs it (section 7½). *Rejected:* a loop of short
+   jobs, each waiting up to about 50 ms for what arrived and asked again at once.
 3. **The correlation key.** A number per clock stamped on every row, cause carried on every row, or both (section 6).
    Both cost the recorder bytes per row, and the recorder's cost is shown from day one.
 4. **The clockwork.** Keep the metaphor with a train per clock (section 3), or draw the three clocks as three plain
@@ -259,10 +265,10 @@ T2.4). Whether that holds 20,000 a second with nothing allocated per row is the 
 
 Each step ends with something to watch or something an agent can ask, and lands its port verb first.
 
-- **R1, first light on 0.2.** Attach, launch and replay as jobs; the bench folding rows into a model; the readouts,
+- **R1, first light on 0.2.** Sources upstream (9.2); attach, launch and replay as sources and jobs; the bench folding rows into a model; the readouts,
   told. Then, once the frame contract's step 2 lands, the movement's three trains, asked, with passes, ticks, draws and both kinds of held draw, read from rows that exist today (section 7:
   ticks and draws counted by the Inspector until the stack numbers them, and said so). Measured: the
-  pull loop's latency and what 20,000 rows a second cost the bench and the view. Inspected: the phase 7 witnesses
+  link's latency and what 20,000 rows a second cost the bench and the view. Inspected: the phase 7 witnesses
   (W1 to W3) and a freshly generated application, in both modes (`--logic=main`).
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph from the declaration, registers and belts,
   written and delivered.
@@ -277,7 +283,7 @@ Each step ends with something to watch or something an agent can ask, and lands 
 
 | 0.1 note | Under 0.2 |
 | --- | --- |
-| FN-1 no lane for a long-lived reader | still open; decision 9.2 |
+| FN-1 no lane for a long-lived reader | ruled: sources, in the framework (9.2) |
 | FN-4 a driven run does not probe the bus | still holds: rows are written only while the probe traces (section 7) |
 | FN-6, FN-7, FN-8 who sent and who received | answered by fork 5 at compile time, once the bus graph says it (section 4) |
 | FN-9, FN-10 host and graphics events not on the bus | to check |

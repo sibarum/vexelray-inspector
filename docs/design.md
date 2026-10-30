@@ -293,8 +293,11 @@ first things to measure (R1).
    customizable dashboard, with a timeline that can be rewound to show exactly what the dashboard showed, ten seconds
    ago say. So time is a parameter of every panel from the first build (section 8). *Rejected:* the clockwork, with
    a train per clock or for the main view only.
-5. **The old repository.** This checkout becomes `vexelray-inspector`'s history at phase 8's merge (its own history
-   kept on a branch or tag, as mainframe's was at `archive/pre-v1`), or it stays a separate repository.
+5. **The old repository.** *Ruled 2026-10-30, by the author: this one takes it over.* At phase 8 this checkout
+   becomes `vexelray-inspector`'s history and keeps the name; the 0.1.3 code is kept under a tag, as mainframe's was
+   at `archive/pre-v1`. Its docs (`roadmap.md`, `component-graph.md`, `threads.md`, `framework-notes.md`) stay
+   readable there. Its `retrospective.md` had no sections yet, so there is none to carry over. *Rejected:* two
+   separate repositories.
 6. **The show clock.** *Ruled 2026-10-30, by the author: dropped.* Everything is shown at its real time. A burst is
    followed by stopping the cursor on it and stepping through it. **Why:** it bent time on screen, which a
    utilitarian design should not do, and rewinding does its job better. *Rejected:* 0.1's show clock (up to 400 ms

@@ -110,13 +110,20 @@ clock instead:
 
 ## 6. Correlation: what replaces the frame number
 
-0.1 tied everything to one key: the frame each row happened in. 0.2 needs two things instead:
+0.1 tied everything to one key: the frame each row happened in. 0.2 needs three things instead (ruled, 9.3). The
+example they are for: a click is taken on the main thread, a tick on the logic lane hears it, the tick changes a
+widget, and a later draw shows the change. Selecting the click lights all four.
 
-1. **A number per clock.** Rows carry the pass, the tick and the draw they belong to, so the tape can rule lines for
-   any of the three, and the ledger can be cut by any of them.
-2. **Cause.** To follow one input through a tick to a draw, a row has to say what caused it. atchung already stamps a
-   cause when it stages a delivery (`TickReg.java:64`, `sibarum.probe.Cause`). Today the recorder drops it, and a
-   draw runs under its own pass's cause, so neither half of the path reaches the Inspector (section 7).
+1. **The cause on every row.** atchung already gives each input a cause and carries it through each delivery
+   (`TickReg.java:64`, `sibarum.probe.Cause`), so the tick's delivery and the widget write made while hearing the
+   click carry the click's cause. That links click → tick → write. Today the recorder drops it (section 7); it keeps
+   it instead. One number per row.
+2. **Ticks and draws numbered by rows of their own.** Each tick and each draw writes one row with its number, its
+   start and its end. Other rows are not stamped with them: the Inspector places a row in a tick or a draw by its
+   thread and its time. This is what the tape rules its lines by and the ledger is cut by.
+3. **A draw names the causes it drew.** A draw runs under its own pass's cause, so the cause alone cannot reach it.
+   Its row lists the causes of the writes it drew, capped, and says when the list overflowed. That links write →
+   draw.
 
 ## 7. What 0.2 records today
 
@@ -180,12 +187,12 @@ repository's TODO when this design is accepted.
 
 | Repo | Addition | For |
 | --- | --- | --- |
-| atchung | A tick number, and a row per tick with rounds, delivered, carried and whether it met its deadline | the logic escapement; the tape's tick rulings |
+| atchung | A tick number, and a row per tick with its number, start, end, rounds, delivered, carried and whether it met its deadline (9.3) | the logic escapement; the tape's tick rulings |
 | atchung | Superseded writes counted per state topic and per inbox | registers' written and delivered (R2) |
 | atchung, vexelray-framework | A cause source for the framework's `Timer` and for jobs | no `uncaused` rows from the framework's own parts |
-| vexelray-gui | A draw number apart from the pass; the held counts in `LoopCounters` and `Snap` | the balance wheel; the tachometer |
-| vexelray-gui | The recorder keeps the cause: the eight-argument `row`, a field on `RecordedRow` and the link's `Row` | a click's thread (R3) |
-| vexelray-gui | A draw says which causes' writes it drew | write → draw in a click's thread (R3) |
+| vexelray-gui | A draw number apart from the pass, and a row per draw with its number, start and end; the held counts in `LoopCounters` and `Snap` (9.3) | the balance wheel; the tachometer |
+| vexelray-gui | The recorder keeps the cause: the eight-argument `row`, a field on `RecordedRow` and the link's `Row` (9.3) | a click's thread (R3) |
+| vexelray-gui | A draw's row lists the causes of the writes it drew, capped, saying when it overflowed (9.3) | write → draw in a click's thread (R3) |
 | vexelray-gui | `frames` and `why` rebuilt on the three clocks: logic rows counted, held draws read | agent first: the movement's facts askable |
 | vexelray-framework | Bus graph version 2: topic kind and key filters, `Inbox` receivers, a job's request side, ledger steps, timers, views as their own kind, real lane names, no invented overflow | the declared graph (R2) |
 | vexelray-framework | The logic mode and the lane-to-thread map in `hello` (and the discovery file) | the movement knowing which mode it shows |
@@ -254,8 +261,11 @@ T2.4). Whether that holds 20,000 a second with nothing allocated per row is the 
    needed for netcode and much else, so it belongs in the framework rather than worked around in each application.
    It is built in vexelray-framework before the Inspector's R1 needs it (section 7½). *Rejected:* a loop of short
    jobs, each waiting up to about 50 ms for what arrived and asked again at once.
-3. **The correlation key.** A number per clock stamped on every row, cause carried on every row, or both (section 6).
-   Both cost the recorder bytes per row, and the recorder's cost is shown from day one.
+3. **The correlation key.** *Ruled 2026-10-30, by the author:* the cause on every row; ticks and draws numbered by
+   one row each, not stamped on every row; and a draw's row naming the causes it drew (section 6). **Why:** the cause
+   alone stops at the widget write, and numbers alone only suggest what caused what. Together they give a click's
+   whole path for one number per row, plus a row per tick and per draw. *Rejected:* a number per clock stamped on
+   every row, which costs every row and links nothing.
 4. **The clockwork.** Keep the metaphor with a train per clock (section 3), or draw the three clocks as three plain
    lanes and keep the clockwork for the main view only.
 5. **The old repository.** This checkout becomes `vexelray-inspector`'s history at phase 8's merge (its own history
@@ -272,7 +282,8 @@ Each step ends with something to watch or something an agent can ask, and lands 
   (W1 to W3) and a freshly generated application, in both modes (`--logic=main`).
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph from the declaration, registers and belts,
   written and delivered.
-- **R3, a click's thread.** The correlation key upstream (decision 9.3); select an input, light its path.
+- **R3, a click's thread.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);
+  select an input, light its path.
 - **R4, the tape and pause**, on the three clocks' rulings.
 - **R5, the ledger per clock**, with recording measured on its own.
 - **R6, replay**: run the same inputs again and show which widget writes differ.

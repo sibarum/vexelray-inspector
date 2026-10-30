@@ -50,7 +50,8 @@ the Inspector could not put a row on any clock it shares. Fixed upstream (ruled 
 
 `ottermate settle` waits until no frame is owed. A live timeline owes every frame by design, so `settle` times out
 ("frame still owed") for as long as a run is attached, though nothing is wrong. The check script waits on a landmark
-instead (`await status.run Inspecting`). Every application with a part that follows the present (a video, a live
+instead (`await status.run Inspecting`); since R1 slice 2, a script can also press Space to pause, after which
+`settle` succeeds. Every application with a part that follows the present (a video, a live
 chart) will hit this: `settle` could treat an asked half that is due every frame as continuous motion, as it already
 treats a widget's, and say so in its reply rather than time out.
 

@@ -8,9 +8,11 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] R1 ([design.md](design.md) §10), slices 2 to 5: the bench's checkpoints and the cursor (pause and rewind);
-      every lane and the readouts; the run panel, the picker, launch and replay; then measure, and inspect W1 to W3
-      in both modes. Slice 1 (attach, the passes lane live on the frame contract) is done.
+- [ ] R1 ([design.md](design.md) §10), slices 3 to 5: every lane and the readouts; the run panel, the picker, launch
+      and replay; then measure (the tape's `RETAIN` included), and inspect W1 to W3 in both modes. Slices 1 and 2
+      (attach and the live passes lane; checkpoints, pause and stepping) are done.
+- [ ] Dragging the cursor on the lane: design §8's absolute cursor on a state topic, newest position wins. The view
+      turns a pixel into a moment from its `Strip`. Small; before slice 3 or with it.
 - [ ] Zoom chords (Ctrl+= / Ctrl+- / Ctrl+0) went with the template's `Intent`; bring them back with the next view
       that takes keys.
 - [ ] Replace the palette anchors in `Look.java` with the design's, measured in Oklab. See the note in that file

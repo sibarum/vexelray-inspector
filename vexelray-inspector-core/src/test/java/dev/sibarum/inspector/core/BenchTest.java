@@ -3,11 +3,13 @@ package dev.sibarum.inspector.core;
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.FindRuns;
+import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.Runs;
 import dev.sibarum.inspector.core.Messages.Span;
+import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.vexelray.framework.core.Timer;
 import dev.vexelray.framework.core.WindowOpened;
@@ -130,7 +132,7 @@ class BenchTest {
                 pass(3, 120 * MS, "539.5us"))));
         Timeline t = timeline();
         assertEquals(List.of(new Span(96 * MS, 100 * MS), new Span(120 * MS - 539_500, 120 * MS)), t.passes());
-        assertEquals(120 * MS, t.newestNanos());
+        assertEquals(120 * MS, t.edgeNanos(), "following: the newest row at the right edge");
         assertTrue(t.live());
         assertEquals("Inspecting Calculator (calculator-11)", t.status());
     }
@@ -174,6 +176,133 @@ class BenchTest {
         attached(TWO);
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(1, 5 * MS, "1ms"))));
         assertEquals(List.of(), took(Timeline.class));
+    }
+
+    // ------------------------------------------------------------------ the cursor
+
+    /** A pass a millisecond long ending at each of {@code ends}, numbered from {@code seq}, in one batch. */
+    private void passes(long seq, long... ends) {
+        List<Row> rows = new ArrayList<>();
+        for (long end : ends) {
+            rows.add(pass(seq++, end, "1ms"));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+    }
+
+    private static Span span(long end) {
+        return new Span(end - MS, end);
+    }
+
+    @Test
+    void spacePausesAtTheNewestRowAndRowsGoOnBeingKeptUnshown() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        sent.clear();
+        tell(Messages.PAUSE_TOPIC, new Pause());
+        Timeline t = timeline();
+        assertFalse(t.live(), "paused: nothing follows the present, so nothing is drawn");
+        assertEquals(600 * MS, t.edgeNanos());
+        assertEquals("Paused at 0.50 s of Calculator (calculator-11)", t.status(), "counted from the run's first row");
+        passes(3, 900 * MS, 1_400 * MS);
+        assertEquals(List.of(), took(Timeline.class), "paused: a batch changes nothing shown");
+        tell(Messages.PAUSE_TOPIC, new Pause());
+        t = timeline();
+        assertTrue(t.live(), "Space again follows the present");
+        assertEquals(1_400 * MS, t.edgeNanos(), "and the rows kept meanwhile are there");
+        assertEquals("Inspecting Calculator (calculator-11)", t.status());
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(900 * MS), span(1_400 * MS)), t.passes());
+    }
+
+    @Test
+    void steppingBackShowsTheModelAsItWasThen() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        passes(3, 1_300 * MS, 2_200 * MS);
+        passes(5, 2_900 * MS);
+        sent.clear();
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS));
+        Timeline t = timeline();
+        assertEquals(1_900 * MS, t.edgeNanos(), "stepping while following pauses at the newest row first");
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS)), t.passes(),
+                "only the rows up to the cursor: the pass ending at 2.2 s had not happened yet");
+        assertFalse(t.live());
+        tell(Messages.STEP_TOPIC, new Step(-100 * MS));
+        assertEquals(1_800 * MS, timeline().edgeNanos(), "a step from where it stopped");
+    }
+
+    @Test
+    void theCursorGoesNoFurtherThanTheTapeHolds() {
+        attached(ONE);
+        passes(1, 100 * MS, 1_500 * MS, 2_600 * MS);
+        sent.clear();
+        tell(Messages.STEP_TOPIC, new Step(-60_000 * MS));
+        Timeline t = timeline();
+        assertEquals(100 * MS, t.edgeNanos(), "the oldest kept moment");
+        assertEquals("Paused at 0.00 s of Calculator (calculator-11), the oldest moment kept", t.status());
+        tell(Messages.STEP_TOPIC, new Step(60_000 * MS));
+        t = timeline();
+        assertEquals(2_600 * MS, t.edgeNanos(), "the newest row, and still paused");
+        assertFalse(t.live());
+    }
+
+    @Test
+    void withNothingReadTheKeysDoNothing() {
+        attached(ONE);
+        tell(Messages.PAUSE_TOPIC, new Pause());
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS));
+        assertEquals(List.of(), took(Timeline.class));
+    }
+
+    @Test
+    void aRunThatWentAwayCanStillBeSteppedThrough() {
+        attached(ONE);
+        passes(1, 100 * MS, 1_200 * MS);
+        tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "it went away"));
+        sent.clear();
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS));
+        Timeline t = timeline();
+        assertEquals(200 * MS, t.edgeNanos());
+        assertEquals(List.of(span(100 * MS)), t.passes());
+        assertEquals("Calculator (calculator-11): it went away. Paused at 0.10 s", t.status());
+    }
+
+    @Test
+    void theTapeKeepsTheLastMinuteAndLetsTheRestGo() {
+        Tape tape = Tape.EMPTY;
+        Model now = Model.EMPTY;
+        for (long second = 0; second < 90; second++) {
+            List<Row> batch = List.of(pass(second, 1_000 * MS * second + 500 * MS, "1ms"));
+            now = now.fold(batch, Long.MAX_VALUE);
+            tape = tape.add(batch, now.newestNanos(), Bench.RETAIN);
+        }
+        assertEquals(61, tape.seconds().size(), "the second holding the cut, and the sixty after it");
+        assertEquals(29_000 * MS + 500 * MS, tape.oldestNanos());
+    }
+
+    @Test
+    void theModelAsOfAMomentIsExactlyTheModelHeldLiveThen() {
+        // Batches of uneven size and timing, crossing many seconds, with rows of other kinds among the passes:
+        // whatever the bench held live after each, the tape gives back for that moment.
+        Tape tape = Tape.EMPTY;
+        Model now = Model.EMPTY;
+        List<Model> held = new ArrayList<>();
+        long t = 5_000 * MS;
+        long seq = 1;
+        for (int b = 0; b < 200; b++) {
+            List<Row> batch = new ArrayList<>();
+            for (int i = 0; i < 1 + b % 7; i++) {
+                t += (3 + (b * 31 + i * 17) % 290) * MS;
+                batch.add(i % 3 == 2 ? new Row(seq++, t, "main", "frame", "loop.park", "2ms")
+                        : pass(seq++, t, (1 + i) + "ms"));
+            }
+            now = now.fold(batch, Long.MAX_VALUE);
+            tape = tape.add(batch, now.newestNanos(), Long.MAX_VALUE);
+            held.add(now);
+        }
+        assertTrue(tape.seconds().size() > 50, "the run crossed many checkpoints");
+        for (Model m : held) {
+            assertEquals(m, tape.asOf(m.newestNanos()));
+        }
     }
 
     @Test

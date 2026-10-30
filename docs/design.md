@@ -324,8 +324,13 @@ Each step ends with something to watch or something an agent can ask, and lands 
   witness of the frame contract. Two gaps were found and fixed upstream on the way (framework-notes FN-1, FN-2): the
   frame now carries the machine's monotonic present beside the tree clock's, and the link says where a run's rows
   count from, so both ends are on one clock. Seen in a window with `ottermate`: the lane follows the present at
-  about 91 px a second on a 911 px, 10 s lane, and a detached timeline settles. Not yet: checkpoints and the cursor,
-  which slice 2 starts with.
+  about 91 px a second on a 911 px, 10 s lane, and a detached timeline settles.
+  **Slice 2 done 2026-10-30:** the bench's `Model` with its one pure `fold`, and the `Tape`: the last minute's rows a
+  second at a time, each beside a checkpoint, the model as of a moment recomputed from them by the same fold (held
+  by a test over a run crossing many checkpoints). Space pauses and resumes, the arrows step the cursor by a second
+  or a tenth (`Pause`, `Step`, edges from declared chords); paused, the lane shows the run as of the cursor and
+  nothing is drawn. Seen with `ottermate`: a paused lane is byte-identical two seconds later and `settle` succeeds;
+  a step back moves the marks 92 px right. Not yet: dragging the cursor (design's absolute cursor on a state topic).
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

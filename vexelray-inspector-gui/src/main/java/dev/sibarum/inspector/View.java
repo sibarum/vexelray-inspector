@@ -1,6 +1,8 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Span;
+import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
@@ -9,10 +11,14 @@ import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.NodeEvent;
+import dev.vexelray.gui.core.input.Shortcut;
 import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
 import dev.vexelray.canvas.Color;
+import sibarum.atchung.Sender;
+import sibarum.tactroller.api.Key;
+import sibarum.tactroller.api.Modifier;
 
 import java.util.List;
 
@@ -42,12 +48,22 @@ import java.util.List;
  * when the next frame is due.
  *
  * <p>When no run is live nothing is due, so a paused or detached timeline draws nothing.
+ *
+ * <h2>Keys are declared, not handled</h2>
+ *
+ * <p>Space pauses and resumes, and the arrows step the cursor (Shift for a finer step). Each chord names the message
+ * it sends straight to the bench ({@link Pause}, {@link Step}); the dispatcher sends it, and nothing of the view's runs
+ * at the key (threading.md, T7.5). What the bench decides comes back as a {@link Timeline}, as of the cursor.
  */
 @dev.vexelray.framework.api.View
 final class View {
 
     /** How much time the lane spans, right edge to left: the bench's reach. */
     static final long SPAN_NANOS = 10_000_000_000L;
+
+    /** How far an arrow steps the cursor, and Shift with it. */
+    static final long STEP_NANOS = 1_000_000_000L;
+    static final long FINE_STEP_NANOS = 100_000_000L;
 
     /**
      * The view's state, which its {@link #draw} reads: the strip, where its picture puts the present, and the scale.
@@ -72,7 +88,7 @@ final class View {
     private float laneW;
     private float laneH;
 
-    View(Gui gui, Ui ui) {
+    View(Gui gui, Ui ui, Sender<Pause> pause, Sender<Step> step) {
         this.gui = gui;
         this.ui = ui;
         this.mark = gui.theme().color(Role.ACCENT);
@@ -82,6 +98,11 @@ final class View {
             laneH = layout.rect().h();
             show();
         });
+        gui.shortcut(Shortcut.of(Key.SPACE), pause, new Pause());
+        gui.shortcut(Shortcut.of(Key.LEFT), step, new Step(-STEP_NANOS));
+        gui.shortcut(Shortcut.of(Key.RIGHT), step, new Step(STEP_NANOS));
+        gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), step, new Step(-FINE_STEP_NANOS));
+        gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), step, new Step(FINE_STEP_NANOS));
     }
 
     /** The bench's timeline: say what it says, and draw it. */
@@ -99,11 +120,11 @@ final class View {
         }
         float scale = laneW / SPAN_NANOS;
         ui.strip().picture(passes(last, laneW, laneH, scale, mark));
-        state = new Strip(ui.strip(), last.newestNanos(), scale, last.live());
+        state = new Strip(ui.strip(), last.edgeNanos(), scale, last.live());
     }
 
     /**
-     * The passes as marks, the newest moment at the right edge, each at least a pixel wide so that a pass far shorter
+     * The passes as marks, the edge moment at the right edge, each at least a pixel wide so that a pass far shorter
      * than a pixel's worth of time still shows. Pure, for a test.
      */
     static Picture passes(Timeline t, float w, float h, float pxPerNano, Color colour) {
@@ -111,8 +132,8 @@ final class View {
         float top = h * 0.2f;
         float height = h * 0.6f;
         for (Span p : t.passes()) {
-            float x0 = w + (p.fromNanos() - t.newestNanos()) * pxPerNano;
-            float x1 = w + (p.toNanos() - t.newestNanos()) * pxPerNano;
+            float x0 = w + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
+            float x1 = w + (p.toNanos() - t.edgeNanos()) * pxPerNano;
             if (x1 < 0f) {
                 continue;
             }

@@ -82,10 +82,20 @@ groups the button with other Java programs, and pinning it pins Java. The native
 
 ## Using it
 
-There is nothing to press yet. The window shows one lane, **Passes**: each pass of the inspected application's main
-loop, as a mark from when it started to when it ended, the present at the lane's right edge and ten seconds back to its
-left. While rows are arriving the lane follows the present; when the application goes away it stops where it was, and
-the status line says what happened. Choosing which application to inspect, pausing and rewinding are R1's later slices.
+The window shows one lane, **Passes**: each pass of the inspected application's main loop, as a mark from when it
+started to when it ended, ten seconds of them across the lane. While rows are arriving the lane follows the present at
+its right edge; when the application goes away it stops where it was, and the status line says what happened.
+
+| Key | Does |
+| --- | --- |
+| Space | pause at the newest row; paused, follow the present again |
+| Left / Right | step the cursor back or forward a second (pausing first if following) |
+| Shift+Left / Shift+Right | step a tenth of a second |
+
+Paused, the lane shows the run as it was at the cursor, which is at the right edge, and the status line says where the
+cursor is, counted from the run's first row. The last minute is kept, and stepping stops at either end of it. Rows go
+on arriving and being kept while paused. Choosing which application to inspect, and dragging the cursor, are R1's later
+slices.
 
 ## How it is put together
 
@@ -101,7 +111,9 @@ message is in one file. Read these in this order.
 | File | What belongs in it |
 | --- | --- |
 | `Messages.java` | **every message the parts send each other**, grouped by who sends it to whom, each record beside its topic. A record crosses as itself, so it holds only immutable values; a list it holds is copied in its constructor. Every time in it is on the machine's monotonic clock. |
-| `Bench.java` | **the controller**: which run is inspected, what has been read of it, and the model the panels show, as declared steps on one immutable state, held by a ledger. Each message it hears runs one step, and each step publishes the `Timeline` the view draws. |
+| `Bench.java` | **the controller**: which run is inspected, what has been read of it, and the model the panels show, as declared steps on one immutable state, held by a ledger. Each message it hears runs one step, and each step that changes what is shown publishes the `Timeline` the view draws, as of the cursor. |
+| `Model.java` | what the panels show at one moment, and `fold`, the one pure function that moves it on by some rows. A new lane or readout is a field here. |
+| `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. |
 | `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
 | `LinkRows.java` | the source that reads one run's rows over its link for as long as it is attached, setting each row on the machine's clock as it crosses. |
 | `Durations.java` | a probe row's duration (`51.68ms`) read back into nanoseconds: a pure function a step may call. |
@@ -112,7 +124,7 @@ message is in one file. Read these in this order.
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components, jobs and sources in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
-| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lane's picture; asked by every frame (`@Draw`), it slides the lane to follow the present. It decides nothing. |
+| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lane's picture; asked by every frame (`@Draw`), it slides the lane to follow the present. Its key chords send `Pause` and `Step` straight to the bench. It decides nothing. |
 | `Ui.java` | the window: the title bar, the timeline's lanes and the status line. Holds no state; it shows what the view hands it. |
 
 `Inspector.java` is the entry point and the constants, and nothing else. The application edge — input, the
@@ -160,8 +172,16 @@ the lane's picture with the newest row's moment at the right edge and replaces i
 every frame, the view's `@Draw` method slides the lane left by how far the present has moved on since that moment, and
 asks for the next frame while the run is live. The draw reads only its state and the frame and allocates nothing, which
 the processor checks. Both ends are on the machine's monotonic clock: the link says where the run's rows count from,
-`LinkRows` adds it, and the frame's `monoNanos` is the same clock. When no run is live nothing is due, so a detached
-timeline draws nothing, and `ottermate settle` succeeds only then: while a run is live, wait with `await` instead.
+`LinkRows` adds it, and the frame's `monoNanos` is the same clock. When the timeline is paused or no run is live
+nothing is due, so it draws nothing, and `ottermate settle` succeeds only then: while it follows a live run, press
+Space first, or wait with `await` instead.
+
+### Rewinding
+
+Time is a parameter of what is shown (design.md section 8). The bench folds each batch onto its live `Model` and keeps
+it on the `Tape`, with a checkpoint every second. Paused, it shows the model as of the cursor: that second's
+checkpoint with its rows up to the cursor folded on, by the same `fold`. So what the lane shows at a moment in the
+past is exactly what it showed then, and `BenchTest` holds that for every moment of a run crossing many checkpoints.
 
 ## The stack
 

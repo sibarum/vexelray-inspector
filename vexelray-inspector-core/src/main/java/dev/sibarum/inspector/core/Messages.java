@@ -11,7 +11,8 @@ import java.util.List;
  *
  * <p>The application is four kinds of part, and none of them holds another. The {@link Bench} decides; it owns what is
  * known of the run being inspected, and changes it only by running its own declared steps. The view, in the
- * {@code -gui} module, shows; it owns the widgets. {@link ListRuns}, a job, reads the discovery folder on the job lane;
+ * {@code -gui} module, shows; it owns the widgets, and declares the chords that send the person's keys to the bench
+ * ({@link Pause}, {@link Step}). {@link ListRuns}, a job, reads the discovery folder on the job lane;
  * {@link LinkRows}, a source, reads a run's rows over its link on a thread of its own for as long as it is attached.
  * Each sends a record on a topic and the others hear it on their own lane, so no state is shared and nothing needs a
  * lock.
@@ -86,6 +87,26 @@ public final class Messages {
         }
     }
 
+    // ------------------------------------------------------------------ the person tells the bench
+
+    /**
+     * Space: stop the timeline at the newest row, or, stopped, follow the present again. The bench decides which, so
+     * the chord sends the same message either way.
+     */
+    public static final Topic<Pause> PAUSE_TOPIC = Topic.edge(Pause.class);
+
+    public record Pause() {
+    }
+
+    /**
+     * An arrow: move the cursor by {@code byNanos}, back when negative; following, it stops at the newest row first.
+     * An edge, not a state topic: a step is relative, so two quick presses must be two steps, not the newer one.
+     */
+    public static final Topic<Step> STEP_TOPIC = Topic.edge(Step.class);
+
+    public record Step(long byNanos) {
+    }
+
     // ------------------------------------------------------------------ the bench tells the view
 
     /** A stretch of time on the machine's monotonic clock: one pass of a run's main loop. */
@@ -93,16 +114,17 @@ public final class Messages {
     }
 
     /**
-     * The timeline as the bench knows it: which run, what to say about it, the newest moment its rows reach, and its
-     * passes over the retained reach, oldest first. A state topic: a storm of rows costs the view one a frame.
+     * The timeline as of the cursor: which run, what to say about it, the moment at the lane's right edge, and the
+     * passes as they stood then, oldest first. A state topic: a storm of rows costs the view one a frame.
      *
-     * @param run    the run attached, or empty when none is
-     * @param status what the status line says
-     * @param live   whether rows are arriving, so the timeline follows the present
+     * @param run       the run attached, or empty when none is
+     * @param status    what the status line says
+     * @param live      whether the timeline follows the present: rows are arriving and the cursor is not stopped
+     * @param edgeNanos the moment at the lane's right edge: the newest row while following, the cursor while stopped
      */
     public static final Topic<Timeline> TIMELINE_TOPIC = Topic.state(Timeline.class);
 
-    public record Timeline(String run, String status, boolean live, long newestNanos, List<Span> passes) {
+    public record Timeline(String run, String status, boolean live, long edgeNanos, List<Span> passes) {
         public Timeline {
             passes = List.copyOf(passes);
         }

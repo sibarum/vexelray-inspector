@@ -23,8 +23,8 @@ on a timeline that can be rewound (section 3). These carry over as they were:
 - **Never block the target, and say what was lost.** A gap is not made up: rows the stream lost are counted, nothing
   is measured across them, and the first frame after says so.
 - **Pause.** It holds the whole window at one moment while the target runs on. Under 0.2 it is the timeline's
-  cursor leaving the live edge (section 3). Whether 0.1's show clock (everything shown a little late, a burst
-  stretched to be followed) survives is decision 9.6.
+  cursor leaving the live edge (section 3). 0.1's show clock, which showed everything a little late to stretch a
+  burst, is dropped (9.6): everything is shown at its real time.
 - **Attach, launch, replay.** The picker over the discovery folder, `--attach=<app|pid:n>`, `--launch <command>`,
   `--replay=<csv>`; *Restart in debug mode* from any application's title bar.
 - **History by build and the command menu.** As 0.1 designed them. 0.1's tape becomes the timeline.
@@ -295,12 +295,13 @@ first things to measure (R1).
    a train per clock or for the main view only.
 5. **The old repository.** This checkout becomes `vexelray-inspector`'s history at phase 8's merge (its own history
    kept on a branch or tag, as mainframe's was at `archive/pre-v1`), or it stays a separate repository.
-6. **The show clock.** 0.1 showed everything up to 400 ms late, so a burst could be stretched to be followed and
-   caught up after. With a timeline that rewinds, a burst can be stopped on and stepped through instead, at its real
-   times. Drop it, or keep it as a setting of the live edge. *Leaning: drop it*; it bends time on screen, which a
-   utilitarian design should not do.
-7. **What rewinding rewinds.** The data, or the dashboard's arrangement too. *Leaning: the data only*: panels added,
-   moved or set up are as they are now, and show the past through today's arrangement.
+6. **The show clock.** *Ruled 2026-10-30, by the author: dropped.* Everything is shown at its real time. A burst is
+   followed by stopping the cursor on it and stepping through it. **Why:** it bent time on screen, which a
+   utilitarian design should not do, and rewinding does its job better. *Rejected:* 0.1's show clock (up to 400 ms
+   late, a burst stretched up to ten times), as it was or as a setting of the live edge.
+7. **What rewinding rewinds.** *Ruled 2026-10-30, by the author: the data only.* Panels added, moved or set up are as
+   they are now, and show the past through today's arrangement. So the arrangement is not part of the bench's model
+   and is never checkpointed. *Rejected:* rewinding the arrangement with the data.
 
 ## 10. Order of work
 

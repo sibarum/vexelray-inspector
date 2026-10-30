@@ -10,8 +10,10 @@ Its `docs/roadmap.md`, `component-graph.md`, `threads.md` and `framework-notes.m
 
 ## 1. What stays the same
 
-The ask has not changed: DevTools for VexelRay applications, drawn as clockwork, where every working part of a
-running application is a mechanism on screen and every mechanism is a real subsystem. These carry over as they were:
+The ask: DevTools for VexelRay applications, where every working part of a running application is on screen and
+everything on screen is a real subsystem. **0.1 drew it as clockwork; 0.2 does not** (ruled, 9.4): the design is
+strictly utilitarian, with no metaphor and nothing drawn for effect, and it grows into a fully customizable dashboard
+on a timeline that can be rewound (section 3). These carry over as they were:
 
 - **Agent first.** Every fact the Inspector draws can be asked through a port verb with a fixed reply shape. If an
   agent cannot ask it, the Inspector does not draw it. The Inspector is the GUI and `ottermate` is its CLI.
@@ -20,11 +22,12 @@ running application is a mechanism on screen and every mechanism is a real subsy
   elektro-Q link (`vexelray-gui-inspector-link`). Recordings stay probe CSV.
 - **Never block the target, and say what was lost.** A gap is not made up: rows the stream lost are counted, nothing
   is measured across them, and the first frame after says so.
-- **The show clock.** Everything is shown a little late, so a burst can be stretched to be followed and caught up
-  after, never more than 400 ms behind. Pause holds show time for the whole window while the target runs on.
+- **Pause.** It holds the whole window at one moment while the target runs on. Under 0.2 it is the timeline's
+  cursor leaving the live edge (section 3). Whether 0.1's show clock (everything shown a little late, a burst
+  stretched to be followed) survives is decision 9.6.
 - **Attach, launch, replay.** The picker over the discovery folder, `--attach=<app|pid:n>`, `--launch <command>`,
   `--replay=<csv>`; *Restart in debug mode* from any application's title bar.
-- **The tape, history by build, the command menu.** As 0.1 designed them.
+- **History by build and the command menu.** As 0.1 designed them. 0.1's tape becomes the timeline.
 
 ## 2. What changes, and why it cannot be ported
 
@@ -33,9 +36,9 @@ and presented, then parked. 0.2 took that loop apart, and each fork removes some
 
 | 0.1 assumed | 0.2 has | Fork |
 | --- | --- | --- |
-| One heartbeat: the balance wheel swings once per `frame.present` | Three clocks: input is taken when it arrives, logic runs in ticks, drawing is capped at the display rate. A pass of the main loop is not a frame | 7 |
+| One heartbeat: everything keyed to `frame.present` | Three clocks: input is taken when it arrives, logic runs in ticks, drawing is capped at the display rate. A pass of the main loop is not a frame | 7 |
 | One correlation key: the frame number every row is stamped with | A click's answer crosses the logic lane before any draw, so the frame it was drawn in says nothing of the tick that decided it | 3, 7 |
-| Frame stages INPUT, CLOCK, APP, SETTLE inside the swing | No application code on the main thread. APP is a tick on the logic lane | 4 |
+| Frame stages INPUT, CLOCK, APP, SETTLE inside one frame | No application code on the main thread. APP is a tick on the logic lane | 4 |
 | A draw happens when the loop decides to draw | A draw can be **held for the ceiling** (the 60 Hz slot is not due) or **held for the GPU** (the presenter is not ready), and stays owed while the thread goes back to input | 8 |
 | Every message is delivered, so a flow's count is its deliveries | A state topic delivers only the last write in a tick. Writes and deliveries differ, and the difference is the coalescing | 1 |
 | Senders are guessed from the thread and the topic, receivers from mailbox names or a stand-in table (0.1 FN-6 to FN-8) | Every send is a constructor parameter the processor sees, so the graph is known at compile time | 5 |
@@ -46,30 +49,40 @@ and presented, then parked. 0.2 took that loop apart, and each fork removes some
 And the 0.1 Inspector breaks 0.2's own rules: its show runs on the timeline inside the frame, `Show` is driven by
 `KronoGui.ramp`, which no application can reach now, and it starts three platform threads of its own (0.1 FN-1).
 
-## 3. What it draws: the movement
+## 3. What it shows: a dashboard on a timeline
 
-The movement keeps the clockwork, and gains a train per clock. Each part is still one subsystem.
+*Ruled 2026-10-30, by the author (9.4):* strictly utilitarian, no gimmicks. Plain panels of lanes, numbers, tables and
+charts; no metaphor, no animation for its own sake. The stack's design principles apply as everywhere else, **slightly
+more leniently**, since this is a tool for whoever builds on the stack. Which rule bends, and how far, is settled with
+the author when it comes up, and written down here.
 
-| Part | Subsystem | What you see |
-| --- | --- | --- |
-| **The input pawl and ratchet** | tactroller to the input dispatcher, on the main thread | A tooth per input event taken, the moment it is taken. Injected input (automation) on a second pawl. Never waits for the other trains |
-| **The main barrel** | the main thread's pass | Turns once per pass of the loop, whatever the pass did. Rests while the thread waits for events, with what woke it |
-| **The logic escapement** | a tick of the logic lane | Swings once per tick. The rounds the tick ran to quiescence are the teeth the escape wheel steps; what it delivered is the beat's weight. A tick over its deadline jams the pallet (the deadline is still the 8 ms placeholder, ROADMAP phase 4) |
-| **Declared lanes** | the lanes of the same tick (`Crew`) | Wheels geared to the escapement, turning only within its beat |
-| **The balance wheel** | drawing | One swing per draw. **Held for the ceiling**: the wheel stands locked on the pallet until the slot. **Held for the GPU**: it stands waiting on the magazine |
-| **The magazine** | the presenter (DXGI: latency waitable, shared fence, back buffer) | The chamber the GPU is still in, and the ready thread's wake when it comes free |
-| **The job lane** | `@Job`s | A tray of work in flight: a request in, a reply out, and how long it took |
-| **The tachometer and governor** | the ceiling and the show clock | Draws a second against the ceiling and the display; how dilated and how late show time is |
+**Where it is going: a fully customizable dashboard.** The person chooses the panels, places them and sets each one
+up. Under all of them is one **timeline**, and every panel shows the run **as of the timeline's cursor**. At the live
+edge that is now; drag the cursor back and every panel shows exactly what it showed then, ten seconds ago say,
+computed again from the rows rather than remembered as a picture (section 8). The first build has a fixed set of
+panels; customizing comes later, and nothing in the first build may stand in its way.
+
+The first panels:
+
+| Panel | Shows, as of the cursor |
+| --- | --- |
+| **Timeline** | One lane per clock, the cursor on it, the live edge at the right. **Input**: each event taken, injected input (automation) told apart. **Main thread**: each pass, its waits, and what woke it. **Logic**: each tick, its rounds and deliveries, and any tick over its deadline (still the 8 ms placeholder, ROADMAP phase 4). **Declared lanes**: their work within each tick. **Drawing**: each draw, and each draw **held for the ceiling** or **held for the GPU**. **GPU**: what the presenter waited on. **Jobs**: each request to its reply |
+| **Readouts** | Draws a second against the ceiling and the display's refresh; ticks a second, tick time p50 and p95; draws held, by reason; rows lost |
+| **Graph** | The declared parts and topics (section 4) |
+| **Flows** | Every topic between two parts: written, delivered, rate, total |
+| **Threads** | The ledger per clock (section 5) |
+| **Rows** | The raw rows around the cursor, the cursor's row selected |
+| **Run** | What is inspected and from where (attached, launched, replayed), the logic mode, the GPU, the build |
 
 What 0.2 makes visible that 0.1 could not:
 
-- **A click's thread.** Select an input event and the movement lights its path: the tooth the pawl took, the tick
-  that heard it, the widget writes it caused, and the draw that showed them, with the time between each. This is
-  fork 7's whole promise, and the one number every 0.2 measurement so far has been about (a click's result through
-  the logic: 0.8 ms on the lane at 60 Hz, ROADMAP fork 8). Needs a causal key on rows (section 6).
+- **A click's path.** Select an input event and every panel marks its path: the tick that heard it, the widget
+  writes it caused, and the draw that showed them, with the time between each. This is fork 7's whole promise, and
+  the one number every 0.2 measurement so far has been about (a click's result through the logic: 0.8 ms on the
+  lane at 60 Hz, ROADMAP fork 8). Section 6 says how rows are linked.
 - **A wasted pass and a held draw are different things.** A pass that took a pointer move and drew nothing is fine;
-  a draw held for the GPU is the GPU being slow; a draw held for the ceiling is pacing doing its job. 0.1's single
-  wheel could only show "a frame" or "no frame".
+  a draw held for the GPU is the GPU being slow; a draw held for the ceiling is pacing doing its job. 0.1 could
+  only say "a frame" or "no frame".
 - **Coalescing.** Section 4.
 
 ## 4. What it draws: the graph
@@ -83,9 +96,9 @@ everything, so the graph is **drawn from the declaration and lit by the traffic*
   stay as parts, dashed until their events are messages (0.1 FN-9, FN-10).
 - **An arrow exists because it is declared**, before any message crosses it, dim until one does. An arrow that never
   lights in a run is worth knowing too.
-- **A state topic is drawn as a register, an edge topic as a belt.** A belt carries every message; a register shows
-  its last value and two counts: written and delivered. A view that writes a state topic 200 times in a tick and is
-  heard once shows it. The flow table gets the same two columns.
+- **A state topic says its last value and two counts, written and delivered**; an edge topic, where every message is
+  delivered, one count. A view that writes a state topic 200 times in a tick and is heard once shows it. The flows
+  panel has the same two columns.
 - **Senders and receivers are exact.** No thread table and no stand-in: the payload's type names the topic, and the
   declaration names both ends.
 
@@ -120,7 +133,7 @@ widget, and a later draw shows the change. Selecting the click lights all four.
    it instead. One number per row.
 2. **Ticks and draws numbered by rows of their own.** Each tick and each draw writes one row with its number, its
    start and its end. Other rows are not stamped with them: the Inspector places a row in a tick or a draw by its
-   thread and its time. This is what the tape rules its lines by and the ledger is cut by.
+   thread and its time. This is what the timeline rules its lines by and the ledger is cut by.
 3. **A draw names the causes it drew.** A draw runs under its own pass's cause, so the cause alone cannot reach it.
    Its row lists the causes of the writes it drew, capped, and says when the list overflowed. That links write →
    draw.
@@ -134,7 +147,7 @@ rows read from vexelray, kronometer and tactroller on `develop`. Paths are from 
 or `-Dprobe.trace`), and a zone otherwise only when it is slow (atchung `Probe.java:143, 203, 226, 375`). A live
 sink without tracing gets slow rows and nothing else. 0.1 FN-4 is the same fact from the other side, and still holds.
 
-**What the movement can be built from today:**
+**What the timeline can be built from today:**
 
 | Clock | Rows | Missing |
 | --- | --- | --- |
@@ -177,7 +190,7 @@ thread's rows, so a tick on the logic lane is invisible to them, and they read `
 **Replay does not exist.** Nothing records input messages to play them again. The nearest is
 `LogicTest.theSameInputsGiveTheSameDeliveriesWithTheTicksOnTheirThreadOrOnTheMainThread`, in-process.
 
-So R1's movement can be built from today's rows, with ticks and draws counted by the Inspector itself and labelled
+So R1's timeline can be built from today's rows, with ticks and draws counted by the Inspector itself and labelled
 as such; everything past it needs section 7½'s upstream work first.
 
 ## 7½. What it needs from the stack
@@ -187,18 +200,18 @@ repository's TODO when this design is accepted.
 
 | Repo | Addition | For |
 | --- | --- | --- |
-| atchung | A tick number, and a row per tick with its number, start, end, rounds, delivered, carried and whether it met its deadline (9.3) | the logic escapement; the tape's tick rulings |
+| atchung | A tick number, and a row per tick with its number, start, end, rounds, delivered, carried and whether it met its deadline (9.3) | the timeline's logic lane and its tick rulings |
 | atchung | Superseded writes counted per state topic and per inbox | registers' written and delivered (R2) |
 | atchung, vexelray-framework | A cause source for the framework's `Timer` and for jobs | no `uncaused` rows from the framework's own parts |
-| vexelray-gui | A draw number apart from the pass, and a row per draw with its number, start and end; the held counts in `LoopCounters` and `Snap` (9.3) | the balance wheel; the tachometer |
+| vexelray-gui | A draw number apart from the pass, and a row per draw with its number, start and end; the held counts in `LoopCounters` and `Snap` (9.3) | the timeline's drawing lane; the readouts |
 | vexelray-gui | The recorder keeps the cause: the eight-argument `row`, a field on `RecordedRow` and the link's `Row` (9.3) | a click's thread (R3) |
 | vexelray-gui | A draw's row lists the causes of the writes it drew, capped, saying when it overflowed (9.3) | write → draw in a click's thread (R3) |
-| vexelray-gui | `frames` and `why` rebuilt on the three clocks: logic rows counted, held draws read | agent first: the movement's facts askable |
+| vexelray-gui | `frames` and `why` rebuilt on the three clocks: logic rows counted, held draws read | agent first: the timeline's facts askable |
 | vexelray-framework | Bus graph version 2: topic kind and key filters, `Inbox` receivers, a job's request side, ledger steps, timers, views as their own kind, real lane names, no invented overflow | the declared graph (R2) |
-| vexelray-framework | The logic mode and the lane-to-thread map in `hello` (and the discovery file) | the movement knowing which mode it shows |
+| vexelray-framework | The logic mode and the lane-to-thread map in `hello` (and the discovery file) | the Run panel saying which mode it shows |
 | vexelray-framework | An input recorder and a replay driver | R6, and ROADMAP §5 item 5 |
 | vexelray-framework, -shell | Rows from `Timer`, `Jobs`, `Logic` and `Crew` | the job tray; declared lanes |
-| vexelray-present-dxgi | A row when the ready thread waits and wakes | the magazine |
+| vexelray-present-dxgi | A row when the ready thread waits and wakes | the timeline's GPU lane |
 | vexelray-framework | **Sources** (ruled, 9.2): a part that keeps producing from outside for as long as it runs, with its own thread, named in the wiring, started after its listeners and stopped before them | reading the link, a recording and a launched child (R1); netcode and every other client of a stream |
 
 ## 8. How it is put together on 0.2
@@ -207,11 +220,20 @@ The template's shape, used as it is meant to be: a `-core` that decides on a led
 and a `-gui` view.
 
 **`-core`: the bench.** One component on a ledger, `Bench`, owns the run being inspected: where it came from
-(attached, launched, replayed), what has been read of it, and the model the view draws (the movement's state, the
-graph's counts, the tape's recent rows, the ledger). Rows reach it as batches; a step folds a batch into the model
-and publishes the model on **state topics**. Last-write-wins is exactly right for a view that draws the newest model:
-a storm of rows costs the view one delivery a tick, not one per row, and the Inspector is a witness for fork 1 on
-itself. Discrete things (a stall, a run that went away, a gap) are **edges**.
+(attached, launched, replayed), what has been read of it, and the model the panels show (the timeline's lanes, the
+readouts, the graph's counts, the ledger). Rows reach it as batches; a step folds a batch into the model and publishes
+the model on **state topics**. Last-write-wins is exactly right for a view that shows the newest model: a storm of
+rows costs the view one delivery a tick, not one per row, and the Inspector is a witness for fork 1 on itself.
+Discrete things (a stall, a run that went away, a gap) are **edges**.
+
+**Time is a parameter of every panel, from the first build.** Rewinding (section 3) is not a feature added later; it
+decides the bench's shape now. The bench keeps the rows of a retained reach (5 s to 5 min, as 0.1's tape offered,
+bounded by what R1 measures memory to allow) and a **checkpoint** of the model every second. The model as of a moment
+is the checkpoint before it with the rows since folded on, by the same step that folds them live. Because that step
+is a ledger step, a pure function of the model and the rows, the past is recomputed exactly: "what the dashboard
+showed ten seconds ago" holds by construction, not by keeping pictures. The cursor is a message from the view on a
+state topic, so dragging it through a storm of moments costs one recomputation a tick, at most a second's rows from
+the nearest checkpoint, and the newest position wins.
 
 **Sources for what keeps coming, jobs for what finishes.** 0.1's three hand-made threads (0.1 FN-1) were each
 something that keeps producing for as long as it runs. In 0.2 they become **sources**, a kind of part the framework
@@ -228,32 +250,32 @@ What finishes stays a job:
   is another job.
 - `Query`: one port verb, its reply as a record (the command menu, `gpu device`, `why`).
 
-**`-gui`: the view, told and asked.** Panels, the picker, the flow table and the tape's text are told, as in the
-template: the view hears the model and writes widgets. **The movement is asked**: the wheel's angle, the beads'
-positions and the show clock are a function of present time, decided at draw time. 0.2 has no form for that yet.
-`Tween` is one bus message per step, which is the cost a moving picture cannot pay, and is what the frame contract
-(`vexelray-gui/docs/plans/frame-contract.md`, proposed, not started) is for: a part told by declared steps and asked
-by a declared, checked draw at the present time. **The Inspector's movement is the frame contract's first
-application witness, and its first that is not a video** (ruled, 9.1). Told builds, asked chooses: when a batch
-arrives, the told half builds the wheels, the arrows and a fixed pool of beads; the asked half places them for show
-time and returns when it is next due; the governor's readouts come from the part's clock topic. The show clock's
-catch-up depends on history, which an asked half may not keep, so the told half folds rows into a schedule from real
-time to show time and the asked half only evaluates it.
+**`-gui`: the view, told and asked.** Every panel is told, as in the template: the view hears the model as of the
+cursor and writes widgets. **One thing is asked: the timeline at the live edge.** Its lanes scroll with present time,
+continuously, while rows arrive in batches; where the live edge sits is a function of present time, decided at draw
+time. 0.2 has no form for that yet. `Tween` is one bus message per step, the cost a moving picture cannot pay, and is
+what the frame contract (`vexelray-gui/docs/plans/frame-contract.md`, proposed, not started) is for: a part told by
+declared steps and asked by a declared, checked draw at the present time. **The live timeline is the frame contract's
+first application witness, and its first that is not a video** (ruled, 9.1). Told builds, asked chooses: when a batch
+arrives, the told half builds the marks for its rows; the asked half only sets the lanes' offset for the present time
+and says when it is next due. With the cursor off the live edge nothing is due, and a paused dashboard draws nothing.
 
-**Volume.** The tape was sized for 20,000 rows a second. Rows cross as `RowBatch`es, a batch is one message, and the
-tape keeps rows in the bench's state as a ring it replaces rather than mutates (a payload must be deeply immutable,
-T2.4). Whether that holds 20,000 a second with nothing allocated per row is the first thing to measure (R1).
+**Volume.** 0.1's tape was sized for 20,000 rows a second. Rows cross as `RowBatch`es, a batch is one message, and
+the bench keeps the retained rows as a ring it replaces rather than mutates (a payload must be deeply immutable,
+T2.4). Whether that holds 20,000 a second with nothing allocated per row, and how long a reach memory allows, are the
+first things to measure (R1).
 
 ## 9. Decisions for the author
 
-1. **The frame contract, now or later.** *Ruled 2026-10-30, by the author: (a).* The movement goes onto the frame
-   contract, and no told-only movement is built in the meantime. The Inspector needs the contract's steps 2 and 3
-   only (the host's `Frame`, `Drawn`, due times and parking, with `PaintMotion` and `LayoutMotion` moved onto it; the
+1. **The frame contract, now or later.** *Ruled 2026-10-30, by the author: (a).* What moves on screen goes onto the
+   frame contract, and nothing told-only is built for it in the meantime. Since 9.4, what moves is the live
+   timeline's scroll (section 8), not 0.1's clockwork. The Inspector needs the contract's steps 2 and 3 only (the
+   host's `Frame`, `Drawn`, due times and parking, with `PaintMotion` and `LayoutMotion` moved onto it; the
    processor's `@Drawn` check), not the feed (step 4) or the codec (step 5), so those two land first with the
-   Inspector as the application on them. Everything told in R1 goes ahead meanwhile; only the movement waits for step
-   2. **Why:** a told-only movement is a bus message per draw, the cost the contract exists to remove, and it would be
-   thrown away and would hide the gap this phase is for. *Rejected: (b)*, a movement only told, its state published
-   at most once per draw, moved onto the contract later.
+   Inspector as the application on them. Everything told in R1 goes ahead meanwhile; only the live scroll waits for
+   step 2. **Why:** a told-only scroll is a bus message per draw, the cost the contract exists to remove, and it would
+   be thrown away and would hide the gap this phase is for. *Rejected: (b)*, a scroll only told, its position
+   published at most once per draw, moved onto the contract later.
 2. **A long-lived reader.** *Ruled 2026-10-30, by the author: a source, a new kind of part in the framework.* A
    source is something that keeps producing messages from outside the application for as long as it runs: a socket,
    a stream, a child process, a device. It only sends, has its own thread, is named in the wiring like any other
@@ -266,25 +288,37 @@ T2.4). Whether that holds 20,000 a second with nothing allocated per row is the 
    alone stops at the widget write, and numbers alone only suggest what caused what. Together they give a click's
    whole path for one number per row, plus a row per tick and per draw. *Rejected:* a number per clock stamped on
    every row, which costs every row and links nothing.
-4. **The clockwork.** Keep the metaphor with a train per clock (section 3), or draw the three clocks as three plain
-   lanes and keep the clockwork for the main view only.
+4. **The clockwork.** *Ruled 2026-10-30, by the author: no.* Strictly utilitarian, no gimmicks: plain panels on a
+   timeline (section 3). The stack's design principles apply, slightly more leniently. **Where it is going:** a fully
+   customizable dashboard, with a timeline that can be rewound to show exactly what the dashboard showed, ten seconds
+   ago say. So time is a parameter of every panel from the first build (section 8). *Rejected:* the clockwork, with
+   a train per clock or for the main view only.
 5. **The old repository.** This checkout becomes `vexelray-inspector`'s history at phase 8's merge (its own history
    kept on a branch or tag, as mainframe's was at `archive/pre-v1`), or it stays a separate repository.
+6. **The show clock.** 0.1 showed everything up to 400 ms late, so a burst could be stretched to be followed and
+   caught up after. With a timeline that rewinds, a burst can be stopped on and stepped through instead, at its real
+   times. Drop it, or keep it as a setting of the live edge. *Leaning: drop it*; it bends time on screen, which a
+   utilitarian design should not do.
+7. **What rewinding rewinds.** The data, or the dashboard's arrangement too. *Leaning: the data only*: panels added,
+   moved or set up are as they are now, and show the past through today's arrangement.
 
 ## 10. Order of work
 
 Each step ends with something to watch or something an agent can ask, and lands its port verb first.
 
-- **R1, first light on 0.2.** Sources upstream (9.2); attach, launch and replay as sources and jobs; the bench folding rows into a model; the readouts,
-  told. Then, once the frame contract's step 2 lands, the movement's three trains, asked, with passes, ticks, draws and both kinds of held draw, read from rows that exist today (section 7:
-  ticks and draws counted by the Inspector until the stack numbers them, and said so). Measured: the
-  link's latency and what 20,000 rows a second cost the bench and the view. Inspected: the phase 7 witnesses
-  (W1 to W3) and a freshly generated application, in both modes (`--logic=main`).
-- **R2, the declared graph.** Bus graph version 2 upstream; the graph from the declaration, registers and belts,
-  written and delivered.
-- **R3, a click's thread.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);
-  select an input, light its path.
-- **R4, the tape and pause**, on the three clocks' rulings.
+- **R1, first light on 0.2.** Sources upstream (9.2); attach, launch and replay as sources and jobs; the bench
+  folding rows into a model, with checkpoints and the cursor from the start; the timeline (one lane per clock: passes,
+  ticks, draws and both kinds of held draw), the readouts and the run panel, read from rows that exist today
+  (section 7: ticks and draws counted by the Inspector until the stack numbers them, and said so). Pause and rewind
+  work from R1, since the bench is built for them. The live scroll goes onto the frame contract when its step 2
+  lands. Measured: the link's latency, what 20,000 rows a second cost the bench and the view, and the reach memory
+  allows. Inspected: the phase 7 witnesses (W1 to W3) and a freshly generated application, in both modes
+  (`--logic=main`).
+- **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
+  and delivered.
+- **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);
+  select an input, mark its path in every panel.
+- **R4, the rows panel**, and stepping the cursor row by row, tick by tick and draw by draw.
 - **R5, the ledger per clock**, with recording measured on its own.
 - **R6, replay**: run the same inputs again and show which widget writes differ.
 - **Later**, as 0.1 planned them: time (kronometer) where a view still has motion, GPU and present, the JVM, the

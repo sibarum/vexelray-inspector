@@ -224,8 +224,12 @@ template: the view hears the model and writes widgets. **The movement is asked**
 positions and the show clock are a function of present time, decided at draw time. 0.2 has no form for that yet.
 `Tween` is one bus message per step, which is the cost a moving picture cannot pay, and is what the frame contract
 (`vexelray-gui/docs/plans/frame-contract.md`, proposed, not started) is for: a part told by declared steps and asked
-by a declared, checked draw at the present time. **The Inspector's movement is the frame contract's second witness,
-after the codec's player**, and the first one that is not a video. Decision 9.1.
+by a declared, checked draw at the present time. **The Inspector's movement is the frame contract's first
+application witness, and its first that is not a video** (ruled, 9.1). Told builds, asked chooses: when a batch
+arrives, the told half builds the wheels, the arrows and a fixed pool of beads; the asked half places them for show
+time and returns when it is next due; the governor's readouts come from the part's clock topic. The show clock's
+catch-up depends on history, which an asked half may not keep, so the told half folds rows into a schedule from real
+time to show time and the asked half only evaluates it.
 
 **Volume.** The tape was sized for 20,000 rows a second. Rows cross as `RowBatch`es, a batch is one message, and the
 tape keeps rows in the bench's state as a ring it replaces rather than mutates (a payload must be deeply immutable,
@@ -233,10 +237,14 @@ T2.4). Whether that holds 20,000 a second with nothing allocated per row is the 
 
 ## 9. Decisions for the author
 
-1. **The frame contract, now or later.** (a) Build the frame contract's first steps as part of 7½, with the
-   movement as a witness beside the codec's player; or (b) start with a movement that is only told, its state
-   published at most once per draw on a state topic, and move it onto the contract when the contract lands. (b) ships
-   R1 sooner and draws worse during a burst; (a) is the honest test of 0.2 for a moving picture.
+1. **The frame contract, now or later.** *Ruled 2026-10-30, by the author: (a).* The movement goes onto the frame
+   contract, and no told-only movement is built in the meantime. The Inspector needs the contract's steps 2 and 3
+   only (the host's `Frame`, `Drawn`, due times and parking, with `PaintMotion` and `LayoutMotion` moved onto it; the
+   processor's `@Drawn` check), not the feed (step 4) or the codec (step 5), so those two land first with the
+   Inspector as the application on them. Everything told in R1 goes ahead meanwhile; only the movement waits for step
+   2. **Why:** a told-only movement is a bus message per draw, the cost the contract exists to remove, and it would be
+   thrown away and would hide the gap this phase is for. *Rejected: (b)*, a movement only told, its state published
+   at most once per draw, moved onto the contract later.
 2. **A long-lived reader.** A pull loop of finite jobs (section 8), or a source shape in the framework: one producer
    that only emits, named in the wiring, started after its consumers (0.1 FN-1's proposal). The pull loop needs
    nothing new; the source shape may be what every client of the stream wants.
@@ -251,8 +259,8 @@ T2.4). Whether that holds 20,000 a second with nothing allocated per row is the 
 
 Each step ends with something to watch or something an agent can ask, and lands its port verb first.
 
-- **R1, first light on 0.2.** Attach, launch and replay as jobs; the bench folding rows into a model; the movement's
-  three trains with passes, ticks, draws and both kinds of held draw, read from rows that exist today (section 7:
+- **R1, first light on 0.2.** Attach, launch and replay as jobs; the bench folding rows into a model; the readouts,
+  told. Then, once the frame contract's step 2 lands, the movement's three trains, asked, with passes, ticks, draws and both kinds of held draw, read from rows that exist today (section 7:
   ticks and draws counted by the Inspector until the stack numbers them, and said so). Measured: the
   pull loop's latency and what 20,000 rows a second cost the bench and the view. Inspected: the phase 7 witnesses
   (W1 to W3) and a freshly generated application, in both modes (`--logic=main`).

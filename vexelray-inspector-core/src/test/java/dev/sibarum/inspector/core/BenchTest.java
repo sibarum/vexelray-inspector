@@ -138,12 +138,16 @@ class BenchTest {
     }
 
     @Test
-    void passesOlderThanTheReachAreLetGo() {
+    void passesOlderThanTheMinuteKeptAreLetGo() {
         attached(ONE);
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(1, 1_000 * MS, "1ms"))));
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0,
                 List.of(pass(2, 1_000 * MS + Bench.REACH + MS, "1ms"))));
-        assertEquals(List.of(new Span(1_000 * MS + Bench.REACH, 1_000 * MS + Bench.REACH + MS)),
+        assertEquals(2, timeline().passes().size(), "past the panels' reach, but kept for the lane to glide over");
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0,
+                List.of(pass(3, 1_000 * MS + Bench.RETAIN + MS, "1ms"))));
+        assertEquals(List.of(new Span(1_000 * MS + Bench.REACH, 1_000 * MS + Bench.REACH + MS),
+                        new Span(1_000 * MS + Bench.RETAIN, 1_000 * MS + Bench.RETAIN + MS)),
                 timeline().passes());
     }
 
@@ -194,40 +198,42 @@ class BenchTest {
     }
 
     @Test
-    void spacePausesAtTheNewestRowAndRowsGoOnBeingKeptUnshown() {
+    void spacePausesWhereTheLaneComesToRestAndRowsGoOnBeingKept() {
         attached(ONE);
         passes(1, 100 * MS, 600 * MS);
         sent.clear();
-        tell(Messages.PAUSE_TOPIC, new Pause());
+        tell(Messages.PAUSE_TOPIC, new Pause(680 * MS));
         Timeline t = timeline();
         assertFalse(t.live(), "paused: nothing follows the present, so nothing is drawn");
-        assertEquals(600 * MS, t.edgeNanos());
-        assertEquals("Paused at 0.50 s of Calculator (calculator-11)", t.status(), "counted from the run's first row");
+        assertEquals(680 * MS, t.edgeNanos(), "where the view's lane comes to rest, a little past the newest row");
+        assertEquals("Paused at 0.58 s of Calculator (calculator-11)", t.status(), "counted from the run's first row");
         passes(3, 900 * MS, 1_400 * MS);
-        assertEquals(List.of(), took(Timeline.class), "paused: a batch changes nothing shown");
-        tell(Messages.PAUSE_TOPIC, new Pause());
+        assertEquals(List.of(), took(Timeline.class), "paused: rows past the cursor change nothing shown");
+        passes(5, 650 * MS);
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(900 * MS), span(1_400 * MS), span(650 * MS)),
+                timeline().passes(), "a late row before the cursor is shown");
+        tell(Messages.PAUSE_TOPIC, new Pause(0L));
         t = timeline();
         assertTrue(t.live(), "Space again follows the present");
         assertEquals(1_400 * MS, t.edgeNanos(), "and the rows kept meanwhile are there");
         assertEquals("Inspecting Calculator (calculator-11)", t.status());
-        assertEquals(List.of(span(100 * MS), span(600 * MS), span(900 * MS), span(1_400 * MS)), t.passes());
     }
 
     @Test
-    void steppingBackShowsTheModelAsItWasThen() {
+    void steppingMovesTheCursorAndTheLaneKeepsEveryPassToGlideOver() {
         attached(ONE);
         passes(1, 100 * MS, 600 * MS);
         passes(3, 1_300 * MS, 2_200 * MS);
         passes(5, 2_900 * MS);
         sent.clear();
-        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS));
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 2_950 * MS));
         Timeline t = timeline();
-        assertEquals(1_900 * MS, t.edgeNanos(), "stepping while following pauses at the newest row first");
-        assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS)), t.passes(),
-                "only the rows up to the cursor: the pass ending at 2.2 s had not happened yet");
+        assertEquals(1_950 * MS, t.edgeNanos(), "following, a step is from where the view's lane would rest");
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS), span(2_200 * MS), span(2_900 * MS)),
+                t.passes(), "every pass kept: those past the cursor are past the lane's right edge at rest");
         assertFalse(t.live());
-        tell(Messages.STEP_TOPIC, new Step(-100 * MS));
-        assertEquals(1_800 * MS, timeline().edgeNanos(), "a step from where it stopped");
+        tell(Messages.STEP_TOPIC, new Step(-100 * MS, 0L));
+        assertEquals(1_850 * MS, timeline().edgeNanos(), "paused, a step is from the cursor");
     }
 
     @Test
@@ -235,11 +241,11 @@ class BenchTest {
         attached(ONE);
         passes(1, 100 * MS, 1_500 * MS, 2_600 * MS);
         sent.clear();
-        tell(Messages.STEP_TOPIC, new Step(-60_000 * MS));
+        tell(Messages.STEP_TOPIC, new Step(-60_000 * MS, 2_600 * MS));
         Timeline t = timeline();
         assertEquals(100 * MS, t.edgeNanos(), "the oldest kept moment");
         assertEquals("Paused at 0.00 s of Calculator (calculator-11), the oldest moment kept", t.status());
-        tell(Messages.STEP_TOPIC, new Step(60_000 * MS));
+        tell(Messages.STEP_TOPIC, new Step(60_000 * MS, 0L));
         t = timeline();
         assertEquals(2_600 * MS, t.edgeNanos(), "the newest row, and still paused");
         assertFalse(t.live());
@@ -248,8 +254,8 @@ class BenchTest {
     @Test
     void withNothingReadTheKeysDoNothing() {
         attached(ONE);
-        tell(Messages.PAUSE_TOPIC, new Pause());
-        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS));
+        tell(Messages.PAUSE_TOPIC, new Pause(0L));
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 0L));
         assertEquals(List.of(), took(Timeline.class));
     }
 
@@ -259,11 +265,22 @@ class BenchTest {
         passes(1, 100 * MS, 1_200 * MS);
         tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "it went away"));
         sent.clear();
-        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS));
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 1_200 * MS));
         Timeline t = timeline();
         assertEquals(200 * MS, t.edgeNanos());
-        assertEquals(List.of(span(100 * MS)), t.passes());
         assertEquals("Calculator (calculator-11): it went away. Paused at 0.10 s", t.status());
+    }
+
+    @Test
+    void theModelAsOfTheCursorHasOnlyTheRowsBeforeIt() {
+        Tape tape = Tape.EMPTY;
+        Model now = Model.EMPTY;
+        for (List<Row> batch : List.of(List.of(pass(1, 100 * MS, "1ms"), pass(2, 600 * MS, "1ms")),
+                List.of(pass(3, 1_300 * MS, "1ms"), pass(4, 2_200 * MS, "1ms")))) {
+            now = now.fold(batch, Long.MAX_VALUE);
+            tape = tape.add(batch, now.newestNanos(), Bench.RETAIN);
+        }
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS)), tape.asOf(1_900 * MS).passes());
     }
 
     @Test

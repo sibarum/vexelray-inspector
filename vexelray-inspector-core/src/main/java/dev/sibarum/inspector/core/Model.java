@@ -33,6 +33,11 @@ public record Model(long newestNanos, List<Span> passes) {
      * end whose detail is how long it took.
      */
     Model fold(List<Row> rows, long upToNanos) {
+        return fold(rows, upToNanos, Bench.REACH);
+    }
+
+    /** {@link #fold(List, long)} keeping the passes over {@code reachNanos} instead of the panels' reach. */
+    Model fold(List<Row> rows, long upToNanos, long reachNanos) {
         long newest = newestNanos;
         List<Span> next = new ArrayList<>(passes);
         for (Row r : rows) {
@@ -47,7 +52,7 @@ public record Model(long newestNanos, List<Span> passes) {
                 }
             }
         }
-        long from = newest - Bench.REACH;
+        long from = newest - reachNanos;
         next.removeIf(p -> p.toNanos() < from);
         return new Model(newest, next);
     }

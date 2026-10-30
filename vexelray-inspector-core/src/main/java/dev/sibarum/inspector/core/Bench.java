@@ -4,6 +4,7 @@ import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Pause;
+import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.Runs;
@@ -31,10 +32,16 @@ import java.util.Locale;
  * the next one the timer finds. (The picker, and choosing a run, are R1's later slices.)
  *
  * <p><b>The model, live and as of the cursor.</b> Each batch is folded onto the live {@link Model} and kept on the
- * {@link Tape}, a second at a time beside a checkpoint, for the last {@link #RETAIN}. Following, the bench shows the
- * live model. Paused ({@link Pause}, {@link Step}), it shows the model as of the cursor, recomputed from the tape by
- * the same fold, so it is exactly what was shown at that moment. Rows go on arriving and being kept while paused; only
- * what is shown stays put. A run that goes away keeps its tape, to step through, until another is attached.
+ * {@link Tape}, a second at a time beside a checkpoint, for the last {@link #RETAIN}; the model as of any moment is
+ * recomputed from the tape by the same fold ({@link Tape#asOf}), exactly as it was. The passes lane needs none of
+ * that: it shows every pass kept, which is the same fold over the retained reach, and puts the cursor at its right
+ * edge, so at rest it shows the passes as of the cursor and while it glides it shows what it passes (design.md 9.8).
+ * The readouts, the next panels, are where the model as of the cursor will be shown.
+ *
+ * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Step}
+ * moves it, from that resting moment if following. It goes no further back than the tape holds. Rows go on arriving
+ * and being kept while paused, and are shown only if they are before the cursor (a late batch), so a paused timeline
+ * is still. A run that goes away keeps its tape, to step through, until another is attached.
  */
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class})
@@ -64,38 +71,39 @@ public final class Bench {
      * @param status   what the status line says
      * @param arriving whether its rows are arriving
      * @param now      the model with every row read so far folded on
+     * @param kept     the same, over {@link #RETAIN} rather than the panels' reach: every pass the lane can show
      * @param tape     the rows of the last {@link #RETAIN}, with their checkpoints
      * @param first    the moment of the run's first row read, which the status line counts from
      * @param paused   whether the cursor is stopped; following the present when not
      * @param cursor   where it is stopped, on the machine's clock
      * @param gone     which run went away last, and why, kept to say beside "no application" until another is attached
      */
-    public record State(String run, String title, String status, boolean arriving, Model now, Tape tape, long first,
-                        boolean paused, long cursor, String gone) {
+    public record State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape,
+                        long first, boolean paused, long cursor, String gone) {
 
         static State initial() {
-            return new State("", "", "Looking for an application to inspect", false, Model.EMPTY, Tape.EMPTY, 0L,
-                    false, 0L, "");
+            return new State("", "", "Looking for an application to inspect", false, Model.EMPTY, Model.EMPTY,
+                    Tape.EMPTY, 0L, false, 0L, "");
         }
 
-        /** The timeline as of the cursor: the live model while following, the tape's as of the cursor when paused. */
+        /** The timeline: every pass kept, the cursor at the right edge while paused, the newest row while following. */
         Timeline timeline() {
             if (paused) {
-                return new Timeline(run, status, false, cursor, tape.asOf(cursor).passes());
+                return new Timeline(run, status, false, cursor, kept.passes());
             }
-            return new Timeline(run, status, arriving, now.newestNanos(), now.passes());
+            return new Timeline(run, status, arriving, now.newestNanos(), kept.passes());
         }
 
         State withStatus(String status) {
-            return new State(run, title, status, arriving, now, tape, first, paused, cursor, gone);
+            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, gone);
         }
 
         State following(String status) {
-            return new State(run, title, status, arriving, now, tape, first, false, 0L, gone);
+            return new State(run, title, status, arriving, now, kept, tape, first, false, 0L, gone);
         }
 
         State pausedAt(long at, String status) {
-            return new State(run, title, status, arriving, now, tape, first, true, at, gone);
+            return new State(run, title, status, arriving, now, kept, tape, first, true, at, gone);
         }
     }
 
@@ -143,24 +151,33 @@ public final class Bench {
         Run newest = found.runs().getLast();
         out.send(Messages.ATTACH_TOPIC, new Attach(newest.name(), newest.stream()));
         return say(new State(newest.name(), newest.title(), "Attaching to " + named(newest.title(), newest.name()),
-                false, Model.EMPTY, Tape.EMPTY, 0L, false, 0L, ""), out);
+                false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L, false, 0L, ""), out);
     }
 
-    /** A batch of the run's rows: folded onto the live model and kept; shown at once only while following. */
+    /**
+     * A batch of the run's rows: folded onto the live model and kept. Shown at once while following; while paused, only
+     * if a row of it is before the cursor, since the rest are past the lane's right edge.
+     */
     static State rows(State s, Rows batch, Out out) {
         if (!batch.run().equals(s.run())) {
             return s;   // a late batch of a run since gone
         }
         Model now = s.now().fold(batch.rows(), Long.MAX_VALUE);
+        Model kept = s.kept().fold(batch.rows(), Long.MAX_VALUE, RETAIN);
         Tape tape = s.tape().add(batch.rows(), now.newestNanos(), RETAIN);
         long first = s.tape().isEmpty() && !batch.rows().isEmpty() ? batch.rows().getFirst().atNanos() : s.first();
         if (s.paused()) {
-            // Nothing shown changes: the cursor stays where it was, and the rows are kept for when it moves.
-            return new State(s.run(), s.title(), s.status(), true, now, tape, first, true, s.cursor(), "");
+            State next = new State(s.run(), s.title(), s.status(), true, now, kept, tape, first, true, s.cursor(), "");
+            for (Row r : batch.rows()) {
+                if (r.atNanos() <= s.cursor()) {
+                    return say(next, out);
+                }
+            }
+            return next;
         }
         String status = (batch.lostTo() > 0 ? "Lost rows " + batch.lostFrom() + ".." + batch.lostTo() + " of "
                 : "Inspecting ") + named(s.title(), s.run());
-        return say(new State(s.run(), s.title(), status, true, now, tape, first, false, 0L, ""), out);
+        return say(new State(s.run(), s.title(), status, true, now, kept, tape, first, false, 0L, ""), out);
     }
 
     /** The run's link has ended: say why, keep its tape to step through, and let the timer's next beat find another. */
@@ -169,10 +186,10 @@ public final class Bench {
             return s;
         }
         String gone = named(s.title(), s.run()) + ": " + d.why();
-        return say(new State("", "", gone, false, s.now(), s.tape(), s.first(), s.paused(), s.cursor(), gone), out);
+        return say(new State("", "", gone, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(), gone), out);
     }
 
-    /** Space: following, stop at the newest row; paused, follow the present again. */
+    /** Space: following, stop where the view's lane comes to rest; paused, follow the present again. */
     static State pause(State s, Pause p, Out out) {
         if (s.tape().isEmpty()) {
             return s;
@@ -180,16 +197,20 @@ public final class Bench {
         if (s.paused()) {
             return say(s.following(following(s)), out);
         }
-        return say(paused(s, s.now().newestNanos()), out);
+        return say(paused(s, Math.max(p.restNanos(), s.tape().oldestNanos())), out);
     }
 
-    /** An arrow: move the cursor, stopping first if following, and never past what the tape holds. */
+    /**
+     * An arrow: move the cursor, from where it is stopped, or from where the view's lane would rest if following; never
+     * further back than the tape holds, nor forward past the newest row or where it started, whichever is later.
+     */
     static State step(State s, Step by, Out out) {
         if (s.tape().isEmpty()) {
             return s;
         }
-        long from = s.paused() ? s.cursor() : s.now().newestNanos();
-        long at = Math.clamp(from + by.byNanos(), s.tape().oldestNanos(), s.now().newestNanos());
+        long from = s.paused() ? s.cursor() : by.fromNanos();
+        long at = Math.clamp(from + by.byNanos(), s.tape().oldestNanos(),
+                Math.max(s.now().newestNanos(), Math.max(from, s.tape().oldestNanos())));
         return say(paused(s, at), out);
     }
 

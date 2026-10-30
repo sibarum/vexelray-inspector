@@ -306,6 +306,33 @@ first things to measure (R1).
    they are now, and show the past through today's arrangement. So the arrangement is not part of the bench's model
    and is never checkpointed. *Rejected:* rewinding the arrangement with the data.
 
+8. **Two ways to show time, and no jumps.** *Ruled 2026-10-30, by the author.*
+   - **Realtime and Sequence.** Realtime is the axis as time, with a zoom: a burst is a clump with a width, and zooming
+     dilates time uniformly. Sequence is the axis as order: each event one slot, gaps removed (and marked as removed,
+     with how long they were, so it never passes for time). Both take a filter, which decides which events count; in
+     Sequence a hidden event has no slot, and stepping skips it. Once paused, the cursor steps **one event at a time**
+     in either mode. Sequence is a paused mode: following the present is Realtime's.
+   - **Each lane its own sequence, not synchronized.** Lanes do not share columns: each lays out its own events, and
+     the cursor is the one place they agree. Each lane's target is where the cursor's moment falls in its own sequence,
+     between two of its events if need be, so a small move of the cursor is a small move of every lane. Each lane moves
+     to its target independently, at its own pace, and lands exactly. (IntelliJ's diff view, two panes on one
+     scrollbar, jumps because one side has to catch up with the other; nothing is tied here, so nothing catches up.)
+   - **No jumps, and no corners in any derivative.** What is under the cursor never moves unless the person moves it,
+     and nothing else rearranges in one frame. Position, velocity, acceleration and every derivative after them are
+     continuous: a stop, a start, an interrupted move and a landing included. A spring fails this (a retarget kinks
+     the velocity, and it never lands without a snap), so the mechanism is a **handover**: every motion is a smooth
+     path of time (stopped; following the present), and every change hands over from the path in progress to the new
+     one over a short window, mixed by a step that is smooth in every derivative and flat in all of them at both ends.
+     The mix is of speeds, with the remaining distance mixed in by the step, so a pause slows to rest without ever
+     going backwards and a resume catches up with the present and settles onto it. A handover interrupted is the path
+     the next one starts from. Under reduced motion the window is zero and the landing immediate.
+   - **Perceived, so measured and tried.** The step's sharpness and the window's length are set by how it looks, not
+     by argument; their values, and why, are in the view's code, and change as they are tried.
+   This bends 9.4 by its letter, not its intent: the motion is not decoration but what keeps the eye on what it was
+   following. The pause moment is the view's to choose (only it knows the present and where the lane can come to rest),
+   so `Pause` and `Step` carry the moment they start from. *Rejected:* one shared column per event across all lanes
+   (sparse lanes, and a filter change shifts everything); synchronized scrolling; springs.
+
 ## 10. Order of work
 
 Each step ends with something to watch or something an agent can ask, and lands its port verb first.
@@ -331,6 +358,12 @@ Each step ends with something to watch or something an agent can ask, and lands 
   or a tenth (`Pause`, `Step`, edges from declared chords); paused, the lane shows the run as of the cursor and
   nothing is drawn. Seen with `ottermate`: a paused lane is byte-identical two seconds later and `settle` succeeds;
   a step back moves the marks 92 px right. Not yet: dragging the cursor (design's absolute cursor on a state topic).
+  **The glide (9.8) done 2026-10-30:** every change of the passes lane's motion is a handover (`Glide`): a pause
+  coasts to rest without going back, a step glides and lands exactly, a resume catches up and settles onto the
+  present, and an interruption hands over from the motion in progress. Keys go to the view first, which sends the
+  bench `Pause` and `Step` with the moment the lane rests at. Held by `GlideTest` (no jump in speed or acceleration
+  through five interruptions; exact landings; a pause never backwards); seen with `ottermate`: every glide settles,
+  and a step back lands the marks 91 px right. Not yet: event stepping, zoom, Sequence and the filter.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

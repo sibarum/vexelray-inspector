@@ -90,21 +90,23 @@ public final class Messages {
     // ------------------------------------------------------------------ the person tells the bench
 
     /**
-     * Space: stop the timeline at the newest row, or, stopped, follow the present again. The bench decides which, so
-     * the chord sends the same message either way.
+     * Space: following, stop the timeline at {@code restNanos}; stopped, follow the present again. The bench decides
+     * which. The moment is the view's: where its lane comes to rest if it slows from the present now, which only it can
+     * know, so that a pause never moves the lane backwards (design.md 9.8). It may be a little ahead of the newest row.
      */
     public static final Topic<Pause> PAUSE_TOPIC = Topic.edge(Pause.class);
 
-    public record Pause() {
+    public record Pause(long restNanos) {
     }
 
     /**
-     * An arrow: move the cursor by {@code byNanos}, back when negative; following, it stops at the newest row first.
-     * An edge, not a state topic: a step is relative, so two quick presses must be two steps, not the newer one.
+     * An arrow: move the cursor by {@code byNanos}, back when negative. Stopped, from the cursor; following, from
+     * {@code fromNanos}, where the view's lane would come to rest. An edge, not a state topic: a step is relative, so
+     * two quick presses must be two steps, not the newer one.
      */
     public static final Topic<Step> STEP_TOPIC = Topic.edge(Step.class);
 
-    public record Step(long byNanos) {
+    public record Step(long byNanos, long fromNanos) {
     }
 
     // ------------------------------------------------------------------ the bench tells the view
@@ -114,8 +116,12 @@ public final class Messages {
     }
 
     /**
-     * The timeline as of the cursor: which run, what to say about it, the moment at the lane's right edge, and the
-     * passes as they stood then, oldest first. A state topic: a storm of rows costs the view one a frame.
+     * The timeline: which run, what to say about it, where the cursor is, and every pass kept, oldest first. A state
+     * topic: a storm of rows costs the view one a frame.
+     *
+     * <p>The passes are all those kept, not only those before the cursor: the lane glides between moments (design.md
+     * 9.8) and shows what it passes on the way. At rest only what is before the cursor is in view, since the cursor is
+     * at the lane's right edge.
      *
      * @param run       the run attached, or empty when none is
      * @param status    what the status line says

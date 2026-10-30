@@ -88,14 +88,18 @@ its right edge; when the application goes away it stops where it was, and the st
 
 | Key | Does |
 | --- | --- |
-| Space | pause at the newest row; paused, follow the present again |
+| Space | pause: the lane slows to a stop; paused, follow the present again, catching up with it |
 | Left / Right | step the cursor back or forward a second (pausing first if following) |
 | Shift+Left / Shift+Right | step a tenth of a second |
 
 Paused, the lane shows the run as it was at the cursor, which is at the right edge, and the status line says where the
 cursor is, counted from the run's first row. The last minute is kept, and stepping stops at either end of it. Rows go
-on arriving and being kept while paused. Choosing which application to inspect, and dragging the cursor, are R1's later
-slices.
+on arriving and being kept while paused.
+
+Nothing on the lane jumps: every change of where it is going, a key held down included, glides there with no corner in
+its speed or in any derivative of it, and lands exactly (design.md 9.8). Under the system's reduced-motion setting it
+goes straight there. Choosing which application to inspect, stepping one event at a time, zoom, and the Sequence mode
+are R1's later slices.
 
 ## How it is put together
 
@@ -124,7 +128,9 @@ message is in one file. Read these in this order.
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components, jobs and sources in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
-| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lane's picture; asked by every frame (`@Draw`), it slides the lane to follow the present. Its key chords send `Pause` and `Step` straight to the bench. It decides nothing. |
+| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lane's picture; asked by every frame (`@Draw`), it slides the lane to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lane would rest at, which only it knows. It decides nothing. |
+| `Glide.java` | **how the timeline moves**: smooth paths of time, and handovers between them that are smooth in every derivative and land exactly. Pure functions; its constants were set by eye, and say why. |
+| `Keys.java` | what a key chord sends the view. |
 | `Ui.java` | the window: the title bar, the timeline's lanes and the status line. Holds no state; it shows what the view hands it. |
 
 `Inspector.java` is the entry point and the constants, and nothing else. The application edge — input, the
@@ -168,20 +174,30 @@ carries one type, and no cycle of sends can block.
 
 The one thing on screen that moves, and the frame contract's first application witness (vexelray-gui's
 `docs/plans/frame-contract.md`). **Told builds, asked chooses**: when the bench's `Timeline` arrives, the view builds
-the lane's picture with the newest row's moment at the right edge and replaces its one state field, a `Strip`; on
-every frame, the view's `@Draw` method slides the lane left by how far the present has moved on since that moment, and
-asks for the next frame while the run is live. The draw reads only its state and the frame and allocates nothing, which
-the processor checks. Both ends are on the machine's monotonic clock: the link says where the run's rows count from,
-`LinkRows` adds it, and the frame's `monoNanos` is the same clock. When the timeline is paused or no run is live
-nothing is due, so it draws nothing, and `ottermate settle` succeeds only then: while it follows a live run, press
-Space first, or wait with `await` instead.
+the lane's picture and decides the motion: following the present, or stopping somewhere, reached by a handover from
+whatever motion is in progress (`Glide`). Its one state field, a `Strip`, holds the picture's edge moment and the
+motion. On every frame, the view's `@Draw` method works out where the motion puts the lane's right edge at the frame's
+present and slides the lane by how far that is from the picture's edge, and asks for the next frame while anything
+moves. The draw reads only its state and the frame and allocates nothing, which the processor checks. Both ends are on
+the machine's monotonic clock: the link says where the run's rows count from, `LinkRows` adds it, and the frame's
+`monoNanos` is the same clock. When the lane has come to rest nothing is due, so it draws nothing, and
+`ottermate settle` succeeds only then: while it follows a live run, press Space first, or wait with `await` instead.
+
+**No jumps** (design.md 9.8). A handover mixes the speed of the old motion into the new one by a step that is smooth
+in every derivative and flat in all of them at both ends, and mixes in the remaining distance by the same step, so it
+starts with no corner, lands exactly, and a pause, which stops where the lane would coast to, never goes back. A
+handover interrupted is the motion the next one starts from. `GlideTest` samples a motion through five interruptions
+and holds that neither speed nor acceleration jumps. The keys go to the view before the bench, because the moment a
+pause stops at is where the lane comes to rest, which only the view knows.
 
 ### Rewinding
 
 Time is a parameter of what is shown (design.md section 8). The bench folds each batch onto its live `Model` and keeps
-it on the `Tape`, with a checkpoint every second. Paused, it shows the model as of the cursor: that second's
-checkpoint with its rows up to the cursor folded on, by the same `fold`. So what the lane shows at a moment in the
-past is exactly what it showed then, and `BenchTest` holds that for every moment of a run crossing many checkpoints.
+it on the `Tape`, with a checkpoint every second, and the model as of any moment is that second's checkpoint with its
+rows up to the moment folded on, by the same `fold`: exactly what it was then, which `BenchTest` holds for every
+moment of a run crossing many checkpoints. The passes lane shows every pass kept and puts the cursor at its right edge,
+so that at rest it shows the run as of the cursor and while it glides it shows what it passes. The readouts will show
+the model as of the cursor.
 
 ## The stack
 

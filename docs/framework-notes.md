@@ -55,6 +55,15 @@ instead (`await status.run Inspecting`); since R1 slice 2, a script can also pre
 chart) will hit this: `settle` could treat an asked half that is due every frame as continuous motion, as it already
 treats a widget's, and say so in its reply rather than time out.
 
+## FN-5 · A view's told half cannot read the present 🔬
+
+The view decides, when the bench's `Timeline` arrives or a key is pressed, where its lane will come to rest and when a
+handover starts (design.md 9.8): that needs the present, on the same clock the asked half reads as `Frame.monoNanos`.
+`Gui.monoNanos()` is package-private, so the view reads `System.nanoTime()`, which is what the default clock returns.
+It costs the stepped clocks a test would hand the `Gui`: they reach the asked half and not the told half. A public
+`Gui.monoNanos()` (or the moment a message was taken, handed to a `@Subscribe`) would close it; any part that starts a
+motion from a message will want it.
+
 ## FN-4 · No verb closes an application 🔬
 
 A run started outside `--launch` is closed by clicking where the title bar draws its close button

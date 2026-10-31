@@ -13,6 +13,7 @@ import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
@@ -71,8 +72,15 @@ import java.util.Optional;
  * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event of the focused lane,
  * Shift with them steps a tenth of the lane, and {@code =} and {@code -} zoom about the right edge: a second motion, of
  * the time the lane spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch})
- * until the next picture is built at the new scale. A click on a lane focuses it, and goes to the event nearest the
- * click if one is near ({@link GoTo}); the main thread's is focused at first. Which lane is focused is the view's own:
+ * until the next picture is built at the new scale. A click on a lane focuses it, and puts the cursor on the event
+ * nearest the click if one is near ({@link GoTo}), or else at the moment clicked ({@link Seek}); the main thread's is
+ * focused at first.
+ *
+ * <p><b>The cursor is a line, not the right edge.</b> Stopped, the cursor is drawn across the lanes where its moment
+ * is, and the lanes stay where they came to rest for as long as it is in view: a click leaves it where it was clicked,
+ * and a step moves the line. Only a step that would take it within {@link #VIEW_MARGIN} of either side glides the lanes
+ * to put it in the middle ({@link #keepInView}). Space is the exception: it stops the cursor where the lanes come to
+ * rest, so it is at their right edge, where the present was. Which lane is focused is the view's own:
  * it is how the timeline is looked at, not what the run did, so it is not the bench's and does not rewind (design.md
  * 9.7). Each chord is declared with the message it sends ({@link PauseKey}, {@link EventKey},
  * {@link StepKey}), and the view turns it into the bench's {@link Pause}, {@link StepEvent} or {@link Step} with the
@@ -110,8 +118,11 @@ final class View {
      */
     static final int SLIDE_LANES = 7;
 
-    /** How close a click must be to a pass to go to it, in pixels. */
+    /** How close a click must be to an event to go to it, in pixels; further, it puts the cursor where it landed. */
     static final float CLICK_REACH_PX = 6f;
+
+    /** How near either side of the lanes the cursor may come before they glide to put it in the middle: of the span. */
+    static final double VIEW_MARGIN = 0.05;
 
     /**
      * The view's state, which its {@link #draw} reads.
@@ -149,6 +160,7 @@ final class View {
     private final Sender<Step> step;
     private final Sender<StepEvent> stepEvent;
     private final Sender<GoTo> goTo;
+    private final Sender<Seek> seek;
 
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
@@ -169,13 +181,14 @@ final class View {
 
     View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<EventKey> eventKey, Sender<StepKey> stepKey,
          Sender<ZoomKey> zoomKey, Sender<Pause> pause, Sender<StepEvent> stepEvent, Sender<Step> step,
-         Sender<GoTo> goTo) {
+         Sender<GoTo> goTo, Sender<Seek> seek) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
         this.step = step;
         this.stepEvent = stepEvent;
         this.goTo = goTo;
+        this.seek = seek;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
                 gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
                 gui.theme().color(Role.LINE));
@@ -239,13 +252,23 @@ final class View {
         } else if (!zoom.goingTo(to)) {
             zoom = zoom.then(now, Glide.window(ZOOM_AS_PX), to);
         }
-        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.edge(), zoom);
+        Motion edge = state.edge().settled(now);
+        if (!last.live() && edge.last().rate() == 0.0) {
+            // Stopped: a zoom about the right edge must not lose the cursor, so it is kept in view as a step keeps it.
+            double rest = edge.rest(now, Glide.window(0.0));
+            double keep = keepInView(rest, last.edgeNanos(), span);
+            if (keep != rest) {
+                edge = gui.reducedMotion() ? Motion.of(Path.stopped(keep))
+                        : edge.then(now, Glide.window(ZOOM_AS_PX), Path.stopped(keep));
+            }
+        }
+        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), edge, zoom);
         show();
     }
 
     /**
-     * A click on the lanes: focus the lane it is in, and go to its event nearest the click, if one is within
-     * {@link #CLICK_REACH_PX}.
+     * A click on the lanes: focus the lane it is in, and put the cursor on its event nearest the click, if one is
+     * within {@link #CLICK_REACH_PX}, or else at the moment clicked.
      */
     private void clicked(float x, float y) {
         long now = System.nanoTime();
@@ -257,11 +280,14 @@ final class View {
         focus = Model.LANES.get(band);
         ui.focus(focus);
         double at = state.edge().at(now) - (laneX + laneW - x) / scale;
-        nearest(marks(last, focus), at, CLICK_REACH_PX / scale).ifPresent(mark -> {
-            pressedAt = now;
-            pressWindow = -1L;
-            goTo.send(new GoTo(new Event(focus, mark)));
-        });
+        pressedAt = now;
+        pressWindow = -1L;
+        Optional<Mark> near = nearest(marks(last, focus), at, CLICK_REACH_PX / scale);
+        if (near.isPresent()) {
+            goTo.send(new GoTo(new Event(focus, near.get())));
+        } else {
+            seek.send(new Seek((long) at));
+        }
     }
 
     /** The events of {@code t}'s lane named {@code name}; none before the bench has said anything. */
@@ -309,8 +335,16 @@ final class View {
         } else if (!edge.goingTo(to)) {
             long start = pressedAt >= 0 ? pressedAt : now;
             double distancePx = (to.at(now) - edge.at(now)) * scale(now);
-            // A pause stops where the key reckoned the lane would rest, over the window it reckoned with.
-            long window = pressWindow >= 0 && to.rate() == 0.0 ? pressWindow : Glide.window(distancePx);
+            long window = Glide.window(distancePx);
+            if (pressWindow >= 0 && to.rate() == 0.0) {
+                // A pause stops where the key reckoned the lane would rest, over the window it reckoned with.
+                window = pressWindow;
+            } else if (edge.last().rate() != 0.0 && to.rate() == 0.0
+                    && to.value() == edge.rest(now, Glide.window(0.0))) {
+                // Coasting to where it would rest from now, over the window that was reckoned with.
+                start = now;
+                window = Glide.window(0.0);
+            }
             edge = edge.then(start, window, to);
         }
         pressedAt = -1L;
@@ -323,14 +357,33 @@ final class View {
     }
 
     /**
-     * Where to stop. Where the bench put the cursor, if a key or a click asked; if the run went away while followed,
-     * wherever the lane comes to rest from now, so that it coasts to a stop rather than going back to the last row.
+     * Where the lanes' right edge stops. Space put the cursor where the lanes would rest, so they rest there, the cursor
+     * at their right edge. Otherwise they come to rest where they would if left alone (coasting to a stop, if they were
+     * following) and stay there while that keeps the cursor in view ({@link #keepInView}): a click leaves the cursor
+     * where it was clicked, and a step moves the cursor, not the lanes, until it would leave them.
      */
     private double stopAt(Timeline t, Motion edge, long now) {
-        if (pressedAt < 0 && edge.last().rate() != 0.0) {
-            return edge.rest(now, Glide.window(0.0));
+        if (pressWindow >= 0) {
+            return t.edgeNanos();
         }
-        return t.edgeNanos();
+        double rest = edge.rest(now, Glide.window(0.0));
+        if (pressedAt < 0 && edge.last().rate() != 0.0) {
+            return rest;    // the run went away while followed: coast to a stop
+        }
+        return keepInView(rest, t.edgeNanos(), span);
+    }
+
+    /**
+     * Where the right edge rests to show {@code cursorNanos}: at {@code restNanos} if the cursor is inside the lanes
+     * spanning {@code spanNanos} back from there, clear of either side by {@link #VIEW_MARGIN} of the span; otherwise
+     * where it puts the cursor in the middle. Pure, for a test.
+     */
+    static double keepInView(double restNanos, double cursorNanos, double spanNanos) {
+        double margin = spanNanos * VIEW_MARGIN;
+        if (cursorNanos <= restNanos - margin && cursorNanos >= restNanos - spanNanos + margin) {
+            return restNanos;
+        }
+        return cursorNanos + spanNanos / 2;
     }
 
     /**
@@ -366,7 +419,8 @@ final class View {
      * A stretch is a fill as long as it took, which a zoom stretches, and a one-pixel line at its end, which it does
      * not, so one far shorter than a pixel still shows at any zoom and none grows fat; a moment is the line alone. The
      * event the cursor is on, if any, is drawn over them in the text's colour, its band's whole height, with a
-     * two-pixel line at its end. Pure, for a test.
+     * two-pixel line at its end; and while stopped, the cursor itself, a one-pixel line in that colour across every
+     * lane at the edge moment. Pure, for a test.
      */
     static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos) {
         Sketch s = new Sketch().tag("lanes");
@@ -402,6 +456,9 @@ final class View {
             }
             s.line(x1 - 1f, y, x1 - 1f, y + band, 2f, inks.on());
         });
+        if (!t.live()) {
+            s.line(edge - 0.5f, 0f, edge - 0.5f, h, 1f, inks.on());
+        }
         return s.picture();
     }
 

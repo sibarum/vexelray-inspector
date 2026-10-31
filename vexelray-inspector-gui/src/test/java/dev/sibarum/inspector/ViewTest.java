@@ -190,8 +190,13 @@ class ViewTest {
                 Optional.of(new Event(Model.MAIN, on)));
         Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at);
         assertEquals(List.of("950+10", "990+10", "990+10"), fills(p), "drawn last, so over the others");
-        assertEquals("999 w2", lines(p).getLast(), "ending at its end");
-        Picture.Fill mark = (Picture.Fill) p.marks().get(p.marks().size() - 2);
+        List<String> lines = lines(p);
+        assertEquals("999 w2", lines.get(lines.size() - 2), "ending at its end");
+        assertEquals("1000 w1", lines.getLast(), "and the cursor across every lane, at the edge moment");
+        Picture.Line cursor = (Picture.Line) p.marks().getLast();
+        assertEquals(0.0, cursor.y0());
+        assertEquals(LANES_H, cursor.y1(), 1e-6);
+        Picture.Fill mark = (Picture.Fill) p.marks().get(p.marks().size() - 3);
         assertEquals(20.0, mark.y(), "the top of the main thread's band");
         assertEquals(20.0, mark.h(), "the band's whole height");
         assertEquals(Color.BLACK, mark.color());
@@ -215,6 +220,27 @@ class ViewTest {
                 marks.stream().map(Picture.Line::color).toList());
         assertEquals(4, p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
                 "a hairline between each two of the five lanes");
+    }
+
+    @Test
+    void theLanesStayPutWhileTheCursorIsInViewAndOtherwisePutItInTheMiddle() {
+        double span = View.SPAN_NANOS;
+        double rest = 50_000 * MS;
+        assertEquals(rest, View.keepInView(rest, rest - 3_000 * MS, span), "a click well inside: nothing moves");
+        assertEquals(rest, View.keepInView(rest, rest - 9_400 * MS, span), "just clear of the left side");
+        assertEquals(rest - 9_600 * MS + span / 2, View.keepInView(rest, rest - 9_600 * MS, span),
+                "inside the left margin: glide it to the middle");
+        assertEquals(rest + 2_000 * MS + span / 2, View.keepInView(rest, rest + 2_000 * MS, span),
+                "past the right side, as after a step forward");
+        assertEquals(rest + span / 2 - 200 * MS, View.keepInView(rest, rest - 200 * MS, span),
+                "inside the right margin too");
+    }
+
+    @Test
+    void whileFollowingNoCursorIsDrawn() {
+        long at = 20_000 * MS;
+        Timeline t = new Timeline("r", "", true, at, main(pass(at - 500 * MS, at - 400 * MS)), Optional.empty());
+        assertEquals(List.of("960 w1"), lines(View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at)));
     }
 
     @Test

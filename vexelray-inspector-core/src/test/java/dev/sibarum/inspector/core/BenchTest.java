@@ -378,6 +378,23 @@ class BenchTest {
     }
 
     @Test
+    void aClickWithNoEventNearPutsTheCursorAtThatMomentWithinTheTape() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS, 1_300 * MS);
+        sent.clear();
+        tell(Messages.SEEK_TOPIC, new Messages.Seek(850 * MS));
+        Timeline t = timeline();
+        assertEquals(850 * MS, t.edgeNanos(), "from following: paused there");
+        assertFalse(t.live());
+        assertEquals(Optional.empty(), t.on(), "on no event");
+        assertEquals("Paused at 0.75 s of Calculator (calculator-11)", t.status());
+        tell(Messages.SEEK_TOPIC, new Messages.Seek(9_000 * MS));
+        assertEquals(1_300 * MS, timeline().edgeNanos(), "no further forward than the newest row");
+        tell(Messages.SEEK_TOPIC, new Messages.Seek(0L));
+        assertEquals(100 * MS, timeline().edgeNanos(), "no further back than the tape holds: its first row");
+    }
+
+    @Test
     void theTapeKeepsTheLastMinuteAndLetsTheRestGo() {
         Tape tape = Tape.EMPTY;
         Model now = Model.EMPTY;

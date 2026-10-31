@@ -12,6 +12,7 @@ import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.Runs;
+import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
@@ -46,7 +47,8 @@ import java.util.Optional;
  * The {@link Readouts} are where the model as of the cursor is shown, sent beside every timeline.
  *
  * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Step}
- * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked event, and {@link StepEvent}
+ * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked event, {@link Seek} to a
+ * clicked moment with no event near, and {@link StepEvent}
  * onto the next or previous event of the lane the view has focused, which it is then on and the status line
  * describes. It goes no further back than the tape holds. Rows go on arriving
  * and being kept while paused, and are shown only if they are before the cursor (a late batch), so a paused timeline
@@ -54,7 +56,7 @@ import java.util.Optional;
  */
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class, StepEvent.class,
-        GoTo.class})
+        GoTo.class, Seek.class})
 @Publishes({FindRuns.class, Attach.class, Timeline.class, Readouts.class})
 public final class Bench {
 
@@ -139,7 +141,8 @@ public final class Bench {
                 .on(Messages.PAUSE_TOPIC, b.step("pause", Bench::pause))
                 .on(Messages.STEP_TOPIC, b.step("step", Bench::step))
                 .on(Messages.STEP_EVENT_TOPIC, b.step("step event", Bench::stepEvent))
-                .on(Messages.GO_TO_TOPIC, b.step("go to", Bench::goTo));
+                .on(Messages.GO_TO_TOPIC, b.step("go to", Bench::goTo))
+                .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek));
         ledger = b.build(inbox, "bench", CAPACITY);
         timer.every(LOOK_AGAIN, Messages.FIND_RUNS_TOPIC, new FindRuns());
     }
@@ -273,6 +276,15 @@ public final class Bench {
             return s;
         }
         return say(on(s, e), out);
+    }
+
+    /** A click where no event is near: the cursor at that moment, within what the tape holds. */
+    static State seek(State s, Seek k, Out out) {
+        if (s.tape().isEmpty()) {
+            return s;
+        }
+        return say(paused(s, Math.clamp(k.atNanos(), s.tape().oldestNanos(),
+                Math.max(s.now().newestNanos(), s.tape().oldestNanos()))), out);
     }
 
     /** The event ending latest before {@code at} (or at it, unless {@code strictly}) that the tape still holds. */

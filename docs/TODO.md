@@ -20,8 +20,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] Zoomed in, a long glide (Space after stepping far back, or a Shift step at a wide zoom) can run past the strip's
       seven lanes each side, leaving the lane briefly empty mid-glide. Size the strip by the zoom, or rebuild the
       picture at the glide's midpoint.
-- [ ] Dragging the cursor on the lane: design §8's absolute cursor on a state topic, newest position wins. The view
-      turns a pixel into a moment from its `Strip`.
+- [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state
+      topic) for each position; the view turns a pixel into a moment as a click does.
+- [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the
+      window. Zooming about the cursor itself would keep it still; it needs the edge's motion tied to the zoom's.
 - [ ] A catch-up from far back (Space after stepping a minute back) is a long, fast glide: `Glide.WINDOW_MAX_NANOS`
       caps it at half a second. Watch it, and lengthen or slow it if it reads as a blur.
 - [ ] Zoom chords (Ctrl+= / Ctrl+- / Ctrl+0) went with the template's `Intent`; bring them back with the next view

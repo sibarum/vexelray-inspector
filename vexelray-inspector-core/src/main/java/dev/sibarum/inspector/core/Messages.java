@@ -125,6 +125,16 @@ public final class Messages {
     public record StepEvent(String lane, int by, long fromNanos) {
     }
 
+    /**
+     * A click where there is no event near: put the cursor at {@code atNanos}, pausing if following; no further back
+     * than the tape holds, nor forward past the newest row. The absolute cursor (design.md section 8): a state topic,
+     * so a drag through a storm of moments costs the bench one a tick, the newest winning.
+     */
+    public static final Topic<Seek> SEEK_TOPIC = Topic.state(Seek.class);
+
+    public record Seek(long atNanos) {
+    }
+
     /** A click on an event: put the cursor on it, pausing if following. Ignored unless it is one the tape holds. */
     public static final Topic<GoTo> GO_TO_TOPIC = Topic.edge(GoTo.class);
 
@@ -157,13 +167,14 @@ public final class Messages {
      * {@link Model#LANES}' order. A state topic: a storm of rows costs the view one a frame.
      *
      * <p>The events are all those kept, not only those before the cursor: the lanes glide between moments (design.md
-     * 9.8) and show what they pass on the way. At rest only what is before the cursor is in view, since the cursor is
-     * at the lanes' right edge.
+     * 9.8) and show what they pass on the way, and at rest the cursor may be anywhere across them, with what came after
+     * it to its right.
      *
      * @param run       the run attached, or empty when none is
      * @param status    what the status line says
      * @param live      whether the timeline follows the present: rows are arriving and the cursor is not stopped
-     * @param edgeNanos the moment at the lanes' right edge: the newest row while following, the cursor while stopped
+     * @param edgeNanos the newest row while following; the cursor while stopped, which the view shows as a line and keeps
+ *                  in view, its lanes at rest wherever it chooses (design.md 9.8)
      * @param on        the event the cursor is on, after a step by events or a click; the cursor is then at its end
      */
     public static final Topic<Timeline> TIMELINE_TOPIC = Topic.state(Timeline.class);

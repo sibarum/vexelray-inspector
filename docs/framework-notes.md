@@ -64,7 +64,11 @@ It costs the stepped clocks a test would hand the `Gui`: they reach the asked ha
 `Gui.monoNanos()` (or the moment a message was taken, handed to a `@Subscribe`) would close it; any part that starts a
 motion from a message will want it.
 
-## FN-7 · A view cannot hear where the pointer is over a node 🔬
+## FN-7 · A view cannot hear where the pointer is over a node 🔬 (fixed upstream)
+
+Fixed in vexelray-gui (2026-10-30): `NodeEvent.POINTER` hears a `PointerEvent` (the pointer in client space, the
+node's box, `localX`/`localY`, and `over`) on every move over the node or a descendant, folded to the newest per
+frame, and once with `over` false when it leaves. Widget libraries have the same as `Seams.onPointer`.
 
 Asked for by the author: a hover effect on each pass in the lane. A view hears a node's `CLICK` (with where it
 landed), its `STATE` (normal, hover, pressed) and `DRAG`, but not where the pointer is while it moves over the node:

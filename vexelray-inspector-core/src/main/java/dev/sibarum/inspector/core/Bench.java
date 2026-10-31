@@ -177,8 +177,9 @@ public final class Bench {
         /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
         Details details() {
             long at = paused ? cursor : now.newestNanos();
-            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at),
-                    paused ? on : Optional.empty());
+            Optional<Event> event = paused ? on : Optional.empty();
+            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event,
+                    event.map(e -> kept.causeOf(e.mark().cause())).orElse(""));
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -408,7 +409,9 @@ public final class Bench {
     private static State on(State s, Island island, Event e) {
         Mark m = e.mark();
         String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1)
-                + (m.what().isEmpty() ? "" : " " + Model.typeName(m.what()));
+                + (m.kind().equals(Model.PASS) && m.frame() > 0 ? " #" + m.frame() : "")
+                + (m.what().isEmpty() ? "" : " " + (m.kind().equals(Model.MESSAGE) ? Model.typeName(m.what())
+                        : m.kind().equals(Model.INPUT_TAKEN) ? "(" + m.what() + " edges)" : m.what()));
         String what = m.toNanos() == m.fromNanos()
                 ? String.format(Locale.ROOT, "%s at %.3f s", kind, (m.toNanos() - s.first()) / 1e9)
                 : String.format(Locale.ROOT, "%s of %.2f ms, ending at %.3f s", kind,

@@ -7,7 +7,9 @@ import dev.sibarum.inspector.core.Messages.Row;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * What the panels show at one moment of a run (vexelray-inspector's {@code docs/design.md} section 8): the newest
@@ -45,10 +47,30 @@ import java.util.List;
  * @param newestNanos the newest moment the rows folded so far reach, on the machine's clock
  * @param lanes       every lane, in {@link #LANES}' order, each with its events over the reach before that moment
  * @param lost        rows the link lost, in every batch folded so far
+ * <h2>What a pass's rows say of it</h2>
+ *
+ * <p>Every row carries the pass it was written in, and the loop's own rows around its {@code frame} zone tell its
+ * story: a {@code wake} in pass {@code F} (in its work or its park) is what woke {@code F + 1}; {@code draw skipped}
+ * and a draw held come before the zone's row, {@code frame.present} or {@code frame.update}, {@code loop.park} and
+ * {@code wait for events} after it. Those before wait in {@link #ahead} until their pass is folded; those after are
+ * said on its mark ({@link Mark#context}). This is the recorder's {@code why} (vexelray-gui's {@code Frames}), read
+ * from the same rows.
+ *
+ * <h2>What set an event off</h2>
+ *
+ * <p>A row's cause names a source by its key ({@code t03}) and a firing by its number. The run names its sources in
+ * {@code cause.source} rows, which the link also hands over when the stream opens, and each automation command in an
+ * {@code agent.command} row in that command's own cause: both are kept in {@link #names} for as long as the run is,
+ * and {@link #causeOf} turns a cause into words with them.
+ *
  * @param clockOffset what the run's wall clock said less the machine's monotonic clock, in nanoseconds, from the
  *                    first row folded that said its wall clock; 0 before one has
+ * @param names       what the run called its cause sources, by key ({@code t03} to {@code gui.frame}), and its
+ *                    automation commands, by cause without the process ({@code c11.2} to {@code key SPACE})
+ * @param ahead       what rows have said of passes not folded yet, by pass number: what woke one, a draw held
  */
-public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset) {
+public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
+                    Map<Long, String> ahead) {
 
     /** The lanes' names, top to bottom, which is also the order of {@link #lanes}. */
     public static final String INPUT = "Input";
@@ -83,10 +105,21 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     private static final List<String> WAITS = List.of("wait fence", "dxgi wait", "acquire image");
 
     /** Before any row. */
-    static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L);
+    static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
+            Map.of(), Map.of());
+
+    /** The rows that name what a cause is: on the probe's {@code app} lane. */
+    static final String APP_LANE = "app";
+    static final String SOURCE = "cause.source";
+    static final String COMMAND = "agent.command";
+
+    /** How many passes back a word about a pass not yet folded is kept for before it is let go. */
+    private static final long AHEAD_PASSES = 4;
 
     public Model {
         lanes = List.copyOf(lanes);
+        names = Map.copyOf(names);
+        ahead = Map.copyOf(ahead);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -112,11 +145,14 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         long newest = newestNanos;
         long lostNow = lost;
         long offset = clockOffset;
+        Map<String, String> named = names;
+        Map<Long, String> told = ahead;
         List<List<Mark>> next = new ArrayList<>(lanes.size());
         boolean[] changed = new boolean[lanes.size()];
         for (Lane l : lanes) {
             next.add(l.marks());
         }
+        int main = LANES.indexOf(MAIN);
         for (Row r : rows) {
             if (r.atNanos() > upToNanos) {
                 continue;
@@ -129,6 +165,20 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 lostNow += Long.parseLong(r.detail());
                 continue;
             }
+            if (r.lane().equals(APP_LANE)) {
+                named = learn(named, r);
+                continue;
+            }
+            String about = r.frame() > 0 ? aboutPass(r, named) : null;
+            if (about != null) {
+                long pass = r.kind().equals("wake") ? r.frame() + 1 : r.frame();
+                if (!sayOn(next, changed, main, pass, about)) {
+                    String before = told.get(pass);
+                    if (before == null || !(r.kind().equals("wake") && before.contains(WOKEN))) {
+                        told = with(told, pass, before == null ? about : before + "; " + about);
+                    }
+                }
+            }
             int lane = laneOf(r);
             if (lane < 0) {
                 continue;
@@ -136,6 +186,16 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             Mark m = markOf(r);
             if (m == null) {
                 continue;
+            }
+            if (lane == main && m.frame() > 0) {
+                // A pass: what was said of it before its own row, and nothing older than a few passes before it.
+                m = m.said(told.getOrDefault(m.frame(), ""));
+                long pass = m.frame();
+                if (told.keySet().stream().anyMatch(k -> k <= pass)) {
+                    Map<Long, String> kept = new HashMap<>(told);
+                    kept.keySet().removeIf(k -> k <= pass || k > pass + AHEAD_PASSES);
+                    told = kept;
+                }
             }
             if (!changed[lane]) {
                 next.set(lane, new ArrayList<>(next.get(lane)));
@@ -154,7 +214,132 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             }
             out.add(changed[i] ? new Lane(LANES.get(i), marks) : lanes.get(i));
         }
-        return new Model(newest, out, lostNow, offset);
+        return new Model(newest, out, lostNow, offset, named, told);
+    }
+
+    /** How a pass's waking is said, so that only its first wake is. */
+    private static final String WOKEN = "woken by ";
+
+    /**
+     * What a loop row says of its pass, in words, or null when it says nothing of one: what woke the next, whether it
+     * drew or why not, and how long it parked and waited after.
+     */
+    private static String aboutPass(Row r, Map<String, String> names) {
+        if (!r.lane().equals("frame")) {
+            return null;
+        }
+        return switch (r.kind()) {
+            case "wake" -> {
+                String by = causeOf(r.cause(), names);
+                yield WOKEN + r.detail() + (by.isEmpty() ? "" : ", set off by " + by);
+            }
+            case "draw skipped" -> "nothing had changed that needed drawing";
+            case HELD_FOR_CEILING -> "its draw was held for the frame-rate ceiling's next slot";
+            case HELD_FOR_GPU -> "its draw was held: the GPU had not finished the last one";
+            case "frame.present" -> "it drew";
+            case "frame.update" -> "it updated without drawing";
+            case "loop.park" -> "then parked for up to " + r.detail();
+            case "wait for events" -> "and waited " + r.detail();
+            default -> null;
+        };
+    }
+
+    /** Say {@code about} on lane {@code lane}'s mark of pass {@code pass}, if it is folded; whether it was. */
+    private static boolean sayOn(List<List<Mark>> next, boolean[] changed, int lane, long pass, String about) {
+        List<Mark> marks = next.get(lane);
+        for (int i = marks.size() - 1; i >= 0; i--) {
+            Mark m = marks.get(i);
+            if (m.frame() < pass) {
+                return false;
+            }
+            if (m.frame() == pass) {
+                if (!changed[lane]) {
+                    marks = new ArrayList<>(marks);
+                    next.set(lane, marks);
+                    changed[lane] = true;
+                }
+                marks.set(i, m.said(about));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** {@code names} with what an {@code app} row names, if it names a source or an automation command. */
+    private static Map<String, String> learn(Map<String, String> names, Row r) {
+        if (r.kind().equals(SOURCE)) {
+            int space = r.detail().indexOf(' ');
+            if (space > 0) {
+                return with(names, r.detail().substring(0, space), r.detail().substring(space + 1));
+            }
+        } else if (r.kind().equals(COMMAND) && !r.cause().isEmpty()) {
+            // "#1 key SPACE": the connection's number, then the command.
+            String said = r.detail();
+            int space = said.indexOf(' ');
+            return with(names, firing(r.cause()), said.startsWith("#") && space > 0 ? said.substring(space + 1) : said);
+        }
+        return names;
+    }
+
+    private static <K> Map<K, String> with(Map<K, String> map, K key, String value) {
+        if (value.equals(map.get(key))) {
+            return map;
+        }
+        Map<K, String> out = new HashMap<>(map);
+        out.put(key, value);
+        return out;
+    }
+
+    /** A cause without its process ({@code c11.2}), which names one firing of one source. */
+    private static String firing(String cause) {
+        int dot = cause.indexOf('.');
+        return dot < 0 ? cause : cause.substring(dot + 1);
+    }
+
+    /** What set off work in {@code cause}, in words; empty for none. See {@link #causeOf(String, Map)}. */
+    public String causeOf(String cause) {
+        return causeOf(cause, names);
+    }
+
+    /**
+     * What set off work in {@code cause}, in words, with what the run called its sources and commands: an automation
+     * command by what it said ({@code automation command "key SPACE"}), a source by its kind and name and which of its
+     * firings it was ({@code timer gui.frame, firing 64}), and the cause itself after, as the probe's files have it.
+     * Empty for no cause; a cause that is not one is said as it is.
+     */
+    static String causeOf(String cause, Map<String, String> names) {
+        if (cause == null || cause.isEmpty()) {
+            return "";
+        }
+        String[] parts = cause.split("\\.");
+        if (parts.length != 3 || parts[1].length() < 2) {
+            return cause;
+        }
+        String key = parts[1];
+        long firing;
+        try {
+            firing = Long.parseLong(parts[2], 16);
+        } catch (NumberFormatException notHex) {
+            return cause;
+        }
+        String command = names.get(firing(cause));
+        if (key.charAt(0) == 'c' && command != null) {
+            return "automation command \"" + command + "\"   (" + cause + ")";
+        }
+        String kind = switch (key.charAt(0)) {
+            case 'i' -> "input";
+            case 't' -> "timer";
+            case 'c' -> "automation command";
+            case 'o' -> "I/O";
+            case 'm' -> "mailbox";
+            case 'b' -> "start-up";
+            default -> "source";
+        };
+        String name = names.getOrDefault(key, "not named by the run");
+        if (name.startsWith("source ")) {
+            name = name.substring("source ".length());
+        }
+        return kind + " " + name + (firing == 0 ? ", on its own" : ", firing " + firing) + "   (" + cause + ")";
     }
 
     /** Which of {@link #LANES} a row belongs on, by where it came from; -1 for none. */
@@ -198,18 +383,18 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     private static Mark markOf(Row r) {
         long at = r.atNanos();
         String kind = r.kind();
-        String thread = r.thread();
         if (kind.equals("edges")) {
-            return count(r.detail()) > 0 ? new Mark(at, at, INPUT_TAKEN, thread, "") : null;
+            long edges = count(r.detail());
+            return edges > 0 ? mark(r, at, INPUT_TAKEN, Long.toString(edges)) : null;
         }
         if (VERBS.contains(kind)) {
-            return new Mark(at, at, INJECTED, thread, "");
+            return mark(r, at, INJECTED, r.detail().isEmpty() ? kind : kind + " " + r.detail());
         }
         if (kind.equals(HELD_FOR_CEILING) || kind.equals(HELD_FOR_GPU)) {
-            return new Mark(at, at, kind, thread, "");
+            return mark(r, at, kind, "");
         }
         if (r.lane().equals("bus") && isMessageType(kind)) {
-            return new Mark(at, at, MESSAGE, thread, kind);
+            return mark(r, at, MESSAGE, kind);
         }
         long took = Durations.nanos(r.detail());
         if (took < 0) {
@@ -217,7 +402,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
         String what = kind.equals("frame") ? PASS : kind.equals("tick") ? TICK : kind.equals("present frame") ? DRAW
                 : kind;
-        return new Mark(at - took, at, what, thread, "");
+        return new Mark(at - took, at, what, r.thread(), "", r.frame(), r.cause(), "");
+    }
+
+    /** A moment {@code r} said, with its pass and cause. */
+    private static Mark mark(Row r, long at, String kind, String what) {
+        return new Mark(at, at, kind, r.thread(), what, r.frame(), r.cause(), "");
     }
 
     /**

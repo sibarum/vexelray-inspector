@@ -30,6 +30,7 @@ import sibarum.atchung.Topic;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -541,8 +542,10 @@ class BenchTest {
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
         Timeline t = timeline();
         assertEquals(Model.LANES, t.lanes().stream().map(Messages.Lane::name).toList(), "every lane, in order");
-        assertEquals(List.of(new Mark(91 * MS, 91 * MS, Model.INPUT_TAKEN, "main", ""), new Mark(93 * MS, 93 * MS, Model.INJECTED, "vexelray-automation-1", "")),
-                lane(t, Model.INPUT), "a snapshot that took nothing is no input; an automation verb is told apart");
+        assertEquals(List.of(new Mark(91 * MS, 91 * MS, Model.INPUT_TAKEN, "main", "2"),
+                new Mark(93 * MS, 93 * MS, Model.INJECTED, "vexelray-automation-1", "key SPACE")),
+                lane(t, Model.INPUT), "a snapshot that took nothing is no input; an automation verb is told apart,"
+                        + " and each says what it was");
         assertEquals(List.of(new Mark(100 * MS + 10_000 - 2_920_000, 100 * MS + 10_000, Model.PASS, "main", "")), passes(t));
         assertEquals(List.of(new Mark(95 * MS - 448_100, 95 * MS, Model.TICK, "vexel-logic", "")), lane(t, Model.LOGIC),
                 "the logic lane's thread only: main's tick is the widgets'");
@@ -639,9 +642,67 @@ class BenchTest {
     @Test
     void lostRowsAreSaidAsARowOfTheirOwnAtTheBatchsFirstMoment() {
         Rows r = LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(4, 9, List.of(
-                new dev.vexelray.gui.inspector.link.Row(10, 50L, 0L, 0L, "main", "frame", "frame", "1ms"))));
+                new dev.vexelray.gui.inspector.link.Row(10, 50L, 0L, 0L, "main", "frame", "frame", "1ms", ""))));
         assertEquals(row(-1, 1_050L, "", Model.LOST_LANE, Model.LOST, "6"), r.rows().getFirst());
         assertEquals(2, r.rows().size());
+    }
+
+    @Test
+    void aRowKeepsItsPassAndCauseAndTheLinksSourcesComeFirst() {
+        Rows r = LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(0, -1, List.of(
+                new dev.vexelray.gui.inspector.link.Row(10, 50L, 7L, 64L, "main", "frame", "frame", "1ms",
+                        "76673.t03.40"),
+                new dev.vexelray.gui.inspector.link.Row(11, 51L, 8L, 64L, "main", "frame", "wake", "x", null))),
+                List.of("t03 gui.frame"));
+        assertEquals(new Row(-1, 1_050L, "", Model.APP_LANE, Model.SOURCE, "t03 gui.frame"), r.rows().getFirst(),
+                "the source table, as the rows that named it, at the batch's first moment");
+        assertEquals(new Row(10, 1_050L, 7L, 64L, "main", "frame", "frame", "1ms", "76673.t03.40"), r.rows().get(1));
+        assertEquals("", r.rows().get(2).cause(), "a writer older than causes sent none");
+    }
+
+    @Test
+    void aPassSaysWhatWokeItWhetherItDrewAndHowLongItParked() {
+        long at = 2_000 * MS;
+        List<Row> rows = List.of(
+                new Row(1, at, 0L, 0L, "main", Model.APP_LANE, Model.SOURCE, "o00 source dev.example.Rows", ""),
+                new Row(2, at, 0L, 0L, "main", Model.APP_LANE, Model.SOURCE, "t03 gui.frame", ""),
+                new Row(3, at + MS, 0L, 63L, "vexel-logic", "frame", "wake", "mutation on Gui@1d08", "76673.o00.6c"),
+                new Row(4, at + 2 * MS, 0L, 64L, "main", "frame", "draw skipped", "1", "76673.t03.40"),
+                new Row(5, at + 3 * MS, 0L, 64L, "main", "frame", "frame", "1.61ms", "76673.t03.40"),
+                new Row(6, at + 3 * MS, 0L, 64L, "main", "frame", "frame.update", "#64", "76673.t03.40"),
+                new Row(7, at + 4 * MS, 0L, 64L, "main", "frame", "loop.park", "200ms", "76673.t03.40"),
+                new Row(8, at + 5 * MS, 0L, 64L, "main", "frame", "wait for events", "200.29ms", "76673.t03.40"));
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
+        Mark pass = m.lane(Model.MAIN).marks().getFirst();
+        assertEquals(64L, pass.frame());
+        assertEquals("woken by mutation on Gui@1d08, set off by I/O dev.example.Rows, firing 108   (76673.o00.6c);"
+                + " nothing had changed that needed drawing; it updated without drawing; then parked for up to 200ms;"
+                + " and waited 200.29ms", pass.context());
+        assertEquals("timer gui.frame, firing 64   (76673.t03.40)", m.causeOf(pass.cause()));
+        assertTrue(m.ahead().isEmpty(), "nothing left waiting for a pass");
+    }
+
+    @Test
+    void aCauseIsSaidByWhatTheRunCalledIt() {
+        Map<String, String> names = Map.of("c11", "automation.command", "c11.2", "key SPACE", "i04", "input.key");
+        assertEquals("automation command \"key SPACE\"   (76673.c11.2)", Model.causeOf("76673.c11.2", names));
+        assertEquals("input input.key, firing 5   (76673.i04.5)", Model.causeOf("76673.i04.5", names));
+        assertEquals("timer not named by the run, firing 1   (76673.t09.1)", Model.causeOf("76673.t09.1", names));
+        assertEquals("", Model.causeOf("", names));
+        assertEquals("nonsense", Model.causeOf("nonsense", names), "said as it is");
+    }
+
+    @Test
+    void anInjectedKeyAndADevicesEdgesSayWhatTheyWere() {
+        long at = 2_000 * MS;
+        Model m = Model.EMPTY.fold(List.of(
+                new Row(1, at, 0L, 5L, "vexelray-automation-1", "input", "key", "SPACE", "76673.c11.2"),
+                new Row(2, at + MS, 0L, 6L, "main", "input", "edges", "3", "76673.t03.6")), Long.MAX_VALUE);
+        List<Mark> input = m.lane(Model.INPUT).marks();
+        assertEquals("key SPACE", input.get(0).what());
+        assertEquals(5L, input.get(0).frame());
+        assertEquals("76673.c11.2", input.get(0).cause());
+        assertEquals("3", input.get(1).what());
     }
 
     @Test

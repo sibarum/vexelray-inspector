@@ -135,3 +135,16 @@ binds to pause. Seen with `ottermate`: after a click on the button, Space did no
 disabled button `focused ring`. Worked around by never letting the button take the focus (`Ui.canFollow`); End is its
 key. The widget could hand the focus on when it is disabled while focused, and a disabled button should not claim
 keys at all.
+
+## FN-12 · The link dropped every row's cause, and a late reader could not name a cause's source 🔬 (fixed upstream)
+
+The probe's CSV has a `cause` column: what set a row's work off, a source (`t03`) and its firing. The details panel
+wanted it, to say an event was set off by an automation command, an input device, a timer or I/O. The live sink was
+given it (atchung's `LiveSink.row(…, cause)`), but the recorder took only the form without it, so its ring, its
+`Rows` and the link's `Row` never had one. And the run names its sources once, in `cause.source` rows written at
+start-up, which an Inspector that attaches later, or a ring that has moved on, never sees. Fixed upstream 2026-10-31,
+ruled by the author ("populated with as much helpful information as possible from within the framework"):
+atchung-probe's `Cause.sources()` lists every source registered; vexelray-gui-recorder keeps each row's cause
+(`Rows.cause`); the link's `Row` carries it as the CSV writes it (`cause`, minor 1) and `StreamOpened` hands over the
+source table (`sources`, minor 2), both readable from an older writer as null. Still not recorded, and the next
+things a troubleshooter asks: a message's receivers (FN-10), and which keys a pass's input edges were.

@@ -36,12 +36,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 public final class LinkRows {
 
     /**
-     * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from. The bench reads what it knows, so
+     * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from, and {@code app}, whose rows name
+     * what set an event off (its cause's source, an automation command). The bench reads what it knows, so
      * asking for more only costs the link. The run must record them: an application started with
      * {@code -Dprobe=all} does, while automation alone records only {@code input}, {@code frame}, {@code layout} and
      * {@code app}, so its ticks and its GPU are not there to show.
      */
-    static final List<String> LANES = List.of("input", "frame", "bus", "gpu");
+    static final List<String> LANES = List.of("input", "frame", "bus", "gpu", Model.APP_LANE);
 
     /** The end of the link, queued after its last batch. */
     private static final RowBatch CLOSED = new RowBatch(0, 0, List.of());
@@ -71,8 +72,11 @@ public final class LinkRows {
                         + " placed in time: rebuild it against this stack");
             }
             long origin = opened.originNanos().get();
+            // The run's sources were named in rows written before the stream began; the link names them again.
+            List<String> sources = opened.sources() == null ? List.of() : opened.sources();
             for (RowBatch b = arrived.take(); b != CLOSED; b = arrived.take()) {
-                rows.send(rows(request.run(), origin, b));
+                rows.send(rows(request.run(), origin, b, sources));
+                sources = List.of();
             }
             return new Detached(request.run(), "it went away");
         } catch (InterruptedException stopped) {
@@ -87,14 +91,27 @@ public final class LinkRows {
      * moment, or now on this machine's clock when it holds none.
      */
     static Rows rows(String run, long origin, RowBatch b) {
-        List<Row> out = new ArrayList<>(b.rows().size() + 1);
+        return rows(run, origin, b, List.of());
+    }
+
+    /**
+     * As {@link #rows(String, long, RowBatch)}, with {@code sources} first, each as the {@code cause.source} row that
+     * named it ({@code t03 gui.frame}), at the batch's first moment.
+     */
+    static Rows rows(String run, long origin, RowBatch b, List<String> sources) {
+        List<Row> out = new ArrayList<>(b.rows().size() + 1 + sources.size());
+        long first = b.rows().isEmpty() ? System.nanoTime() : origin + b.rows().getFirst().tMonoNs();
+        for (String source : sources) {
+            out.add(new Row(-1, first, "", Model.APP_LANE, Model.SOURCE, source));
+        }
         if (b.lost()) {
-            long at = b.rows().isEmpty() ? System.nanoTime() : origin + b.rows().getFirst().tMonoNs();
+            long at = first;
             out.add(new Row(-1, at, "", Model.LOST_LANE, Model.LOST,
                     Long.toString(b.lostTo() - b.lostFrom() + 1)));
         }
         for (dev.vexelray.gui.inspector.link.Row r : b.rows()) {
-            out.add(new Row(r.seq(), origin + r.tMonoNs(), r.tWallNs(), r.thread(), r.lane(), r.kind(), r.detail()));
+            out.add(new Row(r.seq(), origin + r.tMonoNs(), r.tWallNs(), r.frame(), r.thread(), r.lane(), r.kind(),
+                    r.detail(), r.cause() == null ? "" : r.cause()));
         }
         return new Rows(run, b.lostFrom(), b.lostTo(), out);
     }

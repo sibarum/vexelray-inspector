@@ -78,10 +78,20 @@ public final class Messages {
     /**
      * One probe row of a run, its time on the machine's monotonic clock, and what the run's wall clock said when it was
      * written, in nanoseconds since the epoch; 0 when it did not say.
+     *
+     * @param frame the main loop's pass in progress when it was written, its number; 0 when the run did not say
+     * @param cause what set its work off, as the probe writes a cause ({@code 3f2a1.t07.4f2}); empty when nothing
+     *              did, or the run did not say
      */
-    public record Row(long seq, long atNanos, long wallNanos, String thread, String lane, String kind, String detail) {
+    public record Row(long seq, long atNanos, long wallNanos, long frame, String thread, String lane, String kind,
+                      String detail, String cause) {
 
-        /** A row whose wall clock is not known. */
+        /** A row whose pass and cause are not known. */
+        public Row(long seq, long atNanos, long wallNanos, String thread, String lane, String kind, String detail) {
+            this(seq, atNanos, wallNanos, 0L, thread, lane, kind, detail, "");
+        }
+
+        /** A row whose wall clock, pass and cause are not known. */
         public Row(long seq, long atNanos, String thread, String lane, String kind, String detail) {
             this(seq, atNanos, 0L, thread, lane, kind, detail);
         }
@@ -165,14 +175,35 @@ public final class Messages {
      * draw, a wait), or a moment when the two are equal (an input, a draw held). {@code kind} says which, in words the
      * status line can use, and is one of {@link Model}'s kinds.
      *
-     * @param thread the thread whose row said it, as the probe names it; empty when not known
-     * @param what   a message's type, its full class name, for a {@link Model#MESSAGE}; empty for any other kind
+     * @param thread  the thread whose row said it, as the probe names it; empty when not known
+     * @param what    what its own row said of it, in the run's words: a message's type, its full class name; what an
+     *                automation verb injected ({@code key SPACE}); how many edges the devices gave; empty when its row
+     *                says nothing more than its kind and length
+     * @param frame   the main loop's pass it happened in, its number; 0 when the run did not say
+     * @param cause   what set it off, as the probe writes a cause ({@code 3f2a1.t07.4f2}); empty when not known
+     * @param context what the rows around it say of it, in words: for a pass, what woke it, whether it drew or why
+     *                not, and how long it parked; empty when they say nothing
      */
-    public record Mark(long fromNanos, long toNanos, String kind, String thread, String what) {
+    public record Mark(long fromNanos, long toNanos, String kind, String thread, String what, long frame, String cause,
+                       String context) {
 
-        /** An event whose thread is not known and that is not a message. */
+        /** An event whose thread is not known and whose rows say nothing more of it. */
         public Mark(long fromNanos, long toNanos, String kind) {
             this(fromNanos, toNanos, kind, "", "");
+        }
+
+        /** An event whose pass, cause and context are not known. */
+        public Mark(long fromNanos, long toNanos, String kind, String thread, String what) {
+            this(fromNanos, toNanos, kind, thread, what, 0L, "", "");
+        }
+
+        /** This event, with {@code more} said of it after what its context already says. */
+        public Mark said(String more) {
+            if (more.isEmpty()) {
+                return this;
+            }
+            return new Mark(fromNanos, toNanos, kind, thread, what, frame, cause,
+                    context.isEmpty() ? more : context + "; " + more);
         }
     }
 
@@ -245,9 +276,17 @@ public final class Messages {
      * @param clockNanos  what the run's wall clock said at that moment, in nanoseconds since the epoch; -1 when no row
      *                    has said
      * @param on          the event the cursor is on, if any
+     * @param causedBy    what set that event off, in words, from the sources the run named ({@link Model#causeOf});
+     *                    empty when there is no event or the run did not say
      */
     public static final Topic<Details> DETAILS_TOPIC = Topic.state(Details.class);
 
-    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
+    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on,
+                          String causedBy) {
+
+        /** Details whose event's cause is not known. */
+        public Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
+            this(run, atNanos, intoNanos, clockNanos, on, "");
+        }
     }
 }

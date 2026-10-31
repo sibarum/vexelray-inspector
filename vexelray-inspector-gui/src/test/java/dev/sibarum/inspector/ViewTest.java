@@ -401,35 +401,47 @@ class ViewTest {
     }
 
     @Test
-    void theDetailsSayTheRunsClockAndWhatIsKnownOfAMessage() {
+    void theDetailsSayTheRunsClockAndAMessagesTypeAndWhatSetItOff() {
         ZoneId utc = ZoneId.of("UTC");
         long wall = Instant.parse("2026-10-31T03:32:17.456968Z").getEpochSecond() * 1_000_000_000L + 456_968_123L;
         String type = "dev.sibarum.inspector.core.Messages.Rows";
-        Mark m = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", type);
+        Mark m = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", type, 64L, "76673.o00.6c", "");
         List<String> said = View.details(new Details("r", 110 * MS, 6_230 * MS, wall,
-                Optional.of(new Event(Model.MESSAGES, m))), utc);
+                Optional.of(new Event(Model.MESSAGES, m)), "I/O dev.sibarum.inspector.core.LinkRows, firing 108"), utc);
         assertEquals(View.DETAILS.size(), said.size());
-        assertEquals("03:32:17.456968   2026-10-31T03:32:17.456968Z   6.230 s into the run", said.get(0));
-        assertEquals("Message, on the Messages lane", said.get(1));
-        assertEquals("vexel-source-link-rows", said.get(2));
-        assertEquals("Messages.Rows   in dev.sibarum.inspector.core", said.get(3));
-        assertTrue(said.get(4).startsWith("thread vexel-source-link-rows"), said.get(4));
-        assertEquals(View.NOT_RECORDED, said.get(5), "To");
-        assertEquals(View.NOT_RECORDED, said.get(6), "Transport");
+        assertEquals(List.of("03:32:17.456968   2026-10-31T03:32:17.456968Z   6.230 s into the run",
+                "Message Messages.Rows", "In dev.sibarum.inspector.core. In pass #64",
+                "I/O dev.sibarum.inspector.core.LinkRows, firing 108", "vexel-source-link-rows"), said);
     }
 
     @Test
-    void theDetailsOfAPassSayItIsNoMessageAndWithNoEventOnlyTheClock() {
-        Mark pass = new Mark(100 * MS, 758_250_000L, Model.PASS, "main", "");
+    void aPassSaysItsNumberAndItsStoryAndWithNoEventOnlyTheClockIsSaid() {
+        Mark pass = new Mark(100 * MS, 758_250_000L, Model.PASS, "main", "", 64L, "",
+                "woken by mutation on Gui@1d08; it drew; then parked for up to 200ms");
         List<String> said = View.details(new Details("r", 758_250_000L, 4_672 * MS, -1L,
                 Optional.of(new Event(Model.MAIN, pass))), ZoneId.of("UTC"));
-        assertEquals("not said by the run   4.672 s into the run", said.get(0));
-        assertEquals("Pass of 658.25 ms, on the Main thread lane", said.get(1));
-        assertEquals(List.of("main", "not a message", "", "", ""), said.subList(2, 7));
+        assertEquals(List.of("not said by the run   4.672 s into the run", "Pass #64 of the main loop, 658.25 ms",
+                "It drew; then parked for up to 200ms",
+                "mutation on Gui@1d08", "main"), said, "what woke a pass is its cause; every pass is the timer's");
         assertEquals("none at the cursor",
                 View.details(new Details("r", 1L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")).get(1));
-        assertEquals(List.of("", "", "", "", "", "", ""),
+        assertEquals(List.of("", "", "", "", ""),
                 View.details(new Details("", 0L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")), "nothing attached");
+    }
+
+    @Test
+    void eachKindOfEventIsSaidInWords() {
+        assertEquals("Input injected by automation: key SPACE",
+                View.event(new Mark(1, 1, Model.INJECTED, "a", "key SPACE")));
+        assertEquals("Input from the devices: 3 key edges (presses and releases)",
+                View.event(new Mark(1, 1, Model.INPUT_TAKEN, "main", "3")));
+        assertEquals("A draw held for the GPU: it had not finished the last frame",
+                View.event(new Mark(1, 1, Model.HELD_FOR_GPU, "main", "")));
+        assertEquals("In pass #9. The presenter wakes the loop when the GPU is done",
+                View.detail(new Mark(1, 1, Model.HELD_FOR_GPU, "main", "", 9L, "", "")));
+        assertEquals("A logic tick, delivering the bus's messages, 0.45 ms",
+                View.event(new Mark(0, 450_000, Model.TICK, "vexel-logic", "")));
+        assertEquals("Waited for the GPU's fence, 1.10 ms", View.event(new Mark(0, 1_100_000, "wait fence", "", "")));
     }
 
     @Test

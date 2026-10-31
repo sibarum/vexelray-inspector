@@ -176,9 +176,9 @@ class ViewTest {
                 pass(newest - 100_000L, newest - 99_900L), pass(newest - 11_000 * MS, newest - 10_500 * MS)),
                 Optional.empty());
         Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, newest - View.SPAN_NANOS, Double.MAX_VALUE);
-        assertEquals(List.of("950+10", "1000+0"), fills(p),
-                "100 ms is 10 px, a far shorter pass as long as it took, and one before the range not drawn");
-        assertEquals(List.of("960 w1", "999 w1"), lines(p), "a pixel's line inside each end, which no zoom stretches");
+        assertEquals(List.of("950+10"), fills(p),
+                "100 ms is 10 px; a far shorter pass is its end's line alone, and one before the range not drawn");
+        assertEquals(List.of("960 w1", "1000 w1"), lines(p), "the pixel each ends in, a line no zoom stretches");
         Picture.Fill first = (Picture.Fill) p.marks().stream().filter(m -> m instanceof Picture.Fill).findFirst()
                 .orElseThrow();
         assertEquals(36.0, first.y() + first.h(), 1e-5, "standing on the main thread's floor, the second, with its margin");
@@ -201,7 +201,7 @@ class ViewTest {
         Timeline t = new Timeline("r", "", true, at, main(all), Optional.empty());
         List<Double> heights = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at).marks().stream()
                 .filter(m -> m instanceof Picture.Fill).map(m -> ((Picture.Fill) m).h()).distinct().toList();
-        assertEquals(List.of(3.0, (double) (12f * View.stature(20 * MS))), heights,
+        assertEquals(java.util.Set.of(3.0, (double) (12f * View.stature(20 * MS))), java.util.Set.copyOf(heights),
                 "twenty 1 ms passes end to end stand a quarter; one 20 ms pass, as long, stands higher");
     }
 
@@ -239,8 +239,43 @@ class ViewTest {
                 .map(m -> (Picture.Line) m).filter(l -> l.x0() == l.x1()).toList();
         assertEquals(List.of(4.0, 84.0, 84.0), marks.stream().map(Picture.Line::y0).toList(),
                 "input's band first, drawing's fifth");
-        assertEquals(List.of(INKS.injected(), INKS.ceiling(), INKS.gpu()),
-                marks.stream().map(Picture.Line::color).toList());
+        float alone = View.Columns.SPARSE;
+        assertEquals(List.of(Color.withAlpha(INKS.injected(), alone), Color.withAlpha(INKS.ceiling(), alone),
+                Color.withAlpha(INKS.gpu(), alone)), marks.stream().map(Picture.Line::color).toList(),
+                "each alone in its pixel, so at a moment's faintest");
+    }
+
+    @Test
+    void manyMomentsInAPixelAreOneMarkAsStrongAsTheyAreMany() {
+        long at = 20_000 * MS;
+        java.util.ArrayList<Mark> burst = new java.util.ArrayList<>();
+        for (int i = 0; i < 1_000; i++) {
+            burst.add(new Mark(at - 499 * MS + i * 500L, at - 499 * MS + i * 500L, Model.MESSAGE));
+        }
+        burst.add(new Mark(at - 200 * MS, at - 200 * MS, Model.MESSAGE));
+        Timeline t = new Timeline("r", "", true, at, List.of(new Lane(Model.MESSAGES, burst)), Optional.empty());
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at);
+        List<Picture.Line> marks = p.marks().stream().filter(m -> m instanceof Picture.Line)
+                .map(m -> (Picture.Line) m).filter(l -> l.x0() == l.x1()).toList();
+        assertEquals(List.of("951 w1", "980 w1"), lines(p), "a thousand moments in half a millisecond, one pixel: one mark");
+        assertEquals(1f, marks.getFirst().color().a(), 1e-6f, "dense: full strength");
+        assertEquals(View.Columns.SPARSE, marks.getLast().color().a(), 1e-6f, "alone: faintest");
+    }
+
+    @Test
+    void aMinuteOfMarksIsBoundedByThePictureWidthNotByHowManyThereAre() {
+        long at = 80_000 * MS;
+        java.util.ArrayList<Mark> passes = new java.util.ArrayList<>();
+        java.util.ArrayList<Mark> messages = new java.util.ArrayList<>();
+        for (long from = at - 60_000 * MS; from < at; from += 2 * MS) {
+            passes.add(pass(from, from + MS + (from / MS % 3) * 10_000L));
+            messages.add(new Mark(from, from, Model.MESSAGE));
+        }
+        Timeline t = new Timeline("r", "", true, at, List.of(new Lane(Model.MAIN, passes),
+                new Lane(Model.MESSAGES, messages)), Optional.empty());
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - 60_000 * MS, at);
+        assertTrue(p.marks().size() < 2 * 6 * LANE, "60 000 passes and as many messages over six lanes' width drew "
+                + p.marks().size() + " marks");
         assertEquals(5, p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
                 "a hairline between each two of the six lanes");
     }

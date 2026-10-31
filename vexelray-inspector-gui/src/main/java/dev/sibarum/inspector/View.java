@@ -476,7 +476,9 @@ final class View {
      * A stretch is a fill as long as it took, which a zoom stretches, and a one-pixel line at its end, which it does
      * not, so one far shorter than a pixel still shows at any zoom and none grows fat; both stand on the band's floor,
      * as tall as {@link #stature} says, so a long block and a storm of short ones look different even where the storm
-     * packs into one solid run. A moment is the line alone, the band's whole reach. The
+     * packs into one solid run. A moment is the line alone, the band's whole reach. A pixel shows at most one mark,
+     * {@link Columns}: the tallest end in it, or its moments in a strength by how many share it, and touching alike
+     * stretches are one fill, so the picture is bounded by its width rather than by how many events it spans. The
      * event the cursor is on, if any, is drawn over them in the text's colour, its band's whole height, with a
      * two-pixel line at its end; and while stopped, the cursor itself, a one-pixel line in that colour across every
      * lane at the edge moment. Pure, for a test.
@@ -488,10 +490,19 @@ final class View {
         for (int i = 1; i < Model.LANES.size(); i++) {
             s.line(0f, band * i, edge + w * SLIDE_LANES, band * i, 1f, inks.line());
         }
+        int columns = (int) Math.ceil(edge + w * SLIDE_LANES);
+        Columns ends = new Columns(columns);
+        Columns moments = new Columns(columns);
         for (Lane l : t.lanes()) {
             float y = band * Model.LANES.indexOf(l.name());
             float floor = y + band * 0.8f;
             float reach = band * 0.6f;
+            ends.clear();
+            moments.clear();
+            float runX0 = 0f;
+            float runX1 = -1f;
+            float runH = 0f;
+            Color runC = null;
             for (Mark m : l.marks()) {
                 if (m.toNanos() < fromNanos || m.fromNanos() > toNanos) {
                     continue;
@@ -499,13 +510,33 @@ final class View {
                 Color c = inks.of(m.kind());
                 float x0 = edge + (m.fromNanos() - t.edgeNanos()) * pxPerNano;
                 float x1 = edge + (m.toNanos() - t.edgeNanos()) * pxPerNano;
-                boolean stretch = m.toNanos() > m.fromNanos();
-                float height = stretch ? reach * stature(m.toNanos() - m.fromNanos()) : reach;
-                if (stretch) {
-                    s.fill(x0, floor - height, x1 - x0, height, c);
+                int column = (int) Math.ceil(x1) - 1;     // the pixel the end is in
+                if (m.toNanos() == m.fromNanos()) {
+                    moments.count(column, c);
+                    continue;
                 }
-                s.line(x1 - 0.5f, floor - height, x1 - 0.5f, floor, 1f, c);
+                float height = reach * stature(m.toNanos() - m.fromNanos());
+                ends.tallest(column, Math.round(height), c);
+                if (x1 - x0 < 1f || x1 < 0f || x0 > columns) {
+                    continue;   // its end's column is all a pixel can show of it
+                }
+                if (c.equals(runC) && Math.abs(height - runH) < 0.5f && x0 <= runX1 + 0.5f) {
+                    runX1 = Math.max(runX1, x1);    // touching and alike: one fill, so a packed storm is one bar
+                    continue;
+                }
+                if (runC != null) {
+                    s.fill(runX0, floor - runH, runX1 - runX0, runH, runC);
+                }
+                runX0 = x0;
+                runX1 = x1;
+                runH = height;
+                runC = c;
             }
+            if (runC != null) {
+                s.fill(runX0, floor - runH, runX1 - runX0, runH, runC);
+            }
+            ends.draw(s, floor, reach, false);
+            moments.draw(s, floor, reach, true);
         }
         t.on().ifPresent(e -> {
             Mark m = e.mark();
@@ -521,6 +552,98 @@ final class View {
             s.line(edge - 0.5f, 0f, edge - 0.5f, h, 1f, inks.on());
         }
         return s.picture();
+    }
+
+    /**
+     * One lane's marks a pixel column at a time, so a lane draws at most a mark a column however many events share
+     * one: each column keeps the tallest stretch ending in it, or how many moments are in it, and a run of alike
+     * columns is drawn as one fill. A column alone is drawn as a line, as a mark alone always was. Built in the told
+     * half, when the timeline changes; this is what keeps a wide picture, a catch-up's minute, inside the window's
+     * vertex buffer.
+     */
+    static final class Columns {
+
+        /** Moments sharing a column this many times over or more are drawn in their colour's full strength. */
+        static final int DENSE = 32;
+        /** How strong a moment alone in its column is drawn, of its colour's full strength. */
+        static final float SPARSE = 0.45f;
+
+        private final float[] height;
+        private final int[] count;
+        private final Color[] color;
+
+        Columns(int columns) {
+            height = new float[columns];
+            count = new int[columns];
+            color = new Color[columns];
+        }
+
+        void clear() {
+            java.util.Arrays.fill(height, 0f);
+            java.util.Arrays.fill(count, 0);
+            java.util.Arrays.fill(color, null);
+        }
+
+        /** A stretch ends in {@code column}, standing {@code h} pixels. */
+        void tallest(int column, int h, Color c) {
+            if (column < 0 || column >= height.length) {
+                return;
+            }
+            float stands = Math.max(1, h);
+            if (stands > height[column]) {
+                height[column] = stands;
+                color[column] = c;
+            }
+        }
+
+        /** A moment is in {@code column}. The first one in it gives the column its colour. */
+        void count(int column, Color c) {
+            if (column < 0 || column >= count.length) {
+                return;
+            }
+            if (count[column]++ == 0) {
+                color[column] = c;
+            }
+        }
+
+        /**
+         * Draw the columns standing on {@code floor}: as moments, the band's whole {@code reach} in a strength by how
+         * many share the column, a step for each doubling; otherwise as the tallest stretch's end.
+         */
+        void draw(Sketch s, float floor, float reach, boolean moments) {
+            int i = 0;
+            while (i < color.length) {
+                if (color[i] == null) {
+                    i++;
+                    continue;
+                }
+                float key = moments ? level(count[i]) : height[i];
+                int end = i + 1;
+                while (end < color.length && color[i].equals(color[end])
+                        && (moments ? level(count[end]) : height[end]) == key) {
+                    end++;
+                }
+                float h = moments ? reach : key;
+                Color c = moments ? Color.withAlpha(color[i], color[i].a() * strength(count[i])) : color[i];
+                if (end - i == 1) {
+                    s.line(i + 0.5f, floor - h, i + 0.5f, floor, 1f, c);
+                } else {
+                    s.fill(i, floor - h, end - i, h, c);
+                }
+                i = end;
+            }
+        }
+
+        /** How many doublings past one moment {@code n} is, up to {@link #DENSE}. */
+        static int level(int n) {
+            return Math.min(31 - Integer.numberOfLeadingZeros(n), 31 - Integer.numberOfLeadingZeros(DENSE));
+        }
+
+        /** How strong {@code n} moments in a column are drawn: {@link #SPARSE} alone, full at {@link #DENSE}. */
+        static float strength(int n) {
+            float steps = 31 - Integer.numberOfLeadingZeros(DENSE);
+            return SPARSE + (1f - SPARSE) * level(n) / steps;
+        }
     }
 
     /** A stretch this short or shorter stands {@link #STATURE_MIN} of its band's reach. */

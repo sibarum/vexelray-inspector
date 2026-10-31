@@ -419,6 +419,15 @@ Each step ends with something to watch or something an agent can ask, and lands 
   followed again. Found: the catch-up after so long a pause overflows the window's vertex buffer (TODO), and a focused
   button kept Space from pausing (FN-11). Rejected: stopping the recording while paused, which leaves a hole where the person was looking; and an
   island that moves with the cursor across a gap, which needs a gap to step across.
+  **A pixel shows one mark, 2026-10-31:** the strip drew a mark an event, so a minute's catch-up needed more vertices
+  than the window holds and a busy lane of moments was one solid band. Each lane is now drawn a pixel column at a
+  time (`View.Columns`): a column keeps the tallest stretch ending in it, or how many moments are in it, drawn at
+  0.45 of their colour alone and stronger a step each doubling up to full at 32; a run of alike columns is one fill,
+  and touching alike stretches wider than a pixel are one fill too. A mark alone is still a line, in the pixel its
+  end is in. The picture is bounded by its width, not by how many events it spans. Seen with `ottermate` against a
+  traced Inspector: live, the comb and the Drawing lane read as before, the draws shaded by how many share a pixel;
+  End after 75 s paused logged no overflow and drew the title bar, details and status through the glide. Found: that
+  glide, 8.5 lanes long, outruns the strip's seven, so the lanes are empty mid-glide (TODO).
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

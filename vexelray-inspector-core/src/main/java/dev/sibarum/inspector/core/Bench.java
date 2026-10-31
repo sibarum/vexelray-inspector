@@ -177,8 +177,11 @@ public final class Bench {
         /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
         Details details() {
             long at = paused ? cursor : now.newestNanos();
-            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at),
-                    paused ? on : Optional.empty());
+            // The path is filled here, not when the event was folded: the hops its cause takes go on after it.
+            Model model = paused ? island.kept() : kept;
+            Optional<Event> event = paused ? on.map(e -> new Event(e.lane(),
+                    e.mark().with(Model.PATH, model.pathOf(e.mark()), false))) : Optional.empty();
+            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event);
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */

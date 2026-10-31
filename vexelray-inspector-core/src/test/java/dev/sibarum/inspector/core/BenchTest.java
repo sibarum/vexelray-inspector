@@ -677,7 +677,7 @@ class BenchTest {
     }
 
     @Test
-    void aPassSaysWhatWokeItWhetherItDrewAndHowLongItParked() {
+    void aPassIsSetOffByWhatWokeItAndSaysWhetherItDrewAndHowLongItParked() {
         long at = 2_000 * MS;
         List<Row> rows = List.of(
                 new Row(1, at, 0L, 0L, "main", Model.APP_LANE, Model.SOURCE, "o00 source dev.example.Rows", ""),
@@ -692,16 +692,48 @@ class BenchTest {
         Mark pass = m.lane(Model.MAIN).marks().getFirst();
         assertEquals(List.of(
                 new Field(Model.TYPE, "pass"),
-                new Field(Model.FROM, "mutation on Gui@1d08, set off by I/O dev.example.Rows, firing 108   (76673.o00.6c)"),
                 new Field(Model.PASS_NUMBER, "#64"),
                 new Field(Model.TOOK, "1.61 ms"),
                 new Field(Model.THREAD, "main"),
                 new Field(Model.DREW, Model.DREW_NOTHING),
                 new Field(Model.PARKED, "200ms"),
                 new Field(Model.WAITED, "200.29ms")), pass.fields(),
-                "what woke it is where it came from; why it did not draw outranks that it only updated");
-        assertEquals("timer gui.frame, firing 64   (76673.t03.40)", m.causeOf(pass.cause()));
+                "why it did not draw outranks that it only updated");
+        assertEquals("76673.o00.6c", pass.cause(), "every pass is the loop's timer: what made this one run woke it");
+        assertEquals("I/O dev.example.Rows, firing 108   (76673.o00.6c) → woke pass #64", m.pathOf(pass));
         assertTrue(m.ahead().isEmpty(), "nothing left waiting for a pass");
+    }
+
+    @Test
+    void anEventsPathIsEveryHopItsCauseTookFoldedByWhereItHappened() {
+        long at = 2_000 * MS;
+        String cause = "b3702.o00.28";
+        String rowsType = "dev.sibarum.inspector.core.Messages.Rows";
+        String timeline = "dev.sibarum.inspector.core.Messages.Timeline";
+        List<Row> rows = new ArrayList<>(List.of(
+                new Row(1, at, 0L, 0L, "main", Model.APP_LANE, Model.SOURCE, "o00 source dev.example.LinkRows", ""),
+                new Row(2, at, 0L, 9L, "vexel-source-link-rows", "bus", rowsType, "9.4us", cause),
+                new Row(3, at + 100_000, 0L, 9L, "vexel-logic", "bus", "receive",
+                        rowsType + " to dev.sibarum.inspector.core.Bench 0", cause),
+                new Row(4, at + 130_000, 0L, 9L, "vexel-logic", "state", "ledger bench", "24.2us", cause),
+                new Row(5, at + 120_000, 0L, 9L, "vexel-logic", "bus", "send",
+                        timeline + " from dev.sibarum.inspector.core.Bench 1", cause),
+                new Row(6, at + 200_000, 0L, 9L, "main", "bus", "receive", timeline + " to vexelray.gui.main 1", cause)));
+        for (int i = 0; i < 37; i++) {
+            rows.add(new Row(7 + i, at + 300_000 + i * 1_000L, 0L, 9L, "main", "layout",
+                    i < 2 ? "mutation layout" : i == 2 ? "mutation draw" : "mutation unchanged", "SetText", cause));
+        }
+        rows.add(new Row(50, at + 900_000, 0L, 9L, "main", "frame", "wake", "mutation on Gui@7f13", cause));
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
+        Mark published = m.lane(Model.MESSAGES).marks().getFirst();
+        assertEquals("I/O dev.example.LinkRows, firing 40   (b3702.o00.28) → published Messages.Rows on"
+                + " vexel-source-link-rows → reached Messages.Rows at Bench"
+                + " → ledger bench committed its state on vexel-logic"
+                + " → sent Messages.Timeline from Bench → reached Messages.Timeline at vexelray.gui.main"
+                + " → 37 changes to the GUI on main (2 relaid out, 1 redrawn) → woke pass #10", m.pathOf(published),
+                "from the source to the pass it woke, a hop at a time");
+        assertEquals(List.of("Messages.Rows", "Messages.Timeline"), m.lane(Model.MESSAGES).marks().stream()
+                .map(e -> e.field(Model.TYPE)).toList(), "a component's send is a message too");
     }
 
     @Test
@@ -713,12 +745,12 @@ class BenchTest {
                 new Row(2, at, 0L, 7L, "vexel-source-link-rows", "bus", rows, "21.8us", "76673.o00.6c"),
                 new Row(3, at + MS, 0L, 7L, "main", "frame", Model.HELD_FOR_GPU, "1", "")), Long.MAX_VALUE);
         assertEquals(List.of(new Field(Model.TYPE, "Messages.Rows"),
-                new Field(Model.FROM, "I/O dev.example.Rows, firing 108   (76673.o00.6c)"),
                 new Field(Model.PASS_NUMBER, "#7"), new Field(Model.THREAD, "vexel-source-link-rows"),
-                new Field(Model.PACKAGE, "dev.sibarum.inspector.core")), m.lane(Model.MESSAGES).marks().getFirst().fields(),
-                "no To: the bus does not record a message's receivers (FN-10)");
+                new Field(Model.PACKAGE, "dev.sibarum.inspector.core")),
+                m.lane(Model.MESSAGES).marks().getFirst().fields(),
+                "the path is filled when the details are said, since it grows after the event");
         Mark held = m.lane(Model.DRAWING).marks().getFirst();
-        assertEquals("", held.field(Model.FROM), "a row with no cause fills no From");
+        assertEquals("", m.pathOf(held), "a row with no cause has no path");
         assertEquals("the GPU had not finished the last frame", held.field(Model.REASON));
         for (Lane l : m.lanes()) {
             for (Mark e : l.marks()) {
@@ -763,10 +795,10 @@ class BenchTest {
         assertEquals("key", input.get(0).field(Model.VERB));
         assertEquals("SPACE", input.get(0).field(Model.SENT));
         assertEquals("#5", input.get(0).field(Model.PASS_NUMBER));
-        assertEquals("automation command not named by the run, firing 2   (76673.c11.2)",
-                input.get(0).field(Model.FROM), "a command the run never said: its source's kind and firing");
+        assertEquals("automation command not named by the run, firing 2   (76673.c11.2) → automation key SPACE",
+                m.pathOf(input.get(0)), "a command the run never said: its source's kind and firing");
         assertEquals("3", input.get(1).field(Model.EDGES));
-        assertEquals("the devices", input.get(1).field(Model.FROM));
+        assertEquals("the devices → read in pass #6", m.pathOf(input.get(1)));
     }
 
     @Test

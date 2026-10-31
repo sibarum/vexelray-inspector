@@ -1028,7 +1028,8 @@ final class View {
         for (Field f : d.on().get().mark().fields()) {
             int row = DETAILS.indexOf(f.name());
             if (row > 0) {
-                values.set(row, f.value());
+                // A hop a line: the field keeps its arrows on one line, as a filter matches it.
+                values.set(row, f.name().equals(Model.PATH) ? f.value().replace(" → ", "\n→ ") : f.value());
             }
         }
         return values;

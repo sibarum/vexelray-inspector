@@ -123,6 +123,12 @@ its lane and capacity), which version 1 does not say either. Worked around by sa
 thread, and To and Transport say "not recorded yet". Bus graph version 2 (design.md 7½) and the kept cause would fill
 all three; the row naming its topic would let the Inspector match it to the graph.
 
+**Sender and receiver fixed upstream 2026-10-31**, ruled by the author: the cause is kept (FN-12), and atchung's
+`Inbox` writes a `send` row (`<topic> from <inbox> <hops>`) when a component's step sends and a `receive` row
+(`<topic> to <inbox> <hops>`) when a tick delivers, each in the message's own cause, so every hop between a source and
+the GUI is a row. Still not recorded: which `@View` method a GUI delivery reached (the GUI's inbox is one, `widgets`;
+the processor knows `View#timeline`, but `Gui.mailbox` takes no name), and how a message travelled (bus graph 2).
+
 ## FN-4 · No verb closes an application 🔬
 
 A run started outside `--launch` is closed by clicking where the title bar draws its close button

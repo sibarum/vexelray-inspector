@@ -475,6 +475,18 @@ Each step ends with something to watch or something an agent can ask, and lands 
   `LinkRows` cause was `Messages.Rows` published on `vexel-source-link-rows`, the `bench` ledger on `vexel-logic`, 37
   mutations on the GUI thread, and the wake of the next pass. The ledger's sends and the View's deliveries write no
   row, so that gap is upstream (FN-10).
+  **An event's path, ruled by the author 2026-10-31:** From and To gave way to Path, every hop the event's cause took,
+  in the order they began: the source (`Model.causeOf`), each publish, each component's send, each delivery to an
+  inbox, each ledger commit, the GUI's changes folded into one hop that counts them (relaid out, redrawn), and the
+  wake of the next pass. A pass's cause is what woke it, so its path is what made it run. The model keeps the hops by
+  cause (`Model.paths`, trimmed with the reach), and the bench fills Path when it says the details, since a cause goes
+  on after the event. A component's send is a message on the Messages lane too. Upstream, atchung's `Inbox` writes
+  `send` and `receive` rows in the message's cause (FN-10). The panel shows a hop a line; the field keeps them on one,
+  joined by arrows, as a filter matches it. Seen with `ottermate`, an Inspector watching one started with
+  `-Dprobe=all`: pass #882 said I/O LinkRows, firing 430 → published Messages.Rows on vexel-source-link-rows →
+  reached Messages.Rows at Bench → sent Timeline, Readouts and Details from Bench → ledger bench committed its state →
+  reached Messages.Timeline at widgets → woke pass #882 → reached Readouts and Details at widgets → 39 changes to the
+  GUI on main (2 relaid out, 1 redrawn). Not yet: which `@View` method a delivery to `widgets` reached.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

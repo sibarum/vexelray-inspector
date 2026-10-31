@@ -411,7 +411,8 @@ class ViewTest {
         ZoneId utc = ZoneId.of("UTC");
         long wall = Instant.parse("2026-10-31T03:32:17.456968Z").getEpochSecond() * 1_000_000_000L + 456_968_123L;
         Mark m = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", 64L, "76673.o00.6c", List.of(
-                new Field(Model.TYPE, "Messages.Rows"), new Field(Model.FROM, "I/O LinkRows, firing 108"),
+                new Field(Model.TYPE, "Messages.Rows"),
+                new Field(Model.PATH, "I/O LinkRows, firing 108 → published Messages.Rows"),
                 new Field(Model.PASS_NUMBER, "#64"), new Field(Model.THREAD, "vexel-source-link-rows"),
                 new Field(Model.PACKAGE, "dev.sibarum.inspector.core")));
         List<String> said = View.details(new Details("r", 110 * MS, 6_230 * MS, wall,
@@ -419,9 +420,10 @@ class ViewTest {
         assertEquals(View.DETAILS.size(), said.size(), "the clock, and a row for every field of the schema");
         assertEquals("03:32:17.456968   2026-10-31T03:32:17.456968Z   6.230 s into the run", said.get(0));
         assertEquals("Messages.Rows", said.get(View.DETAILS.indexOf(Model.TYPE)));
-        assertEquals("I/O LinkRows, firing 108", said.get(View.DETAILS.indexOf(Model.FROM)));
+        assertEquals("I/O LinkRows, firing 108\n→ published Messages.Rows",
+                said.get(View.DETAILS.indexOf(Model.PATH)), "a hop a line");
         assertEquals("dev.sibarum.inspector.core", said.get(View.DETAILS.indexOf(Model.PACKAGE)));
-        assertEquals("", said.get(View.DETAILS.indexOf(Model.TO)), "not recorded: its row is hidden");
+        assertEquals("", said.get(View.DETAILS.indexOf(Model.TOOK)), "a moment took no time: its row is hidden");
         assertEquals("", said.get(View.DETAILS.indexOf(Model.DREW)), "a pass's field: hidden for a message");
     }
 

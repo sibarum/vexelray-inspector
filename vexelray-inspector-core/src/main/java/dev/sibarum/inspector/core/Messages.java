@@ -198,6 +198,11 @@ public final class Messages {
             this(fromNanos, toNanos, kind, thread, 0L, "", List.of());
         }
 
+        /** This event, set off by {@code cause}: for a pass, what woke it, which is what made it run. */
+        public Mark because(String cause) {
+            return cause.equals(this.cause) ? this : new Mark(fromNanos, toNanos, kind, thread, frame, cause, fields);
+        }
+
         /** The value of its field {@code name}; empty when it has none. */
         public String field(String name) {
             for (Field f : fields) {

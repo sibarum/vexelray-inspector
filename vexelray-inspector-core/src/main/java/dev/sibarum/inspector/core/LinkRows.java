@@ -36,13 +36,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 public final class LinkRows {
 
     /**
-     * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from, and {@code app}, whose rows name
+     * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from; {@code state} and {@code layout},
+     * whose ledger steps and GUI changes are hops of a cause's path; and {@code app}, whose rows name
      * what set an event off (its cause's source, an automation command). The bench reads what it knows, so
      * asking for more only costs the link. The run must record them: an application started with
      * {@code -Dprobe=all} does, while automation alone records only {@code input}, {@code frame}, {@code layout} and
      * {@code app}, so its ticks and its GPU are not there to show.
      */
-    static final List<String> LANES = List.of("input", "frame", "bus", "gpu", Model.APP_LANE);
+    static final List<String> LANES = List.of("input", "frame", "bus", "gpu", "state", "layout", Model.APP_LANE);
 
     /** The end of the link, queued after its last batch. */
     private static final RowBatch CLOSED = new RowBatch(0, 0, List.of());

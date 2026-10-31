@@ -19,10 +19,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       `localX`/`localY` into an event through the view's `Strip`.
 - [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter, which
       matches `Mark.fields` by name and value (`Model.FIELDS`), the same on every lane.
-- [ ] An event's Path in place of From and To (design.md §10, ruled 2026-10-31): the hops its cause took, from the rows
-      sharing it (ask for the `state` and `layout` lanes too), folded by stage, a pass's being what woke it; and
-      upstream, a row under the cause for each message a ledger step sends and each delivery to a component or `@View`
-      (FN-10), which fills the gap between the ledger and the GUI.
+- [ ] A delivery to the GUI says `widgets`, its one inbox, not which `@View` method it reached: name the mailbox
+      upstream (the processor knows `View#timeline`; `Views.mailbox` and `Gui.mailbox` would pass it on), FN-10.
+- [ ] The path is a line of text a filter can match; a hop at a time (click one to go to its event) waits for the
+      graph panel (R2).
 - [ ] Injected input on the Input lane is held by `BenchTest` only: drive a traced target with keys while another
       Inspector watches, and look.
 - [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state

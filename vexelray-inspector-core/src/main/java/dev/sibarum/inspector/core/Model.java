@@ -49,15 +49,22 @@ import java.util.Map;
  * <h2>The event schema</h2>
  *
  * <p>Every event says what is known of it as fields, named from {@link #FIELDS} and kept in that order, the same names
- * on every lane so that one filter reads them all: {@link #TYPE}, {@link #FROM} (what set it off), {@link #TO} (where
- * it went), {@link #PASS}, {@link #TOOK} and {@link #THREAD}, then those of its type alone. A field the rows cannot
- * fill is absent, never a placeholder: {@link #TO} is absent from every event until the bus records a message's
- * receivers (framework-notes FN-10).
+ * on every lane so that one filter reads them all: {@link #TYPE}, {@link #PATH} (every hop its cause took), {@link
+ * #PASS}, {@link #TOOK} and {@link #THREAD}, then those of its type alone. A field the rows cannot fill is absent,
+ * never a placeholder.
+ *
+ * <h2>An event's path</h2>
+ *
+ * <p>A cause travels: a source sets it off, and every publish, send, delivery, ledger step and change to the GUI made
+ * in it writes rows under it, on whichever thread, so the rows sharing a cause are the hops it took, in order. They
+ * are kept by cause in {@link #paths}, a run of rows from the same place folded into one hop ({@link Hop}), and
+ * {@link #pathOf} says an event's: its cause's source, then each hop. A pass's cause is what woke it, so its path is
+ * the path of what made it run, ending at the pass.
  *
  * <h2>What a pass's rows say of it</h2>
  *
  * <p>Every row carries the pass it was written in, and the loop's own rows around its {@code frame} zone fill a pass's
- * fields: a {@code wake} in pass {@code F} (in its work or its park) is what woke {@code F + 1}, its {@link #FROM};
+ * fields: a {@code wake} in pass {@code F} (in its work or its park) is what woke {@code F + 1}, its cause;
  * {@code draw skipped} and a draw held come before the zone's row, {@code frame.present} or {@code frame.update},
  * {@code loop.park} and {@code wait for events} after it. Those before wait in {@link #ahead} until their pass is
  * folded; those after are set on its mark. This is the recorder's {@code why} (vexelray-gui's {@code Frames}), read
@@ -80,14 +87,35 @@ import java.util.Map;
  * @param ahead       the fields rows have filled of passes not folded yet, by pass number: what woke one, a draw held
  * @param probed      the lanes the run's probe records, by key, as its link said; empty when it has not said, and
  *                    then every lane is taken as recorded ({@link Lane#recorded})
+ * @param paths       the hops each cause took, by cause, while any of them is inside the reach
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
-                    Map<Long, List<Field>> ahead, List<String> probed) {
+                    Map<Long, List<Field>> ahead, List<String> probed, Map<String, List<Hop>> paths) {
+
+    /**
+     * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
+     * row said it; for the GUI's changes, how many of them laid it out again and how many drew it again.
+     */
+    public record Hop(String says, String thread, long atNanos, int count, int relaid, int redrawn) {
+
+        /** This hop, said once more, by a row that relaid or redrew the GUI if those say so. */
+        Hop again(boolean relays, boolean redraws) {
+            return new Hop(says, thread, atNanos, count + 1, relaid + (relays ? 1 : 0), redrawn + (redraws ? 1 : 0));
+        }
+
+        /** This hop in words, as a path says it. */
+        public String said() {
+            if (says.equals(GUI_CHANGED)) {
+                return count + (count == 1 ? " change" : " changes") + " to the GUI on " + thread
+                        + (relaid + redrawn == 0 ? "" : " (" + relaid + " relaid out, " + redrawn + " redrawn)");
+            }
+            return says + (count > 1 ? " ×" + count : "");
+        }
+    }
 
     /** The event schema's fields, in the order every event keeps them; see the class comment. */
     public static final String TYPE = "Type";
-    public static final String FROM = "From";
-    public static final String TO = "To";
+    public static final String PATH = "Path";
     public static final String PASS_NUMBER = "Pass";
     public static final String TOOK = "Took";
     public static final String THREAD = "Thread";
@@ -104,7 +132,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String EDGES = "Edges";
     /** A draw held's: what it was held for. */
     public static final String REASON = "Reason";
-    public static final List<String> FIELDS = List.of(TYPE, FROM, TO, PASS_NUMBER, TOOK, THREAD, DREW, PARKED, WAITED,
+    public static final List<String> FIELDS = List.of(TYPE, PATH, PASS_NUMBER, TOOK, THREAD, DREW, PARKED, WAITED,
             PACKAGE, VERB, SENT, EDGES, REASON);
 
     /** The lanes' names, top to bottom, which is also the order of {@link #lanes}. */
@@ -141,7 +169,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** Before any row. */
     static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of(), List.of());
+            Map.of(), Map.of(), List.of(), Map.of());
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
@@ -154,8 +182,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     private static final List<String> PROBE_LANES = List.of("input", "frame", "bus", "bus", "gpu", "gpu");
 
     /**
-     * Whether a run whose probe records {@code probe} records the rows lane {@code lane} is read from; true when the run
-     * has not said what it records, so that no lane is said to be missing from a run that never told.
+     * Whether a run whose probe records {@code probe} records the rows lane {@code lane} is read from; true when the
+     * run has not said what it records, so that no lane is said to be missing from a run that never told.
      */
     static boolean records(String lane, List<String> probe) {
         return probe.isEmpty() || probe.contains(PROBE_LANES.get(LANES.indexOf(lane)));
@@ -169,6 +197,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         names = Map.copyOf(names);
         ahead = Map.copyOf(ahead);
         probed = List.copyOf(probed);
+        paths = Map.copyOf(paths);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -197,6 +226,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         Map<String, String> named = names;
         Map<Long, List<Field>> told = ahead;
         List<String> probe = probed;
+        HashMap<String, List<Hop>> walked = null;
         List<List<Mark>> next = new ArrayList<>(lanes.size());
         boolean[] changed = new boolean[lanes.size()];
         for (Lane l : lanes) {
@@ -223,7 +253,14 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 named = learn(named, r);
                 continue;
             }
-            Field about = r.frame() > 0 ? aboutPass(r, named) : null;
+            String says = r.cause().isEmpty() ? null : hopOf(r);
+            if (says != null) {
+                if (walked == null) {
+                    walked = new HashMap<>(paths);
+                }
+                walk(walked, r, says);
+            }
+            Field about = r.frame() > 0 ? aboutPass(r) : null;
             if (about != null) {
                 long pass = r.kind().equals("wake") ? r.frame() + 1 : r.frame();
                 // The first wake is what woke it, and a reason a draw was held outranks that it only updated.
@@ -240,14 +277,14 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             if (lane < 0) {
                 continue;
             }
-            Mark m = markOf(r, named);
+            Mark m = markOf(r);
             if (m == null) {
                 continue;
             }
             if (lane == main && m.frame() > 0) {
                 // A pass: what was said of it before its own row, and nothing older than a few passes before it.
                 for (Field f : told.getOrDefault(m.frame(), List.of())) {
-                    m = m.with(f.name(), f.value(), false);
+                    m = f.name().equals(WOKEN_IN) ? m.because(f.value()) : m.with(f.name(), f.value(), false);
                 }
                 long pass = m.frame();
                 if (told.keySet().stream().anyMatch(k -> k <= pass)) {
@@ -275,10 +312,103 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             out.add(changed[i] || recorded != lanes.get(i).recorded() ? new Lane(LANES.get(i), marks, recorded)
                     : lanes.get(i));
         }
-        return new Model(newest, out, lostNow, offset, named, told, probe);
+        Map<String, List<Hop>> trodden = paths;
+        if (walked != null || paths.values().stream().anyMatch(p -> p.getLast().atNanos() < from)) {
+            HashMap<String, List<Hop>> kept = walked != null ? walked : new HashMap<>(paths);
+            kept.values().removeIf(p -> p.getLast().atNanos() < from);
+            trodden = Map.copyOf(kept);
+        }
+        return new Model(newest, out, lostNow, offset, named, told, probe, trodden);
+    }
+
+    /** What the GUI's changes are said as, a hop of their own that counts them; see {@link Hop#said}. */
+    static final String GUI_CHANGED = "changed the GUI";
+
+    /**
+     * The hop a row is of its cause's path, in words, or null when it is not one: a publish, a component's send, a
+     * delivery to an inbox, a ledger's step, a change to the GUI, the wake of the next pass, or what automation
+     * injected. Rows that only count or time the bus's own work are no hop.
+     */
+    private static String hopOf(Row r) {
+        String kind = r.kind();
+        return switch (r.lane()) {
+            case "bus" -> isMessageType(kind) ? "published " + typeName(kind) + " on " + r.thread()
+                    : kind.equals("send") ? said(r.detail(), " from ", "sent ", " from ")
+                    : kind.equals("receive") ? said(r.detail(), " to ", "reached ", " at ") : null;
+            case "state" -> kind.startsWith("ledger ") ? kind + " committed its state on " + r.thread() : null;
+            case "layout" -> kind.startsWith("mutation ") ? GUI_CHANGED : null;
+            case "frame" -> kind.equals("wake")
+                    ? (r.frame() > 0 ? "woke pass #" + (r.frame() + 1) : "woke the main loop") : null;
+            case "input" -> VERBS.contains(kind) ? "automation " + kind + " " + r.detail() : null;
+            default -> null;
+        };
+    }
+
+    /**
+     * A {@code send} or {@code receive} row's detail, {@code <topic><by><inbox> <hops>}, said as
+     * {@code <verb><type><at><inbox>}: the topic by its type's name and the inbox by its class's, when it is one; null
+     * when it is not that shape.
+     */
+    private static String said(String detail, String by, String verb, String at) {
+        int split = detail.indexOf(by);
+        int end = detail.lastIndexOf(' ');
+        if (split < 0 || end <= split + by.length()) {
+            return null;
+        }
+        String inbox = detail.substring(split + by.length(), end);
+        return verb + typeName(detail.substring(0, split)) + at + (isMessageType(inbox) ? typeName(inbox) : inbox);
+    }
+
+    /** Add the hop {@code says} to {@code r}'s cause's path, or count it on the last if that said the same there. */
+    private static void walk(HashMap<String, List<Hop>> walked, Row r, String says) {
+        // In the order the hops began: a zone's row (a publish, a ledger's step) is written when it ends, after what
+        // it did, so it goes back by how long it took.
+        long took = r.lane().equals("layout") || r.lane().equals("frame") ? -1L : Durations.nanos(r.detail());
+        long began = took > 0 ? r.atNanos() - took : r.atNanos();
+        boolean relays = r.kind().equals("mutation layout");
+        boolean redraws = r.kind().equals("mutation draw");
+        List<Hop> next = new ArrayList<>(walked.getOrDefault(r.cause(), List.of()));
+        int at = next.size();
+        while (at > 0 && next.get(at - 1).atNanos() > began) {
+            at--;
+        }
+        Hop before = at == 0 ? null : next.get(at - 1);
+        if (before != null && before.says().equals(says) && before.thread().equals(r.thread())) {
+            next.set(at - 1, before.again(relays, redraws));
+        } else {
+            next.add(at, new Hop(says, r.thread(), began, 1, relays ? 1 : 0, redraws ? 1 : 0));
+        }
+        walked.put(r.cause(), List.copyOf(next));
+    }
+
+    /**
+     * An event's path, in words, a hop at a time: what set its cause off, as {@link #causeOf} says it, then every hop
+     * the rows sharing that cause took ({@link #paths}); for a pass, ending at the pass. Input from the devices has no
+     * cause of its own, so its path is the devices and the pass that read them. Empty when nothing is known.
+     */
+    public String pathOf(Mark m) {
+        if (m.kind().equals(INPUT_TAKEN)) {
+            return "the devices" + (m.frame() > 0 ? " → read in pass #" + m.frame() : "");
+        }
+        List<String> said = new ArrayList<>();
+        String origin = causeOf(m.cause(), names);
+        if (!origin.isEmpty()) {
+            said.add(origin);
+        }
+        for (Hop h : paths.getOrDefault(m.cause(), List.of())) {
+            said.add(h.said());
+        }
+        boolean woke = said.contains("woke pass #" + m.frame());
+        if (m.kind().equals(PASS) && m.frame() > 0 && !woke) {
+            said.add("pass #" + m.frame());
+        }
+        return String.join(" → ", said);
     }
 
     /** What {@link #DREW} says of a pass that did not draw because it did not need to, or could not. */
+    /** What a {@code wake} says of the pass it woke, kept until that pass is folded: its cause, which becomes theirs. */
+    private static final String WOKEN_IN = "woken in";
+
     public static final String DREW_YES = "yes";
     public static final String DREW_UPDATED = "no, it only updated";
     public static final String DREW_NOTHING = "no, nothing had changed";
@@ -286,18 +416,15 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String DREW_GPU = "no, held for the GPU";
 
     /**
-     * The field a loop row fills of its pass, or null when it fills none: what woke the next ({@link #FROM}), whether
-     * it drew or why not ({@link #DREW}), and how long it parked and waited after.
+     * The field a loop row fills of its pass, or null when it fills none: what woke the next, which becomes its cause
+     * ({@link #WOKEN_IN}), whether it drew or why not ({@link #DREW}), and how long it parked and waited after.
      */
-    private static Field aboutPass(Row r, Map<String, String> names) {
+    private static Field aboutPass(Row r) {
         if (!r.lane().equals("frame")) {
             return null;
         }
         return switch (r.kind()) {
-            case "wake" -> {
-                String by = causeOf(r.cause(), names);
-                yield new Field(FROM, r.detail() + (by.isEmpty() ? "" : ", set off by " + by));
-            }
+            case "wake" -> r.cause().isEmpty() ? null : new Field(WOKEN_IN, r.cause());
             case "draw skipped" -> new Field(DREW, DREW_NOTHING);
             case HELD_FOR_CEILING -> new Field(DREW, DREW_CEILING);
             case HELD_FOR_GPU -> new Field(DREW, DREW_GPU);
@@ -326,7 +453,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     next.set(lane, marks);
                     changed[lane] = true;
                 }
-                marks.set(i, m.with(about.name(), about.value(), true));
+                marks.set(i, about.name().equals(WOKEN_IN) ? m.because(about.value())
+                        : m.with(about.name(), about.value(), true));
                 return true;
             }
         }
@@ -429,7 +557,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (lane.equals("bus") && kind.equals("tick") && !r.thread().equals("main")) {
             return LANES.indexOf(LOGIC);
         }
-        if (lane.equals("bus") && isMessageType(kind)) {
+        if (lane.equals("bus") && messageType(r) != null) {
             return LANES.indexOf(MESSAGES);
         }
         if ((lane.equals("gpu") && kind.equals("present frame"))
@@ -454,26 +582,24 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     }
 
     /** The event a row on a lane says, or null when it says none (an {@code edges} count of nothing). */
-    private static Mark markOf(Row r, Map<String, String> names) {
+    private static Mark markOf(Row r) {
         long at = r.atNanos();
         String kind = r.kind();
         if (kind.equals("edges")) {
             long edges = count(r.detail());
-            return edges > 0 ? moment(r, at, INPUT_TAKEN, "the devices").with(EDGES, Long.toString(edges), false)
-                    : null;
+            return edges > 0 ? moment(r, at, INPUT_TAKEN).with(EDGES, Long.toString(edges), false) : null;
         }
-        String from = causeOf(r.cause(), names);
         if (VERBS.contains(kind)) {
-            return moment(r, at, INJECTED, from).with(VERB, kind, false).with(SENT, r.detail(), false);
+            return moment(r, at, INJECTED).with(VERB, kind, false).with(SENT, r.detail(), false);
         }
         if (kind.equals(HELD_FOR_CEILING) || kind.equals(HELD_FOR_GPU)) {
-            return moment(r, at, kind, from).with(REASON,
+            return moment(r, at, kind).with(REASON,
                     kind.equals(HELD_FOR_CEILING) ? "the frame-rate ceiling's next slot had not come"
                             : "the GPU had not finished the last frame", false);
         }
-        if (r.lane().equals("bus") && isMessageType(kind)) {
-            return moment(r, at, MESSAGE, from).with(TYPE, typeName(kind), false)
-                    .with(PACKAGE, typePackage(kind), false);
+        String type = r.lane().equals("bus") ? messageType(r) : null;
+        if (type != null) {
+            return moment(r, at, MESSAGE).with(TYPE, typeName(type), false).with(PACKAGE, typePackage(type), false);
         }
         long took = Durations.nanos(r.detail());
         if (took < 0) {
@@ -481,18 +607,33 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
         String what = kind.equals("frame") ? PASS : kind.equals("tick") ? TICK : kind.equals("present frame") ? DRAW
                 : kind;
-        return fields(new Mark(at - took, at, what, r.thread(), r.frame(), r.cause(), List.of()), from)
+        return fields(new Mark(at - took, at, what, r.thread(), r.frame(), r.cause(), List.of()))
                 .with(TOOK, String.format(Locale.ROOT, "%.2f ms", took / 1e6), false);
     }
 
-    /** A moment {@code r} said, with its pass, cause and the fields every event has. */
-    private static Mark moment(Row r, long at, String kind, String from) {
-        return fields(new Mark(at, at, kind, r.thread(), r.frame(), r.cause(), List.of()), from);
+    /**
+     * The message a bus row is of, its type's full name, or null for the bus's own rows: a publish, whose kind is the
+     * type, or a component's {@code send}, whose detail begins with it ({@code <type> from <inbox> <hops>}).
+     */
+    private static String messageType(Row r) {
+        if (isMessageType(r.kind())) {
+            return r.kind();
+        }
+        if (r.kind().equals("send")) {
+            int from = r.detail().indexOf(" from ");
+            return from > 0 && isMessageType(r.detail().substring(0, from)) ? r.detail().substring(0, from) : null;
+        }
+        return null;
     }
 
-    /** {@code m} with the fields every event has: its type, what set it off, its pass and its thread. */
-    private static Mark fields(Mark m, String from) {
-        return m.with(TYPE, m.kind(), false).with(FROM, from, false)
+    /** A moment {@code r} said, with its pass, cause and the fields every event has. */
+    private static Mark moment(Row r, long at, String kind) {
+        return fields(new Mark(at, at, kind, r.thread(), r.frame(), r.cause(), List.of()));
+    }
+
+    /** {@code m} with the fields every event has but its path, which grows after it: its type, pass and thread. */
+    private static Mark fields(Mark m) {
+        return m.with(TYPE, m.kind(), false)
                 .with(PASS_NUMBER, m.frame() > 0 ? "#" + m.frame() : "", false).with(THREAD, m.thread(), false);
     }
 

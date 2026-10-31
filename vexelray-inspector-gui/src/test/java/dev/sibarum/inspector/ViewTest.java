@@ -95,6 +95,11 @@ class ViewTest {
         }
 
         @Override
+        public Drawn scale(Node node, float factor) {
+            return this;
+        }
+
+        @Override
         public Drawn show(Feed feed, int slot) {
             return this;
         }

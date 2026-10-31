@@ -45,8 +45,11 @@ final class Ui {
         gui.landmark(Landmarks.STATUS, status.node());
         gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
 
-        strip = gui.box().width(Length.FILL).height(Length.FILL);
-        lane = gui.box().width(Length.grow(1f)).height(LANE).clip(true)
+        // Wider than the lane by View.SLIDE_LANES lanes each side: a picture is clipped to its own node's box where the
+        // node is drawn, so a strip only as wide as the lane left the edge it slid away from empty for a whole glide.
+        strip = gui.box().width(Length.percent(100f * (1 + 2 * View.SLIDE_LANES))).height(Length.FILL);
+        // Clipped but never scrolled: the strip overflows it on purpose, and overflow alone would give it a scrollbar.
+        lane = gui.box().width(Length.grow(1f)).height(LANE).clip(true).scroll(false, false)
                 .background(gui.theme().color(Role.PANEL))
                 .children(strip);
         gui.landmark(Landmarks.LANE_PASSES, lane);

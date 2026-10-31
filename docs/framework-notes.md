@@ -64,6 +64,18 @@ It costs the stepped clocks a test would hand the `Gui`: they reach the asked ha
 `Gui.monoNanos()` (or the moment a message was taken, handed to a `@Subscribe`) would close it; any part that starts a
 motion from a message will want it.
 
+## FN-6 · A node slid by `Drawn.offset` shows nothing beyond its own box 🔬
+
+The passes lane slides one strip node by `Drawn.offset` for a glide. A node's picture is clipped to the node's own box
+where it is drawn (`TreeRenderer.emitPicture`), so a strip as wide as the lane left the edge it slid away from empty
+for the length of the glide, and the marks there appeared at once when it landed: seen by the author as marks
+blinking at the left edge on a step forward. Worked around by making the strip fifteen lanes wide
+(`View.SLIDE_LANES` each side) and shifting it back at rest, with the lane `clip(true).scroll(false, false)`: clipped
+only, or the overflow gets a scrollbar (the framework's own diag said so, usefully). `Drawn.offset`'s javadoc says
+nothing of this. Every part that slides a picture through a view (a scrolling chart, a ticker) will hit it: the
+javadoc could say it, or a picture could be drawn unclipped inside a clipping parent, its marks culled by the
+parent's clip rather than the node's box.
+
 ## FN-4 · No verb closes an application 🔬
 
 A run started outside `--launch` is closed by clicking where the title bar draws its close button

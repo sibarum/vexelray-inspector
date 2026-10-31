@@ -87,12 +87,16 @@ class ViewTest {
         assertEquals(900 * MS, s.edgeNanos(), "the newest row's moment is where the picture puts the right edge");
         assertEquals(List.of(), s.handovers(), "the first timeline is placed, not glided to");
         assertSame(wiring.ui().strip(), s.strip(), "the handle is the strip in the lane");
+        float lane = wiring.ui().lane().layout().rect().w();
+        assertEquals(lane * (1 + 2 * View.SLIDE_LANES), wiring.ui().strip().layout().rect().w(), 1f,
+                "the strip reaches past the lane both sides, and the lane is not widened by it");
+        assertEquals(-View.SLIDE_LANES * lane, s.restPx(), 0.01f, "at rest it is shifted back by the reach on the left");
     }
 
     @Test
     void theStripSlidesLeftByHowFarThePresentHasMovedOnSinceItsEdge() {
         Offsets out = new Offsets();
-        Strip s = new Strip(null, 1_000 * MS, 0.0001f, Path.following(0L), List.of());
+        Strip s = new Strip(null, 1_000 * MS, 0.0001f, 0f, Path.following(0L), List.of());
         long due = View.draw(s, new Frame(7L, 1_000 * MS + 250 * MS, false), out);
         assertEquals(List.of("-25000.0,0.0"), out.set, "250 ms on, at 0.1 px a millisecond: 25 px");
         assertEquals(7L, due, "following: the next frame, on the tree's clock");
@@ -101,7 +105,7 @@ class ViewTest {
     @Test
     void stoppedAtTheEdgeTheStripIsWhereLayoutPutItAndNothingIsDue() {
         Offsets out = new Offsets();
-        Strip s = new Strip(null, 1_000 * MS, 0.0001f, Path.stopped(1_000 * MS), List.of());
+        Strip s = new Strip(null, 1_000 * MS, 0.0001f, 0f, Path.stopped(1_000 * MS), List.of());
         long due = View.draw(s, new Frame(7L, 5_000 * MS, false), out);
         assertEquals(List.of("0.0,0.0"), out.set);
         assertEquals(Frame.NEVER, due);
@@ -111,7 +115,7 @@ class ViewTest {
     void aGlideIsDueUntilItLandsAndUnderReducedMotionGoesStraightThere() {
         Path from = Path.stopped(1_000 * MS);
         Handover back = Glide.handover(from, List.of(), 0L, 200 * MS, Path.stopped(0.0));
-        Strip s = new Strip(null, 1_000 * MS, 0.0001f, from, List.of(back));
+        Strip s = new Strip(null, 1_000 * MS, 0.0001f, 0f, from, List.of(back));
         Offsets out = new Offsets();
         assertEquals(7L, View.draw(s, new Frame(7L, 100 * MS, false), out), "on its way: due");
         assertEquals("50000.0,0.0", out.set.getLast(), "halfway in time, halfway there: the step is symmetric");
@@ -130,7 +134,7 @@ class ViewTest {
         Picture p = View.passes(t, 1000f, 20f, 1000f / View.SPAN_NANOS, Color.WHITE, newest - View.SPAN_NANOS,
                 Double.MAX_VALUE);
         List<String> boxes = p.marks().stream().map(m -> (Picture.Fill) m)
-                .map(f -> Math.round(f.x()) + "+" + Math.round(f.w())).toList();
+                .map(f -> Math.round(f.x() - 1000f * View.SLIDE_LANES) + "+" + Math.round(f.w())).toList();
         assertEquals(List.of("950+10", "1000+1"), boxes,
                 "100 ms is 10 px, a pass shorter than a pixel still a pixel, and one before the range not drawn");
     }

@@ -70,6 +70,12 @@ final class View {
     /** How much time the lane spans, right edge to left: the bench's reach. */
     static final long SPAN_NANOS = 10_000_000_000L;
 
+    /**
+     * How many lanes wide the strip reaches past the lane on each side: room for the longest glide the kept minute
+     * allows (six lanes of ten seconds), and one more for the present moving on during it. Ui sizes the strip by it.
+     */
+    static final int SLIDE_LANES = 7;
+
     /** How far an arrow steps the cursor, and Shift with it. */
     static final long STEP_NANOS = 1_000_000_000L;
     static final long FINE_STEP_NANOS = 100_000_000L;
@@ -80,10 +86,12 @@ final class View {
      * @param strip      the node the marks are drawn on, a handle
      * @param edgeNanos  the moment the picture puts at the lane's right edge, on the machine's clock
      * @param pxPerNano  the lane's width over {@link #SPAN_NANOS}
+     * @param restPx     the offset that puts the picture's edge moment at the lane's right edge: the strip reaches
+     *                   {@link #SLIDE_LANES} lanes left of the lane
      * @param from       the path the motion started on
      * @param handovers  each change since, oldest first: where the right edge is, as a function of the present
      */
-    record Strip(Node strip, long edgeNanos, float pxPerNano, Path from, List<Handover> handovers) {
+    record Strip(Node strip, long edgeNanos, float pxPerNano, float restPx, Path from, List<Handover> handovers) {
         Strip {
             handovers = List.copyOf(handovers);
         }
@@ -113,7 +121,7 @@ final class View {
         this.pause = pause;
         this.step = step;
         this.mark = gui.theme().color(Role.ACCENT);
-        this.state = new Strip(ui.strip(), 0L, 0f, Path.stopped(0.0), List.of());
+        this.state = new Strip(ui.strip(), 0L, 0f, 0f, Path.stopped(0.0), List.of());
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneW = layout.rect().w();
             laneH = layout.rect().h();
@@ -183,7 +191,7 @@ final class View {
         pressedAt = -1L;
         pressWindow = -1L;
         last = t;
-        state = new Strip(ui.strip(), t.edgeNanos(), scale(), from, handovers);
+        state = new Strip(ui.strip(), t.edgeNanos(), scale(), -SLIDE_LANES * laneW, from, handovers);
         ui.status(t.status());
         show();
     }
@@ -225,24 +233,27 @@ final class View {
             hi = Double.MAX_VALUE;
         }
         ui.strip().picture(passes(last, laneW, laneH, scale, mark, lo - SPAN_NANOS, hi));
-        state = new Strip(ui.strip(), last.edgeNanos(), scale, state.from(), state.handovers());
+        state = new Strip(ui.strip(), last.edgeNanos(), scale, -SLIDE_LANES * laneW, state.from(), state.handovers());
     }
 
     /**
-     * The passes between {@code fromNanos} and {@code toNanos} as marks, the timeline's edge moment at the right edge,
-     * each at least a pixel wide so that a pass far shorter than a pixel's worth of time still shows. Pure, for a test.
+     * The passes between {@code fromNanos} and {@code toNanos} as marks on a strip reaching {@link #SLIDE_LANES} lanes
+     * of width {@code w} either side of the lane, with the timeline's edge moment where the lane's right edge is at
+     * rest; each at least a pixel wide so that a pass far shorter than a pixel's worth of time still shows. Pure, for a
+     * test.
      */
     static Picture passes(Timeline t, float w, float h, float pxPerNano, Color colour, double fromNanos,
                           double toNanos) {
         Sketch s = new Sketch().tag("passes");
+        float edge = w * (1 + SLIDE_LANES);
         float top = h * 0.2f;
         float height = h * 0.6f;
         for (Span p : t.passes()) {
             if (p.toNanos() < fromNanos || p.fromNanos() > toNanos) {
                 continue;
             }
-            float x0 = w + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
-            float x1 = w + (p.toNanos() - t.edgeNanos()) * pxPerNano;
+            float x0 = edge + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
+            float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
             s.fill(x0, top, Math.max(1f, x1 - x0), height, colour);
         }
         return s.picture();
@@ -257,7 +268,7 @@ final class View {
         long t = frame.monoNanos();
         double edge = frame.reducedMotion() ? Glide.last(s.from(), s.handovers()).at(t)
                 : Glide.at(s.from(), s.handovers(), t);
-        out.offset(s.strip(), (float) ((s.edgeNanos() - edge) * s.pxPerNano()), 0f);
+        out.offset(s.strip(), s.restPx() + (float) ((s.edgeNanos() - edge) * s.pxPerNano()), 0f);
         return Glide.moving(s.from(), s.handovers(), t) ? frame.presentNanos() : Frame.NEVER;
     }
 }

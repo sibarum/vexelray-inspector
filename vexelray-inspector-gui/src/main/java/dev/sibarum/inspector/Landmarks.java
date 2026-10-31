@@ -18,8 +18,11 @@ final class Landmarks {
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 
-    /** The lane of the main loop's passes. */
-    static final String LANE_PASSES = "lane.passes";
+    /** The lanes, one band a clock: a click on one focuses it and goes to the event nearest it. */
+    static final String LANES = "lanes";
+
+    /** The readouts line, over the second before the cursor. */
+    static final String READOUTS = "readouts";
 
     /** The status line, and its slot saying which run is inspected or why none is. */
     static final String STATUS = "status";

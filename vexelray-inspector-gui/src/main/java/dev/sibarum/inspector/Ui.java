@@ -1,5 +1,6 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.layout.Length;
@@ -13,11 +14,16 @@ import dev.vexelray.gui.widget.TitleBar;
  *
  * <h2>The timeline</h2>
  *
- * <p>One lane per clock, each a name beside a strip of marks, with the present at the right edge (vexelray-inspector's
- * {@code docs/design.md} section 3). R1's first slice has one lane, the main loop's passes. A lane is a box that clips,
- * holding one {@link #strip} the size of the lane, whose picture the view draws: the view slides the strip left as the
- * present moves on, which is the frame contract's asked half, and the lane's clip is what keeps the slid strip inside
- * it (a container's clip is anchored, so a child slides within it).
+ * <p>One lane per clock, each a name beside a band of marks, with the present at the right edge (vexelray-inspector's
+ * {@code docs/design.md} section 3), in {@code Model.LANES}' order. The lanes share one time axis, so they are one box
+ * that clips, holding one {@link #strip} whose picture the view draws a band a lane: the view slides the strip left as
+ * the present moves on, which is the frame contract's asked half, and the box's clip is what keeps the slid strip
+ * inside it (a container's clip is anchored, so a child slides within it). The name of the lane the arrows step
+ * through is in the text's colour, the others dimmed ({@link #focus}).
+ *
+ * <h2>The readouts</h2>
+ *
+ * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
  *
  * <h2>It holds no state</h2>
  *
@@ -33,41 +39,67 @@ final class Ui {
     /** The column the lanes' names stand in. Type-relative, so it grows with the zoom like the names. */
     private static final Length NAMES = Length.rem(7);
 
-    /** A lane's height. */
-    private static final Length LANE = Length.rem(2.5f);
+    /** A lane's height, in rem. */
+    private static final float LANE_REM = 2.5f;
 
+    private final Gui gui;
     private final StatusBar status;
     private final Node lane;
     private final Node strip;
+    private final Node[] names;
+    private final Node readouts;
 
     Ui(Gui gui, TitleBar titleBar) {
+        this.gui = gui;
         status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "");
         gui.landmark(Landmarks.STATUS, status.node());
         gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
 
-        // Wider than the lane by View.SLIDE_LANES lanes each side: a picture is clipped to its own node's box where the
-        // node is drawn, so a strip only as wide as the lane left the edge it slid away from empty for a whole glide.
+        int count = Model.LANES.size();
+        // Wider than the lanes by View.SLIDE_LANES lanes each side: a picture is clipped to its own node's box where the
+        // node is drawn, so a strip only as wide as the lanes left the edge it slid away from empty for a whole glide.
         strip = gui.box().width(Length.percent(100f * (1 + 2 * View.SLIDE_LANES))).height(Length.FILL);
         // Clipped but never scrolled: the strip overflows it on purpose, and overflow alone would give it a scrollbar.
-        lane = gui.box().width(Length.grow(1f)).height(LANE).clip(true).scroll(false, false)
+        lane = gui.box().width(Length.grow(1f)).height(Length.rem(LANE_REM * count)).clip(true).scroll(false, false)
                 .background(gui.theme().color(Role.PANEL))
                 .children(strip);
-        gui.landmark(Landmarks.LANE_PASSES, lane);
-        Node name = gui.text("Passes").width(NAMES).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
-        Node passes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(name, lane);
+        gui.landmark(Landmarks.LANES, lane);
+        names = new Node[count];
+        for (int i = 0; i < count; i++) {
+            names[i] = gui.text(Model.LANES.get(i)).width(NAMES).height(Length.rem(LANE_REM))
+                    .textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        }
+        Node column = gui.column().width(NAMES).children(names);
+        Node lanes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(column, lane);
 
-        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT)
-                .children(passes);
+        readouts = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        gui.landmark(Landmarks.READOUTS, readouts);
+
+        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
+                .children(lanes, readouts);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
                 .background(gui.theme().color(Role.PAGE))
                 .children(titleBar.node(), timeline, status.node());
+        focus(Model.MAIN);
     }
 
-    /** A lane: what the view measures to draw the strip for. */
+    /** The lanes' box: what the view measures to draw the strip for, a band a lane. */
     Node lane() {
         return lane;
+    }
+
+    /** Show {@code name} as the lane the arrows step through. */
+    void focus(String name) {
+        for (int i = 0; i < names.length; i++) {
+            names[i].textColor(gui.theme().color(Model.LANES.get(i).equals(name) ? Role.INK : Role.DIM));
+        }
+    }
+
+    /** What the readouts line says. */
+    void readouts(String line) {
+        readouts.text(line);
     }
 
     /** The strip in the lane: what the view draws its marks on, and slides. */

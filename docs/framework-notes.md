@@ -91,6 +91,24 @@ nothing of this. Every part that slides a picture through a view (a scrolling ch
 javadoc could say it, or a picture could be drawn unclipped inside a clipping parent, its marks culled by the
 parent's clip rather than the node's box.
 
+## FN-8 · Under `--logic=main`, a logic tick cannot be told from the widgets' 🔬
+
+The timeline's Logic lane is atchung's `tick` zone (`Tick.java`, `Lane.BUS`), and the GUI's widget tick writes the same
+zone on `main`. On a logic lane the thread tells them apart (`vexel-logic` against `main`), so `Model` takes every
+`tick` row not on `main`. Under `--logic=main` both are on `main`, with nothing else in the row to separate them (the
+link's `Row` has no cause, and the zone's detail is only its length), so the Logic lane and the readouts' ticks are
+empty there rather than wrong. Seen in a traced run (2026-10-30): `vexel-logic` and `main` each write about 100 `tick`
+rows a second. A tick's own row, numbered and named for its `Tick` (design.md 7½, the row per tick), would close it; so
+would the zone naming its tick (`tick logic`, `tick widgets`). The mode itself is also not said (design.md section 7).
+
+## FN-9 · Automation alone records no ticks and no GPU 🔬
+
+An application started with `--automation=0` and no `-Dprobe` records the `input`, `frame`, `layout` and `app` lanes
+only (its startup line says so), so attached to one, the Logic, Drawing and GPU lanes stay empty with no word of why;
+`-Dprobe=all` is needed, as README and the status line say. Not worked around further: the Inspector cannot tell "this
+run records no ticks" from "this run had none". The link's `StreamOpened` saying which lanes the run records would let a
+lane say "not recorded" instead of showing nothing, which any client of the stream would want.
+
 ## FN-4 · No verb closes an application 🔬
 
 A run started outside `--launch` is closed by clicking where the title bar draws its close button

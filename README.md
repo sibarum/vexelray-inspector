@@ -3,7 +3,7 @@
 DevTools for VexelRay applications: plain panels on a timeline that can be rewound ([docs/design.md](docs/design.md)).
 
 A VexelRay desktop application, generated from the `vexel-desktop` template and being rebuilt for VexelRay 0.2. R1 is
-under way: today it attaches to the newest application running with its link open and draws its main loop's passes
+under way: today it attaches to the newest application running with its link open and draws its clocks' lanes
 on a live timeline, the present at the right edge. Everything else in the design is still to come.
 
 ## Run it
@@ -82,27 +82,39 @@ groups the button with other Java programs, and pinning it pins Java. The native
 
 ## Using it
 
-The window shows one lane, **Passes**: each pass of the inspected application's main loop, as a mark from when it
-started to when it ended, ten seconds of them across the lane. While rows are arriving the lane follows the present at
-its right edge; when the application goes away it stops where it was, and the status line says what happened.
+The window shows five lanes on one time axis, ten seconds across at first, and a line of readouts under them:
+
+| Lane | Shows |
+| --- | --- |
+| **Input** | each time the application took input from a device; input an automation verb injected, dimmed |
+| **Main thread** | each pass of the main loop, from when it started to when it ended |
+| **Logic** | each tick of the logic lane (empty under `--logic=main`, framework-notes FN-8) |
+| **Drawing** | each draw, from recording to present; a draw held for the ceiling (faint) or for the GPU (caution) |
+| **GPU** | what the presenter waited on: the fence, the DXGI waitable, a swapchain image |
+
+The readouts count the second before the cursor: draws, draws held by reason, ticks and their median and 95th
+percentile, and the rows the link lost. Only a run started with `-Dprobe=all` records ticks and the GPU
+(framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application
+goes away they stop where they were, and the status line says what happened.
 
 | Key | Does |
 | --- | --- |
-| Space | pause: the lane slows to a stop; paused, follow the present again, catching up with it |
-| Left / Right | step the cursor onto the previous or next pass (pausing first if following) |
-| Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lane spans |
-| = / - | zoom in or out about the right edge: half or twice the time across the lane, from 10 ms to a minute |
-| Click a pass | put the cursor on it (pausing first if following) |
+| Space | pause: the lanes slow to a stop; paused, follow the present again, catching up with it |
+| Left / Right | step the cursor onto the focused lane's previous or next event (pausing first if following) |
+| Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lanes span |
+| = / - | zoom in or out about the right edge: half or twice the time across, from 10 ms to a minute |
+| Click a lane | focus it (its name brightens), and put the cursor on its event nearest the click, if one is near |
 
-Paused, the lane shows the run as it was at the cursor, which is at the right edge, and the status line says where the
-cursor is, counted from the run's first row. On a pass, the pass is drawn over the others in the text's colour, and
-the status line says how long it took and when it ended. Each pass is drawn as long as it took, with a pixel-wide line
-at its end so that one far shorter than a pixel still shows; zoom in and a busy stretch opens up into separate passes.
-The last minute is kept, and stepping stops at either end of it. Rows go on arriving and being kept while paused.
+Paused, the lanes show the run as it was at the cursor, which is at the right edge, and so do the readouts; the status
+line says where the cursor is, counted from the run's first row. On an event, it is drawn over the others in the
+text's colour, and the status line says what it was, how long it took and when it ended. Each event is drawn as long as
+it took, with a pixel-wide line at its end so that one far shorter than a pixel still shows; zoom in and a busy
+stretch opens up into separate events. The last minute is kept, and stepping stops at either end of it. Rows go on
+arriving and being kept while paused.
 
 Nothing on the lane jumps: every change of where it is going or how much it spans, a key held down included, glides
 there with no corner in its speed or in any derivative of it, and lands exactly (design.md 9.8). Under the system's
-reduced-motion setting it goes straight there. Hovering a pass shows nothing yet (framework-notes FN-7). Choosing
+reduced-motion setting it goes straight there. Hovering an event shows nothing yet (framework-notes FN-7). Choosing
 which application to inspect, and the Sequence mode, are R1's later slices.
 
 ## How it is put together
@@ -132,7 +144,7 @@ message is in one file. Read these in this order.
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components, jobs and sources in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
-| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lane's picture; asked by every frame (`@Draw`), it slides the lane to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lane would rest at, which only it knows. It decides nothing. |
+| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lanes' picture; asked by every frame (`@Draw`), it slides the lanes to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lanes would rest at, which only it knows, and which lane is focused. Told the `Readouts`, it writes their line. It decides nothing. |
 | `Glide.java` | **how the timeline moves**: smooth paths of time, and handovers between them that are smooth in every derivative and land exactly. Pure functions; its constants were set by eye, and say why. |
 | `Keys.java` | what a key chord sends the view. |
 | `Ui.java` | the window: the title bar, the timeline's lanes and the status line. Holds no state; it shows what the view hands it. |
@@ -199,9 +211,9 @@ pause stops at is where the lane comes to rest, which only the view knows.
 Time is a parameter of what is shown (design.md section 8). The bench folds each batch onto its live `Model` and keeps
 it on the `Tape`, with a checkpoint every second, and the model as of any moment is that second's checkpoint with its
 rows up to the moment folded on, by the same `fold`: exactly what it was then, which `BenchTest` holds for every
-moment of a run crossing many checkpoints. The passes lane shows every pass kept and puts the cursor at its right edge,
-so that at rest it shows the run as of the cursor and while it glides it shows what it passes. The readouts will show
-the model as of the cursor.
+moment of a run crossing many checkpoints. The lanes show every event kept and put the cursor at their right edge, so
+that at rest they show the run as of the cursor and while they glide they show what they pass. The readouts are
+computed from the model as of the cursor, so they rewind with it.
 
 ## The stack
 
@@ -264,7 +276,8 @@ ottermate --size 36emx20em shot smallest.png --launch ...                # the m
 ```
 
 The landmarks in `Landmarks.java` are the names a script uses: `await status.run Inspecting` waits for the first rows
-of an attached run, and `lane.passes` is the lane they are drawn in. `ottermate help` lists every verb.
+of an attached run, `lanes` is the box the lanes are drawn in, and `readouts` the line of numbers under it.
+`ottermate help` lists every verb.
 
 ## Logging
 

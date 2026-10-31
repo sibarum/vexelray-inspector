@@ -8,13 +8,15 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] R1 ([design.md](design.md) §10), slices 3 to 5: every lane and the readouts; the run panel, the picker, launch
-      and replay; then measure (the tape's `RETAIN` included), and inspect W1 to W3 in both modes. Slices 1 and 2
-      (attach and the live passes lane; checkpoints, pause and stepping) are done.
-- [ ] Hover on a pass, a colour change only: hear `NodeEvent.POINTER` on the lane (FN-7, now upstream) and turn
-      `localX` into a pass through the view's `Strip`.
-- [ ] Design 9.8, with slice 3's lanes: Sequence (a sequence per lane, each landing on the cursor on its own), and the
-      filter.
+- [ ] R1 ([design.md](design.md) §10), slices 4 and 5: the run panel, the picker, launch and replay; then measure (the
+      tape's `RETAIN` included, and the fold, which copies every lane kept on each batch), and inspect W1 to W3 in
+      both modes. Slices 1 to 3 (attach and the live lane; checkpoints, pause and stepping; every lane and the
+      readouts) are done.
+- [ ] Hover on an event, a colour change only: hear `NodeEvent.POINTER` on the lanes (FN-7, now upstream) and turn
+      `localX`/`localY` into an event through the view's `Strip`.
+- [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter.
+- [ ] Injected input on the Input lane is held by `BenchTest` only: drive a traced target with keys while another
+      Inspector watches, and look.
 - [ ] Zoomed in, a long glide (Space after stepping far back, or a Shift step at a wide zoom) can run past the strip's
       seven lanes each side, leaving the lane briefly empty mid-glide. Size the strip by the zoom, or rebuild the
       picture at the glide's midpoint.

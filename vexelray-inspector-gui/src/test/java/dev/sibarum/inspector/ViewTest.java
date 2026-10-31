@@ -4,8 +4,12 @@ import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
 import dev.sibarum.inspector.View.Strip;
 import dev.sibarum.inspector.core.Messages;
-import dev.sibarum.inspector.core.Messages.Span;
+import dev.sibarum.inspector.core.Messages.Event;
+import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.Mark;
+import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Timeline;
+import dev.sibarum.inspector.core.Model;
 import dev.vexelray.canvas.Color;
 import dev.vexelray.framework.shell.Shell;
 import dev.vexelray.framework.shell.VexelApplication;
@@ -98,7 +102,7 @@ class ViewTest {
     @Test
     void aTimelineToldIsDrawnForTheLaneAndFollowedWhileLive() throws InterruptedException {
         Timeline t = new Timeline("calculator-11", "Inspecting Calculator (calculator-11)", true, 900 * MS,
-                List.of(new Span(880 * MS, 890 * MS)), Optional.empty());
+                main(pass(880 * MS, 890 * MS)), Optional.empty());
         shell.bus().publish(Messages.TIMELINE_TOPIC, t);
         eventually("the lane laid out and the timeline drawn", () -> wiring.view().state.laneW() > 0f
                 && wiring.view().state.edge().last().rate() == 1.0);
@@ -159,45 +163,92 @@ class ViewTest {
         assertEquals(2f, out.stretched.getLast(), 1e-5f, "twice as many pixels a nanosecond");
     }
 
+    /** Five lanes of 20 px: the main thread's band is 20 to 40. */
+    private static final float LANES_H = 100f;
+
     @Test
     void aPassIsAFillAsLongAsItTookAndAOnePixelLineAtItsEnd() {
         long newest = 20_000 * MS;
-        Timeline t = new Timeline("r", "", true, newest, List.of(new Span(newest - 500 * MS, newest - 400 * MS),
-                new Span(newest - 100_000L, newest - 99_900L), new Span(newest - 11_000 * MS, newest - 10_500 * MS)),
+        Timeline t = new Timeline("r", "", true, newest, main(pass(newest - 500 * MS, newest - 400 * MS),
+                pass(newest - 100_000L, newest - 99_900L), pass(newest - 11_000 * MS, newest - 10_500 * MS)),
                 Optional.empty());
-        Picture p = View.passes(t, LANE, 20f, SCALE, Color.WHITE, Color.BLACK, newest - View.SPAN_NANOS,
-                Double.MAX_VALUE);
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, newest - View.SPAN_NANOS, Double.MAX_VALUE);
         assertEquals(List.of("950+10", "1000+0"), fills(p),
                 "100 ms is 10 px, a far shorter pass as long as it took, and one before the range not drawn");
         assertEquals(List.of("960 w1", "999 w1"), lines(p), "a pixel's line inside each end, which no zoom stretches");
+        Picture.Fill first = (Picture.Fill) p.marks().stream().filter(m -> m instanceof Picture.Fill).findFirst()
+                .orElseThrow();
+        assertEquals(24.0, first.y(), 1e-6, "in the main thread's band, the second, with its margin");
+        assertEquals(12.0, first.h(), 1e-6);
     }
 
     @Test
-    void thePassTheCursorIsOnIsDrawnOverTheOthersTheLanesHeightWithATwoPixelLine() {
+    void theEventTheCursorIsOnIsDrawnOverTheOthersItsBandsHeightWithATwoPixelLine() {
         long at = 20_000 * MS;
-        Span on = new Span(at - 100 * MS, at);
-        Timeline t = new Timeline("r", "", false, at, List.of(new Span(at - 500 * MS, at - 400 * MS), on),
-                Optional.of(on));
-        Picture p = View.passes(t, LANE, 20f, SCALE, Color.WHITE, Color.BLACK, at - View.SPAN_NANOS, at);
+        Mark on = pass(at - 100 * MS, at);
+        Timeline t = new Timeline("r", "", false, at, main(pass(at - 500 * MS, at - 400 * MS), on),
+                Optional.of(new Event(Model.MAIN, on)));
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at);
         assertEquals(List.of("950+10", "990+10", "990+10"), fills(p), "drawn last, so over the others");
         assertEquals("999 w2", lines(p).getLast(), "ending at its end");
         Picture.Fill mark = (Picture.Fill) p.marks().get(p.marks().size() - 2);
-        assertEquals(0.0, mark.y());
-        assertEquals(20.0, mark.h(), "the lane's whole height");
+        assertEquals(20.0, mark.y(), "the top of the main thread's band");
+        assertEquals(20.0, mark.h(), "the band's whole height");
         assertEquals(Color.BLACK, mark.color());
     }
 
     @Test
-    void aClickGoesToThePassNearestItWithinReach() {
-        List<Span> passes = List.of(new Span(100, 200), new Span(300, 310), new Span(1_000, 1_001));
-        assertEquals(Optional.of(new Span(100, 200)), View.nearest(passes, 150, 5), "on it");
-        assertEquals(Optional.of(new Span(300, 310)), View.nearest(passes, 260, 50), "the nearer of two");
-        assertEquals(Optional.of(new Span(1_000, 1_001)), View.nearest(passes, 1_004, 5), "just past a short one");
+    void aMomentIsALineAloneInItsLanesBandAndAHeldDrawSaysWhyByItsColour() {
+        long at = 20_000 * MS;
+        Timeline t = new Timeline("r", "", true, at, List.of(
+                new Lane(Model.INPUT, List.of(new Mark(at - 300 * MS, at - 300 * MS, Model.INJECTED))),
+                new Lane(Model.DRAWING, List.of(new Mark(at - 200 * MS, at - 200 * MS, Model.HELD_FOR_CEILING),
+                        new Mark(at - 100 * MS, at - 100 * MS, Model.HELD_FOR_GPU)))),
+                Optional.empty());
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at);
+        assertEquals(List.of(), fills(p), "a moment has no length to fill");
+        List<Picture.Line> marks = p.marks().stream().filter(m -> m instanceof Picture.Line)
+                .map(m -> (Picture.Line) m).filter(l -> l.x0() == l.x1()).toList();
+        assertEquals(List.of(4.0, 64.0, 64.0), marks.stream().map(Picture.Line::y0).toList(),
+                "input's band first, drawing's fourth");
+        assertEquals(List.of(INKS.injected(), INKS.ceiling(), INKS.gpu()),
+                marks.stream().map(Picture.Line::color).toList());
+        assertEquals(4, p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
+                "a hairline between each two of the five lanes");
+    }
+
+    @Test
+    void theReadoutsAreOneLineOfNumbers() {
+        assertEquals("Draws 57/s, held 3 for the ceiling and 0 for the GPU   Ticks 120/s, p50 0.45 ms, p95 1.20 ms"
+                        + "   Rows lost 0",
+                View.readout(new Readouts("r", 57, 3, 0, 120, 450_000, 1_200_000, 0)));
+        assertEquals("", View.readout(new Readouts("", 0, 0, 0, 0, 0, 0, 0)), "nothing attached and nothing read");
+    }
+
+    @Test
+    void aClickGoesToTheEventNearestItWithinReach() {
+        List<Mark> passes = List.of(pass(100, 200), pass(300, 310), pass(1_000, 1_001));
+        assertEquals(Optional.of(pass(100, 200)), View.nearest(passes, 150, 5), "on it");
+        assertEquals(Optional.of(pass(300, 310)), View.nearest(passes, 260, 50), "the nearer of two");
+        assertEquals(Optional.of(pass(1_000, 1_001)), View.nearest(passes, 1_004, 5), "just past a short one");
         assertEquals(Optional.empty(), View.nearest(passes, 600, 50), "none within reach");
     }
 
     private static float offset(Offsets out) {
         return Float.parseFloat(out.set.getLast().split(",")[0]);
+    }
+
+    /** White marks, a black cursor, and a colour of its own for each other kind, to tell them apart. */
+    private static final View.Inks INKS = new View.Inks(Color.WHITE, Color.rgb(1, 0, 0), Color.rgb(0, 1, 0),
+            Color.rgb(0, 0, 1), Color.BLACK, Color.rgb(0.5f, 0.5f, 0.5f));
+
+    private static Mark pass(long from, long to) {
+        return new Mark(from, to, Model.PASS);
+    }
+
+    /** A timeline's lanes with only the main thread's holding anything. */
+    private static List<Lane> main(Mark... passes) {
+        return List.of(new Lane(Model.MAIN, List.of(passes)));
     }
 
     /** Each fill's left edge, relative to the lane's left at rest, and its width, rounded. */
@@ -206,9 +257,10 @@ class ViewTest {
                 .map(f -> Math.round(f.x() + REST) + "+" + Math.round(f.w())).toList();
     }
 
-    /** Each line's x, relative to the lane's left at rest, rounded, and its thickness. */
+    /** Each mark's line (upright, unlike the hairlines between lanes): its x, as {@link #fills}, and thickness. */
     private static List<String> lines(Picture p) {
         return p.marks().stream().filter(m -> m instanceof Picture.Line).map(m -> (Picture.Line) m)
+                .filter(l -> l.x0() == l.x1())
                 .map(l -> Math.round(l.x0() + REST) + " w" + Math.round(l.thickness())).toList();
     }
 }

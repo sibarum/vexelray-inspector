@@ -2,14 +2,16 @@ package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
+import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.GoTo;
+import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
+import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.Runs;
-import dev.sibarum.inspector.core.Messages.Span;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
@@ -23,6 +25,7 @@ import sibarum.atchung.Ledger;
 import sibarum.atchung.Out;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -38,21 +41,21 @@ import java.util.Optional;
  * <p><b>The model, live and as of the cursor.</b> Each batch is folded onto the live {@link Model} and kept on the
  * {@link Tape}, a second at a time beside a checkpoint, for the last {@link #RETAIN}; the model as of any moment is
  * recomputed from the tape by the same fold ({@link Tape#asOf}), exactly as it was. The passes lane needs none of
- * that: it shows every pass kept, which is the same fold over the retained reach, and puts the cursor at its right
- * edge, so at rest it shows the passes as of the cursor and while it glides it shows what it passes (design.md 9.8).
- * The readouts, the next panels, are where the model as of the cursor will be shown.
+ * that: it shows every event kept, which is the same fold over the retained reach, and puts the cursor at its right
+ * edge, so at rest it shows the events as of the cursor and while it glides it shows what it passes (design.md 9.8).
+ * The {@link Readouts} are where the model as of the cursor is shown, sent beside every timeline.
  *
  * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Step}
- * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked pass, and {@link StepEvent}
- * onto the next or previous pass, which
- * it is then on and the status line describes. It goes no further back than the tape holds. Rows go on arriving
+ * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked event, and {@link StepEvent}
+ * onto the next or previous event of the lane the view has focused, which it is then on and the status line
+ * describes. It goes no further back than the tape holds. Rows go on arriving
  * and being kept while paused, and are shown only if they are before the cursor (a late batch), so a paused timeline
  * is still. A run that goes away keeps its tape, to step through, until another is attached.
  */
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class, StepEvent.class,
         GoTo.class})
-@Publishes({FindRuns.class, Attach.class, Timeline.class})
+@Publishes({FindRuns.class, Attach.class, Timeline.class, Readouts.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -83,23 +86,28 @@ public final class Bench {
      * @param first    the moment of the run's first row read, which the status line counts from
      * @param paused   whether the cursor is stopped; following the present when not
      * @param cursor   where it is stopped, on the machine's clock
-     * @param on       the pass the cursor is on, after a step by events
+     * @param on       the event the cursor is on, after a step by events or a click
      * @param gone     which run went away last, and why, kept to say beside "no application" until another is attached
      */
     public record State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape,
-                        long first, boolean paused, long cursor, Optional<Span> on, String gone) {
+                        long first, boolean paused, long cursor, Optional<Event> on, String gone) {
 
         static State initial() {
             return new State("", "", "Looking for an application to inspect", false, Model.EMPTY, Model.EMPTY,
                     Tape.EMPTY, 0L, false, 0L, Optional.empty(), "");
         }
 
-        /** The timeline: every pass kept, the cursor at the right edge while paused, the newest row while following. */
+        /** The timeline: every event kept, the cursor at the right edge while paused, the newest row while following. */
         Timeline timeline() {
             if (paused) {
-                return new Timeline(run, status, false, cursor, kept.passes(), on);
+                return new Timeline(run, status, false, cursor, kept.lanes(), on);
             }
-            return new Timeline(run, status, arriving, now.newestNanos(), kept.passes(), Optional.empty());
+            return new Timeline(run, status, arriving, now.newestNanos(), kept.lanes(), Optional.empty());
+        }
+
+        /** The readouts as of the cursor: the model the tape recomputes for it, or the live one while following. */
+        Readouts readouts() {
+            return (paused ? tape.asOf(cursor) : now).readouts(run);
         }
 
         State withStatus(String status) {
@@ -114,9 +122,9 @@ public final class Bench {
             return new State(run, title, status, arriving, now, kept, tape, first, true, at, Optional.empty(), gone);
         }
 
-        State pausedOn(Span pass, String status) {
-            return new State(run, title, status, arriving, now, kept, tape, first, true, pass.toNanos(),
-                    Optional.of(pass), gone);
+        State pausedOn(Event event, String status) {
+            return new State(run, title, status, arriving, now, kept, tape, first, true, event.mark().toNanos(),
+                    Optional.of(event), gone);
         }
     }
 
@@ -233,41 +241,44 @@ public final class Bench {
     }
 
     /**
-     * An arrow: move the cursor onto the next or previous pass, {@code by} times, and say which. Back from a moment the
-     * cursor is not on a pass (following, or stepped there by time), the first step is onto the pass ending at or
-     * before it. Only passes the tape still holds; at either end it stays where it is.
+     * An arrow: move the cursor onto the next or previous event of the lane the view has focused, {@code by} times,
+     * and say which. Back from a moment the cursor is not on an event of that lane (following, stepped there by time,
+     * or on another lane's), the first step is onto its event ending at or before it. Only events the tape still
+     * holds; at either end it stays where it is.
      */
     static State stepEvent(State s, StepEvent e, Out out) {
-        if (s.tape().isEmpty()) {
+        if (s.tape().isEmpty() || !Model.LANES.contains(e.lane())) {
             return s;
         }
+        List<Mark> marks = s.kept().lane(e.lane()).marks();
         long at = s.paused() ? s.cursor() : e.fromNanos();
-        boolean onOne = s.paused() && s.on().isPresent();
-        Span to = null;
+        boolean onOne = s.paused() && s.on().isPresent() && s.on().get().lane().equals(e.lane());
+        Mark to = null;
         for (int i = 0; i < Math.abs(e.by()); i++) {
-            Span next = e.by() < 0 ? before(s, at, onOne || to != null) : after(s, at);
+            Mark next = e.by() < 0 ? before(s, marks, at, onOne || to != null) : after(marks, at);
             if (next == null) {
                 break;
             }
             to = next;
             at = next.toNanos();
         }
-        return to == null ? s : say(on(s, to), out);
+        return to == null ? s : say(on(s, new Event(e.lane(), to)), out);
     }
 
-    /** A click on a pass: the cursor onto it, if it is one the tape still holds. */
+    /** A click on an event: the cursor onto it, if it is one the tape still holds. */
     static State goTo(State s, GoTo g, Out out) {
-        Span pass = g.pass();
-        if (pass.toNanos() < s.tape().oldestNanos() || !s.kept().passes().contains(pass)) {
+        Event e = g.event();
+        if (!Model.LANES.contains(e.lane()) || e.mark().toNanos() < s.tape().oldestNanos()
+                || !s.kept().lane(e.lane()).marks().contains(e.mark())) {
             return s;
         }
-        return say(on(s, pass), out);
+        return say(on(s, e), out);
     }
 
-    /** The pass ending latest before {@code at} (or at it, unless {@code strictly}) that the tape still holds. */
-    private static Span before(State s, long at, boolean strictly) {
-        Span best = null;
-        for (Span p : s.kept().passes()) {
+    /** The event ending latest before {@code at} (or at it, unless {@code strictly}) that the tape still holds. */
+    private static Mark before(State s, List<Mark> marks, long at, boolean strictly) {
+        Mark best = null;
+        for (Mark p : marks) {
             boolean earlier = strictly ? p.toNanos() < at : p.toNanos() <= at;
             if (earlier && p.toNanos() >= s.tape().oldestNanos() && (best == null || p.toNanos() > best.toNanos())) {
                 best = p;
@@ -276,10 +287,10 @@ public final class Bench {
         return best;
     }
 
-    /** The pass ending soonest after {@code at}. */
-    private static Span after(State s, long at) {
-        Span best = null;
-        for (Span p : s.kept().passes()) {
+    /** The event ending soonest after {@code at}. */
+    private static Mark after(List<Mark> marks, long at) {
+        Mark best = null;
+        for (Mark p : marks) {
             if (p.toNanos() > at && (best == null || p.toNanos() < best.toNanos())) {
                 best = p;
             }
@@ -289,11 +300,15 @@ public final class Bench {
 
     // ------------------------------------------------------------------ what the status line says
 
-    private static State on(State s, Span pass) {
-        String what = String.format(Locale.ROOT, "Pass of %.2f ms, ending at %.3f s",
-                (pass.toNanos() - pass.fromNanos()) / 1e6, (pass.toNanos() - s.first()) / 1e9);
+    private static State on(State s, Event e) {
+        Mark m = e.mark();
+        String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1);
+        String what = m.toNanos() == m.fromNanos()
+                ? String.format(Locale.ROOT, "%s at %.3f s", kind, (m.toNanos() - s.first()) / 1e9)
+                : String.format(Locale.ROOT, "%s of %.2f ms, ending at %.3f s", kind,
+                        (m.toNanos() - m.fromNanos()) / 1e6, (m.toNanos() - s.first()) / 1e9);
         String status = s.run().isEmpty() ? s.gone() + ". " + what : what + " of " + named(s.title(), s.run());
-        return s.pausedOn(pass, status);
+        return s.pausedOn(e, status);
     }
 
     private static State paused(State s, long at) {
@@ -310,8 +325,10 @@ public final class Bench {
         return (s.arriving() ? "Inspecting " : "Attaching to ") + named(s.title(), s.run());
     }
 
+    /** Tell the view the timeline and the readouts, both as of the cursor. */
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
+        out.send(Messages.READOUTS_TOPIC, s.readouts());
         return s;
     }
 

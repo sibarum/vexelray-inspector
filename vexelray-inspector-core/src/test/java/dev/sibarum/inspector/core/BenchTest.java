@@ -2,6 +2,7 @@ package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
+import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Pause;
@@ -9,7 +10,8 @@ import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.Runs;
-import dev.sibarum.inspector.core.Messages.Span;
+import dev.sibarum.inspector.core.Messages.Mark;
+import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
@@ -59,7 +61,8 @@ class BenchTest {
         timer = new Timer(bus);
         new Bench(tick.inbox("bench"), timer);
         Inbox heard = tick.inbox("heard");
-        for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.TIMELINE_TOPIC)) {
+        for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.TIMELINE_TOPIC,
+                Messages.READOUTS_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -91,9 +94,32 @@ class BenchTest {
         return took(Timeline.class).getLast();
     }
 
+    /** The last readouts sent, keeping the rest of what was sent. */
+    private Readouts readouts() {
+        return sent.stream().filter(Readouts.class::isInstance).map(Readouts.class::cast).toList().getLast();
+    }
+
+    /** A timeline's main-thread lane: its passes. */
+    private static List<Mark> passes(Timeline t) {
+        return lane(t, Model.MAIN);
+    }
+
+    private static List<Mark> lane(Timeline t, String name) {
+        return t.lanes().get(Model.LANES.indexOf(name)).marks();
+    }
+
+    /** The cursor on a pass. */
+    private static Optional<Event> on(Mark pass) {
+        return Optional.of(new Event(Model.MAIN, pass));
+    }
+
     /** A pass of the run's main loop: the frame zone's row at its end, carrying how long it took. */
     private static Row pass(long seq, long endNanos, String took) {
         return new Row(seq, endNanos, "main", "frame", "frame", took);
+    }
+
+    private static Row row(long seq, long at, String thread, String lane, String kind, String detail) {
+        return new Row(seq, at, thread, lane, kind, detail);
     }
 
     private void attached(Run run) {
@@ -134,7 +160,8 @@ class BenchTest {
                 new Row(2, 101 * MS, "main", "frame", "loop.park", "7ms"),
                 pass(3, 120 * MS, "539.5us"))));
         Timeline t = timeline();
-        assertEquals(List.of(new Span(96 * MS, 100 * MS), new Span(120 * MS - 539_500, 120 * MS)), t.passes());
+        assertEquals(List.of(new Mark(96 * MS, 100 * MS, Model.PASS),
+                new Mark(120 * MS - 539_500, 120 * MS, Model.PASS)), passes(t));
         assertEquals(120 * MS, t.edgeNanos(), "following: the newest row at the right edge");
         assertTrue(t.live());
         assertEquals("Inspecting Calculator (calculator-11)", t.status());
@@ -146,12 +173,12 @@ class BenchTest {
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(1, 1_000 * MS, "1ms"))));
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0,
                 List.of(pass(2, 1_000 * MS + Bench.REACH + MS, "1ms"))));
-        assertEquals(2, timeline().passes().size(), "past the panels' reach, but kept for the lane to glide over");
+        assertEquals(2, passes(timeline()).size(), "past the panels' reach, but kept for the lane to glide over");
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0,
                 List.of(pass(3, 1_000 * MS + Bench.RETAIN + MS, "1ms"))));
-        assertEquals(List.of(new Span(1_000 * MS + Bench.REACH, 1_000 * MS + Bench.REACH + MS),
-                        new Span(1_000 * MS + Bench.RETAIN, 1_000 * MS + Bench.RETAIN + MS)),
-                timeline().passes());
+        assertEquals(List.of(new Mark(1_000 * MS + Bench.REACH, 1_000 * MS + Bench.REACH + MS, Model.PASS),
+                        new Mark(1_000 * MS + Bench.RETAIN, 1_000 * MS + Bench.RETAIN + MS, Model.PASS)),
+                passes(timeline()));
     }
 
     @Test
@@ -196,8 +223,8 @@ class BenchTest {
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
     }
 
-    private static Span span(long end) {
-        return new Span(end - MS, end);
+    private static Mark span(long end) {
+        return new Mark(end - MS, end, Model.PASS);
     }
 
     @Test
@@ -214,7 +241,7 @@ class BenchTest {
         assertEquals(List.of(), took(Timeline.class), "paused: rows past the cursor change nothing shown");
         passes(5, 650 * MS);
         assertEquals(List.of(span(100 * MS), span(600 * MS), span(900 * MS), span(1_400 * MS), span(650 * MS)),
-                timeline().passes(), "a late row before the cursor is shown");
+                passes(timeline()), "a late row before the cursor is shown");
         tell(Messages.PAUSE_TOPIC, new Pause(0L));
         t = timeline();
         assertTrue(t.live(), "Space again follows the present");
@@ -233,7 +260,7 @@ class BenchTest {
         Timeline t = timeline();
         assertEquals(1_950 * MS, t.edgeNanos(), "following, a step is from where the view's lane would rest");
         assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS), span(2_200 * MS), span(2_900 * MS)),
-                t.passes(), "every pass kept: those past the cursor are past the lane's right edge at rest");
+                passes(t), "every pass kept: those past the cursor are past the lane's right edge at rest");
         assertFalse(t.live());
         tell(Messages.STEP_TOPIC, new Step(-100 * MS, 0L));
         assertEquals(1_850 * MS, timeline().edgeNanos(), "paused, a step is from the cursor");
@@ -283,7 +310,7 @@ class BenchTest {
             now = now.fold(batch, Long.MAX_VALUE);
             tape = tape.add(batch, now.newestNanos(), Bench.RETAIN);
         }
-        assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS)), tape.asOf(1_900 * MS).passes());
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS)), tape.asOf(1_900 * MS).lane(Model.MAIN).marks());
     }
 
     // ------------------------------------------------------------------ stepping by events
@@ -294,45 +321,45 @@ class BenchTest {
         passes(1, 100 * MS, 600 * MS, 1_300 * MS);
         passes(4, 2_200 * MS, 2_900 * MS);
         sent.clear();
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 2_950 * MS));
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 2_950 * MS));
         Timeline t = timeline();
-        assertEquals(Optional.of(span(2_900 * MS)), t.on(), "from following, back onto the newest pass");
+        assertEquals(on(span(2_900 * MS)), t.on(), "from following, back onto the newest pass");
         assertEquals(2_900 * MS, t.edgeNanos(), "the cursor at its end");
         assertFalse(t.live());
         assertEquals("Pass of 1.00 ms, ending at 2.800 s of Calculator (calculator-11)", t.status());
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
-        assertEquals(Optional.of(span(2_200 * MS)), timeline().on(), "then the one before it, however far back");
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-2, 0L));
-        assertEquals(Optional.of(span(600 * MS)), timeline().on(), "two at once");
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(1, 0L));
-        assertEquals(Optional.of(span(1_300 * MS)), timeline().on(), "and forward again");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
+        assertEquals(on(span(2_200 * MS)), timeline().on(), "then the one before it, however far back");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -2, 0L));
+        assertEquals(on(span(600 * MS)), timeline().on(), "two at once");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, 1, 0L));
+        assertEquals(on(span(1_300 * MS)), timeline().on(), "and forward again");
     }
 
     @Test
     void atEitherEndAnArrowLeavesTheCursorWhereItIs() {
         attached(ONE);
         passes(1, 100 * MS, 600 * MS);
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 700 * MS));
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
-        assertEquals(Optional.of(span(100 * MS)), timeline().on());
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 700 * MS));
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
+        assertEquals(on(span(100 * MS)), timeline().on());
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
         assertEquals(List.of(), took(Timeline.class), "nothing before the oldest pass kept");
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(5, 0L));
-        assertEquals(Optional.of(span(600 * MS)), timeline().on(), "forward stops at the newest");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, 5, 0L));
+        assertEquals(on(span(600 * MS)), timeline().on(), "forward stops at the newest");
     }
 
     @Test
     void steppingByTimeOrPausingLeavesThePassItWasOn() {
         attached(ONE);
         passes(1, 100 * MS, 600 * MS);
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 700 * MS));
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 700 * MS));
         sent.clear();
         tell(Messages.STEP_TOPIC, new Step(-100 * MS, 0L));
         Timeline t = timeline();
         assertEquals(Optional.empty(), t.on());
         assertEquals(500 * MS, t.edgeNanos());
-        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
-        assertEquals(Optional.of(span(100 * MS)), timeline().on(), "back from between passes: the one before");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
+        assertEquals(on(span(100 * MS)), timeline().on(), "back from between passes: the one before");
         tell(Messages.PAUSE_TOPIC, new Pause(0L));
         assertEquals(Optional.empty(), timeline().on(), "following again: on nothing");
     }
@@ -342,11 +369,11 @@ class BenchTest {
         attached(ONE);
         passes(1, 100 * MS, 600 * MS, 1_300 * MS);
         sent.clear();
-        tell(Messages.GO_TO_TOPIC, new GoTo(span(600 * MS)));
+        tell(Messages.GO_TO_TOPIC, new GoTo(new Event(Model.MAIN, span(600 * MS))));
         Timeline t = timeline();
-        assertEquals(Optional.of(span(600 * MS)), t.on(), "from following: paused on it");
+        assertEquals(on(span(600 * MS)), t.on(), "from following: paused on it");
         assertEquals(600 * MS, t.edgeNanos());
-        tell(Messages.GO_TO_TOPIC, new GoTo(new Span(1, 2)));
+        tell(Messages.GO_TO_TOPIC, new GoTo(new Event(Model.MAIN, new Mark(1, 2, Model.PASS))));
         assertEquals(List.of(), took(Timeline.class), "not a pass that was kept");
     }
 
@@ -387,6 +414,102 @@ class BenchTest {
         for (Model m : held) {
             assertEquals(m, tape.asOf(m.newestNanos()));
         }
+    }
+
+    // ------------------------------------------------------------------ the lanes and the readouts
+
+    /** One draw as a traced run writes it (seen 2026-10-30): the GPU's waits, the present, the pass, then a hold. */
+    private static List<Row> aDraw(long seq, long at) {
+        return List.of(
+                row(seq, at - 2_900_000, "main", "gpu", "dxgi wait", "2.9us"),
+                row(seq + 1, at - 2_800_000, "main", "gpu", "wait fence", "15.4us"),
+                row(seq + 2, at - 1_000_000, "main", "draw", "emit canvas", "677.4us"),
+                row(seq + 3, at, "main", "gpu", "present frame", "1.95ms"),
+                row(seq + 4, at + 10_000, "main", "frame", "frame", "2.92ms"),
+                row(seq + 5, at + 20_000, "main", "frame", "frame.present", "#5"),
+                row(seq + 6, at + 13 * MS, "main", "frame", "draw held for the ceiling", "1"));
+    }
+
+    @Test
+    void eachLaneIsReadFromItsOwnRows() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>(aDraw(1, 100 * MS));
+        rows.add(row(10, 90 * MS, "main", "input", "edges", "0"));
+        rows.add(row(11, 91 * MS, "main", "input", "edges", "2"));
+        rows.add(row(12, 92 * MS, "main", "input", "snapshot", "4.0us"));
+        rows.add(row(13, 93 * MS, "vexelray-automation-1", "input", "key", "SPACE"));
+        rows.add(row(14, 95 * MS, "vexel-logic", "bus", "tick", "448.1us"));
+        rows.add(row(15, 96 * MS, "main", "bus", "tick", "1.26ms"));
+        rows.add(row(16, 120 * MS, "main", "frame", "draw held for the GPU", "1"));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        Timeline t = timeline();
+        assertEquals(Model.LANES, t.lanes().stream().map(Messages.Lane::name).toList(), "every lane, in order");
+        assertEquals(List.of(new Mark(91 * MS, 91 * MS, Model.INPUT_TAKEN), new Mark(93 * MS, 93 * MS, Model.INJECTED)),
+                lane(t, Model.INPUT), "a snapshot that took nothing is no input; an automation verb is told apart");
+        assertEquals(List.of(new Mark(100 * MS + 10_000 - 2_920_000, 100 * MS + 10_000, Model.PASS)), passes(t));
+        assertEquals(List.of(new Mark(95 * MS - 448_100, 95 * MS, Model.TICK)), lane(t, Model.LOGIC),
+                "the logic lane's thread only: main's tick is the widgets'");
+        assertEquals(List.of(new Mark(100 * MS - 1_950_000, 100 * MS, Model.DRAW),
+                        new Mark(113 * MS, 113 * MS, Model.HELD_FOR_CEILING),
+                        new Mark(120 * MS, 120 * MS, Model.HELD_FOR_GPU)),
+                lane(t, Model.DRAWING));
+        assertEquals(List.of(new Mark(100 * MS - 2_900_000 - 2_900, 100 * MS - 2_900_000, "dxgi wait"),
+                        new Mark(100 * MS - 2_800_000 - 15_400, 100 * MS - 2_800_000, "wait fence")),
+                lane(t, Model.GPU), "what the presenter waited on; recording is not a wait");
+    }
+
+    @Test
+    void anArrowStepsThroughTheFocusedLaneOnlyAndSaysWhatItIsOn() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>(aDraw(1, 100 * MS));
+        rows.addAll(aDraw(20, 200 * MS));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        sent.clear();
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.DRAWING, -1, 250 * MS));
+        Timeline t = timeline();
+        assertEquals(Optional.of(new Event(Model.DRAWING, new Mark(213 * MS, 213 * MS, Model.HELD_FOR_CEILING))),
+                t.on(), "the drawing lane's newest event, a hold, not a pass that ended later");
+        assertEquals("Draw held for the ceiling at 0.116 s of Calculator (calculator-11)", t.status(),
+                "a moment says when; counted from the run's first row, the first GPU wait");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.DRAWING, -1, 0L));
+        t = timeline();
+        assertEquals(new Mark(200 * MS - 1_950_000, 200 * MS, Model.DRAW), t.on().orElseThrow().mark());
+        assertTrue(t.status().startsWith("Draw of 1.95 ms, ending at"), t.status());
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
+        assertEquals(Model.MAIN, timeline().on().orElseThrow().lane(),
+                "another lane's arrow starts from the cursor, onto that lane's event before it");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent("Nowhere", -1, 0L));
+        assertEquals(List.of(), took(Timeline.class), "a lane that is not one is ignored");
+    }
+
+    @Test
+    void theReadoutsCountTheSecondBeforeTheCursorAndRewindWithIt() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            rows.addAll(aDraw(10L * i, 100 * MS * (i + 1)));
+            rows.add(row(10L * i + 8, 100 * MS * (i + 1) + 5 * MS, "vexel-logic", "bus", "tick", (i + 1) + "00us"));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(
+                row(-1, 2_050 * MS, "", Model.LOST_LANE, Model.LOST, "6"),
+                pass(300, 2_100 * MS, "1ms"))));
+        Readouts live = readouts();
+        assertEquals(new Readouts(ONE.name(), 9, 10, 0, 10, 1_500_000, 2_000_000, 6), live,
+                "after 1.1 s: nine draws (the one ending at 1.1 s is out), ten holds and ticks, and the lost rows");
+        sent.clear();
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 2_100 * MS));
+        Readouts then = readouts();
+        assertEquals(new Readouts(ONE.name(), 10, 10, 0, 10, 500_000, 1_000_000, 0), then,
+                "a second back: the ticks as they were then, and nothing lost yet");
+    }
+
+    @Test
+    void lostRowsAreSaidAsARowOfTheirOwnAtTheBatchsFirstMoment() {
+        Rows r = LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(4, 9, List.of(
+                new dev.vexelray.gui.inspector.link.Row(10, 50L, 0L, 0L, "main", "frame", "frame", "1ms"))));
+        assertEquals(row(-1, 1_050L, "", Model.LOST_LANE, Model.LOST, "6"), r.rows().getFirst());
+        assertEquals(2, r.rows().size());
     }
 
     @Test

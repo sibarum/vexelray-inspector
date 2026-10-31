@@ -7,12 +7,16 @@ import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
+import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.GoTo;
+import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
-import dev.sibarum.inspector.core.Messages.Span;
+import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
+import dev.sibarum.inspector.core.Model;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
 import dev.vexelray.gui.core.Drawn;
@@ -30,6 +34,7 @@ import sibarum.tactroller.api.Key;
 import sibarum.tactroller.api.Modifier;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -63,18 +68,27 @@ import java.util.Optional;
  *
  * <h2>Keys</h2>
  *
- * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event, Shift with them steps
- * a tenth of the lane, and {@code =} and {@code -} zoom about the right edge: a second motion, of the time the lane
- * spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch}) until the next
- * picture is built at the new scale. A click on a pass goes to it ({@link GoTo}). Each chord is declared with the message it sends ({@link PauseKey}, {@link EventKey},
+ * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event of the focused lane,
+ * Shift with them steps a tenth of the lane, and {@code =} and {@code -} zoom about the right edge: a second motion, of
+ * the time the lane spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch})
+ * until the next picture is built at the new scale. A click on a lane focuses it, and goes to the event nearest the
+ * click if one is near ({@link GoTo}); the main thread's is focused at first. Which lane is focused is the view's own:
+ * it is how the timeline is looked at, not what the run did, so it is not the bench's and does not rewind (design.md
+ * 9.7). Each chord is declared with the message it sends ({@link PauseKey}, {@link EventKey},
  * {@link StepKey}), and the view turns it into the bench's {@link Pause}, {@link StepEvent} or {@link Step} with the
  * moment the lane would come to rest at, which only the view knows. The handover starts at the key, though it is added
  * when the bench answers, a tick later: the step is still flat there in every derivative, so starting it a few
  * milliseconds back moves nothing that can be seen.
  *
- * <p><b>The event the cursor is on</b> is drawn over the others in the text's colour, the whole height of the lane
- * and at least two pixels wide, so that it can be told from its neighbours even where a pass is far narrower than a
- * pixel.
+ * <p><b>The lanes</b> are bands of one picture, in {@code Model.LANES}' order, since they share the time axis and
+ * slide together. A stretch (a pass, a tick, a draw, a wait) is drawn as the passes always were; a moment (an input, a
+ * draw held) is the line alone. A draw held for the ceiling is drawn faint, since that is pacing doing its job; one
+ * held for the GPU in the caution colour, since that is the GPU being slow; injected input dimmed beside input taken
+ * from a device.
+ *
+ * <p><b>The event the cursor is on</b> is drawn over the others in the text's colour, the whole height of its lane's
+ * band and at least two pixels wide, so that it can be told from its neighbours even where a pass is far narrower than
+ * a pixel.
  */
 @dev.vexelray.framework.api.View
 final class View {
@@ -112,13 +126,25 @@ final class View {
     record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, Motion edge, Motion zoom) {
     }
 
+    /**
+     * The colours the lanes are drawn in: a stretch or a moment, a draw held for the ceiling, one held for the GPU,
+     * injected input, the event the cursor is on, and the hairlines between the lanes.
+     */
+    record Inks(Color mark, Color ceiling, Color gpu, Color injected, Color on, Color line) {
+
+        /** What {@code kind} is drawn in. */
+        Color of(String kind) {
+            return kind.equals(Model.HELD_FOR_CEILING) ? ceiling : kind.equals(Model.HELD_FOR_GPU) ? gpu
+                    : kind.equals(Model.INJECTED) ? injected : mark;
+        }
+    }
+
     /** The one state the asked half reads: replaced when the timeline, the motion or the lane changes. */
     Strip state;
 
     private final Gui gui;
     private final Ui ui;
-    private final Color mark;
-    private final Color on;
+    private final Inks inks;
     private final Sender<Pause> pause;
     private final Sender<Step> step;
     private final Sender<StepEvent> stepEvent;
@@ -127,8 +153,12 @@ final class View {
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
     private float laneX;
+    private float laneY;
     private float laneW;
     private float laneH;
+
+    /** The lane the arrows step through, one of {@code Model.LANES}. */
+    private String focus = Model.MAIN;
 
     /** How much time the lane spans, or is zooming to. */
     private double span = SPAN_NANOS;
@@ -146,17 +176,19 @@ final class View {
         this.step = step;
         this.stepEvent = stepEvent;
         this.goTo = goTo;
-        this.mark = gui.theme().color(Role.ACCENT);
-        this.on = gui.theme().color(Role.INK);
+        this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
+                gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
+                gui.theme().color(Role.LINE));
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneX = layout.rect().x();
+            laneY = layout.rect().y();
             laneW = layout.rect().w();
             laneH = layout.rect().h();
             show();
         });
-        gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x()));
+        gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x(), click.y()));
         gui.shortcut(Shortcut.of(Key.SPACE), pauseKey, new PauseKey());
         gui.shortcut(Shortcut.of(Key.LEFT), eventKey, new EventKey(-1));
         gui.shortcut(Shortcut.of(Key.RIGHT), eventKey, new EventKey(1));
@@ -186,13 +218,13 @@ final class View {
         step.send(new Step(key.direction() * (long) (span / 10), (long) state.edge().rest(now, Glide.window(0.0))));
     }
 
-    /** An arrow: ask the bench to step the cursor onto the next or previous event. */
+    /** An arrow: ask the bench to step the cursor onto the focused lane's next or previous event. */
     @Subscribe
     public void eventKey(EventKey key) {
         long now = System.nanoTime();
         pressedAt = now;
         pressWindow = -1L;
-        stepEvent.send(new StepEvent(key.by(), (long) state.edge().rest(now, Glide.window(0.0))));
+        stepEvent.send(new StepEvent(focus, key.by(), (long) state.edge().rest(now, Glide.window(0.0))));
     }
 
     /** {@code =} or {@code -}: halve or double what the lane spans, about its right edge, gliding there. */
@@ -211,26 +243,42 @@ final class View {
         show();
     }
 
-    /** A click on the lane: go to the pass nearest it, if one is within {@link #CLICK_REACH_PX}. */
-    private void clicked(float x) {
+    /**
+     * A click on the lanes: focus the lane it is in, and go to its event nearest the click, if one is within
+     * {@link #CLICK_REACH_PX}.
+     */
+    private void clicked(float x, float y) {
         long now = System.nanoTime();
         double scale = scale(now);
-        if (scale <= 0) {
+        if (scale <= 0 || laneH <= 0f) {
             return;
         }
+        int band = Math.clamp((int) ((y - laneY) / (laneH / Model.LANES.size())), 0, Model.LANES.size() - 1);
+        focus = Model.LANES.get(band);
+        ui.focus(focus);
         double at = state.edge().at(now) - (laneX + laneW - x) / scale;
-        nearest(last.passes(), at, CLICK_REACH_PX / scale).ifPresent(pass -> {
+        nearest(marks(last, focus), at, CLICK_REACH_PX / scale).ifPresent(mark -> {
             pressedAt = now;
             pressWindow = -1L;
-            goTo.send(new GoTo(pass));
+            goTo.send(new GoTo(new Event(focus, mark)));
         });
     }
 
-    /** The pass nearest {@code atNanos}, if one is within {@code reachNanos} of it. Pure, for a test. */
-    static Optional<Span> nearest(List<Span> passes, double atNanos, double reachNanos) {
-        Span best = null;
+    /** The events of {@code t}'s lane named {@code name}; none before the bench has said anything. */
+    private static List<Mark> marks(Timeline t, String name) {
+        for (Lane l : t.lanes()) {
+            if (l.name().equals(name)) {
+                return l.marks();
+            }
+        }
+        return List.of();
+    }
+
+    /** The event nearest {@code atNanos}, if one is within {@code reachNanos} of it. Pure, for a test. */
+    static Optional<Mark> nearest(List<Mark> marks, double atNanos, double reachNanos) {
+        Mark best = null;
         double bestGap = reachNanos;
-        for (Span p : passes) {
+        for (Mark p : marks) {
             double gap = atNanos < p.fromNanos() ? p.fromNanos() - atNanos
                     : atNanos > p.toNanos() ? atNanos - p.toNanos() : 0.0;
             if (gap <= bestGap) {
@@ -253,7 +301,8 @@ final class View {
     public void timeline(Timeline t) {
         long now = System.nanoTime();
         Motion edge = state.edge().settled(now);
-        boolean fresh = last.passes().isEmpty() || (!t.run().isEmpty() && !t.run().equals(last.run()));
+        boolean fresh = last.lanes().stream().allMatch(l -> l.marks().isEmpty())
+                || (!t.run().isEmpty() && !t.run().equals(last.run()));
         Path to = t.live() ? Path.following(now) : Path.stopped(stopAt(t, edge, now));
         if (fresh || gui.reducedMotion()) {
             edge = Motion.of(to);
@@ -306,40 +355,72 @@ final class View {
             hi = Double.MAX_VALUE;
         }
         double widest = Math.max(span, Math.exp(state.zoom().at(now)));
-        ui.strip().picture(passes(last, laneW, laneH, scale, mark, on, lo - widest, hi));
+        ui.strip().picture(lanes(last, laneW, laneH, scale, inks, lo - widest, hi));
         state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, edge, state.zoom());
     }
 
     /**
-     * The passes between {@code fromNanos} and {@code toNanos} as marks on a strip reaching {@link #SLIDE_LANES} lanes
-     * of width {@code w} either side of the lane, with the timeline's edge moment where the lane's right edge is at
-     * rest. Each pass is a fill as long as it took, which a zoom stretches, and a one-pixel line at its end, which it
-     * does not, so a pass far shorter than a pixel still shows at any zoom and none grows fat. The pass the cursor is
-     * on, if any, is drawn over them in {@code onColour}, the lane's whole height, with a two-pixel line at its end.
-     * Pure, for a test.
+     * Every lane's events between {@code fromNanos} and {@code toNanos} as marks on a strip reaching
+     * {@link #SLIDE_LANES} lanes of width {@code w} either side of the lanes, with the timeline's edge moment where the
+     * lanes' right edge is at rest, each lane a band of {@code h} over {@code Model.LANES}, a hairline between bands.
+     * A stretch is a fill as long as it took, which a zoom stretches, and a one-pixel line at its end, which it does
+     * not, so one far shorter than a pixel still shows at any zoom and none grows fat; a moment is the line alone. The
+     * event the cursor is on, if any, is drawn over them in the text's colour, its band's whole height, with a
+     * two-pixel line at its end. Pure, for a test.
      */
-    static Picture passes(Timeline t, float w, float h, float pxPerNano, Color colour, Color onColour,
-                          double fromNanos, double toNanos) {
-        Sketch s = new Sketch().tag("passes");
+    static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos) {
+        Sketch s = new Sketch().tag("lanes");
         float edge = w * (1 + SLIDE_LANES);
-        float top = h * 0.2f;
-        float height = h * 0.6f;
-        for (Span p : t.passes()) {
-            if (p.toNanos() < fromNanos || p.fromNanos() > toNanos) {
-                continue;
-            }
-            float x0 = edge + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
-            float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
-            s.fill(x0, top, x1 - x0, height, colour);
-            s.line(x1 - 0.5f, top, x1 - 0.5f, top + height, 1f, colour);
+        float band = h / Model.LANES.size();
+        for (int i = 1; i < Model.LANES.size(); i++) {
+            s.line(0f, band * i, edge + w * SLIDE_LANES, band * i, 1f, inks.line());
         }
-        t.on().ifPresent(p -> {
-            float x0 = edge + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
-            float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
-            s.fill(x0, 0f, x1 - x0, h, onColour);
-            s.line(x1 - 1f, 0f, x1 - 1f, h, 2f, onColour);
+        for (Lane l : t.lanes()) {
+            float y = band * Model.LANES.indexOf(l.name());
+            float top = y + band * 0.2f;
+            float height = band * 0.6f;
+            for (Mark m : l.marks()) {
+                if (m.toNanos() < fromNanos || m.fromNanos() > toNanos) {
+                    continue;
+                }
+                Color c = inks.of(m.kind());
+                float x0 = edge + (m.fromNanos() - t.edgeNanos()) * pxPerNano;
+                float x1 = edge + (m.toNanos() - t.edgeNanos()) * pxPerNano;
+                if (m.toNanos() > m.fromNanos()) {
+                    s.fill(x0, top, x1 - x0, height, c);
+                }
+                s.line(x1 - 0.5f, top, x1 - 0.5f, top + height, 1f, c);
+            }
+        }
+        t.on().ifPresent(e -> {
+            Mark m = e.mark();
+            float y = band * Model.LANES.indexOf(e.lane());
+            float x0 = edge + (m.fromNanos() - t.edgeNanos()) * pxPerNano;
+            float x1 = edge + (m.toNanos() - t.edgeNanos()) * pxPerNano;
+            if (m.toNanos() > m.fromNanos()) {
+                s.fill(x0, y, x1 - x0, band, inks.on());
+            }
+            s.line(x1 - 1f, y, x1 - 1f, y + band, 2f, inks.on());
         });
         return s.picture();
+    }
+
+    // ------------------------------------------------------------------ the readouts
+
+    /** The bench's readouts, as one line of numbers. */
+    @Subscribe
+    public void readouts(Readouts r) {
+        ui.readouts(readout(r));
+    }
+
+    /** What the readouts line says. Pure, for a test. */
+    static String readout(Readouts r) {
+        if (r.run().isEmpty() && r.draws() == 0 && r.ticks() == 0) {
+            return "";
+        }
+        return String.format(Locale.ROOT, "Draws %d/s, held %d for the ceiling and %d for the GPU   Ticks %d/s, "
+                        + "p50 %.2f ms, p95 %.2f ms   Rows lost %d", r.draws(), r.heldForCeiling(), r.heldForGpu(),
+                r.ticks(), r.tickP50Nanos() / 1e6, r.tickP95Nanos() / 1e6, r.rowsLost());
     }
 
     /**

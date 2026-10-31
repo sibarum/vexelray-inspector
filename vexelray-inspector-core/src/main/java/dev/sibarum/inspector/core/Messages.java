@@ -79,7 +79,11 @@ public final class Messages {
     public record Row(long seq, long atNanos, String thread, String lane, String kind, String detail) {
     }
 
-    /** The rows of {@code run} that arrived since the last batch; {@code lostFrom..lostTo} never arrived, before them. */
+    /**
+     * The rows of {@code run} that arrived since the last batch; {@code lostFrom..lostTo} never arrived, before them.
+     * {@link LinkRows} also says the loss as a row of its own ({@link Model#LOST}), so that it is folded and kept with
+     * the rest and the readouts can count it as of any moment.
+     */
     public static final Topic<Rows> ROWS_TOPIC = Topic.edge(Rows.class);
 
     public record Rows(String run, long lostFrom, long lostTo, List<Row> rows) {
@@ -111,47 +115,85 @@ public final class Messages {
     }
 
     /**
-     * An arrow: move the cursor {@code by} events, back when negative: onto the next or previous pass, which it is then
-     * on. Stopped, from the cursor; following, from {@code fromNanos}, where the view's lane would come to rest, so the
-     * first step back is onto the newest pass. An edge, as {@link Step} is.
+     * An arrow: move the cursor {@code by} events of {@code lane}, back when negative: onto its next or previous event,
+     * which it is then on. The lane is the one the view has focused. Stopped, from the cursor; following, from
+     * {@code fromNanos}, where the view's lane would come to rest, so the first step back is onto the lane's newest
+     * event. An edge, as {@link Step} is.
      */
     public static final Topic<StepEvent> STEP_EVENT_TOPIC = Topic.edge(StepEvent.class);
 
-    public record StepEvent(int by, long fromNanos) {
+    public record StepEvent(String lane, int by, long fromNanos) {
     }
 
-    /** A click on a pass: put the cursor on it, pausing if following. Ignored unless it is a pass the tape holds. */
+    /** A click on an event: put the cursor on it, pausing if following. Ignored unless it is one the tape holds. */
     public static final Topic<GoTo> GO_TO_TOPIC = Topic.edge(GoTo.class);
 
-    public record GoTo(Span pass) {
+    public record GoTo(Event event) {
     }
 
     // ------------------------------------------------------------------ the bench tells the view
 
-    /** A stretch of time on the machine's monotonic clock: one pass of a run's main loop. */
-    public record Span(long fromNanos, long toNanos) {
+    /**
+     * One event on a lane, on the machine's monotonic clock: a stretch from its start to its end (a pass, a tick, a
+     * draw, a wait), or a moment when the two are equal (an input, a draw held). {@code kind} says which, in words the
+     * status line can use, and is one of {@link Model}'s kinds.
+     */
+    public record Mark(long fromNanos, long toNanos, String kind) {
+    }
+
+    /** One lane of the timeline: a clock's events, in the order their rows arrived. */
+    public record Lane(String name, List<Mark> marks) {
+        public Lane {
+            marks = List.copyOf(marks);
+        }
+    }
+
+    /** An event, and the lane it is on. */
+    public record Event(String lane, Mark mark) {
     }
 
     /**
-     * The timeline: which run, what to say about it, where the cursor is, and every pass kept, oldest first. A state
-     * topic: a storm of rows costs the view one a frame.
+     * The timeline: which run, what to say about it, where the cursor is, and every event kept on every lane, in
+     * {@link Model#LANES}' order. A state topic: a storm of rows costs the view one a frame.
      *
-     * <p>The passes are all those kept, not only those before the cursor: the lane glides between moments (design.md
-     * 9.8) and shows what it passes on the way. At rest only what is before the cursor is in view, since the cursor is
-     * at the lane's right edge.
+     * <p>The events are all those kept, not only those before the cursor: the lanes glide between moments (design.md
+     * 9.8) and show what they pass on the way. At rest only what is before the cursor is in view, since the cursor is
+     * at the lanes' right edge.
      *
      * @param run       the run attached, or empty when none is
      * @param status    what the status line says
      * @param live      whether the timeline follows the present: rows are arriving and the cursor is not stopped
-     * @param edgeNanos the moment at the lane's right edge: the newest row while following, the cursor while stopped
-     * @param on        the pass the cursor is on, after a step by events; the cursor is then at its end
+     * @param edgeNanos the moment at the lanes' right edge: the newest row while following, the cursor while stopped
+     * @param on        the event the cursor is on, after a step by events or a click; the cursor is then at its end
      */
     public static final Topic<Timeline> TIMELINE_TOPIC = Topic.state(Timeline.class);
 
-    public record Timeline(String run, String status, boolean live, long edgeNanos, List<Span> passes,
-                           Optional<Span> on) {
+    public record Timeline(String run, String status, boolean live, long edgeNanos, List<Lane> lanes,
+                           Optional<Event> on) {
         public Timeline {
-            passes = List.copyOf(passes);
+            lanes = List.copyOf(lanes);
         }
+    }
+
+    /**
+     * The readouts, over the second before the cursor (the newest row while following), from the same model the
+     * timeline is drawn from, so they rewind with it. A state topic, as the timeline is.
+     *
+     * <p>Ticks are those of the logic lane's own thread: under {@code --logic=main} they run on the main thread beside
+     * the widgets' tick, which no row tells apart yet (framework-notes FN-8), so there they read nothing.
+     *
+     * @param run            the run attached, or empty when none is
+     * @param draws          draws in the second
+     * @param heldForCeiling draws held for the ceiling in it: pacing doing its job
+     * @param heldForGpu     draws held for the GPU in it: the GPU being slow
+     * @param ticks          logic ticks in it
+     * @param tickP50Nanos   how long they took, the median; 0 with none
+     * @param tickP95Nanos   the 95th percentile; 0 with none
+     * @param rowsLost       rows the link lost, from the first row read to the cursor
+     */
+    public static final Topic<Readouts> READOUTS_TOPIC = Topic.state(Readouts.class);
+
+    public record Readouts(String run, int draws, int heldForCeiling, int heldForGpu, int ticks, long tickP50Nanos,
+                           long tickP95Nanos, long rowsLost) {
     }
 }

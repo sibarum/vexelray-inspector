@@ -377,6 +377,18 @@ Each step ends with something to watch or something an agent can ask, and lands 
   it took and a pixel-wide line at its end, so it neither vanishes zoomed out nor fattens zoomed in. A click on a pass
   goes to it (`GoTo`). Seen with `ottermate`: zoomed nine times, passes 0.3 to 2.3 ms long stand apart and step one by
   one; a click on one glides it to the edge. Hover waits on FN-7.
+  **Slice 3, every lane and the readouts, done 2026-10-30 (Sequence and the filter still to come):** five lanes, one
+  band each in one picture since they share the axis: Input (tactroller's `edges` when it took any, automation's verbs
+  told apart), Main thread (passes), Logic (the `tick` zone off `main`), Drawing (the presenter's `present frame`, and
+  draws held for the ceiling and for the GPU as moments, faint and in caution), GPU (what the presenter waited on).
+  Read from a traced run's rows, dumped first to check section 7's survey. `Timeline` carries `Lane`s of `Mark`s and
+  the cursor's `Event`; the readouts are a state topic of their own, from the same fold, so they rewind (the link's lost
+  rows are a row the source adds, folded like the rest). A click on a lane focuses it, and the arrows step through the
+  focused lane's events (ruled by the author 2026-10-30). Seen with `ottermate` against a traced Inspector: zoomed to
+  625 ms, passes, ticks, draws, holds and waits line up band by band; 58 draws a second under the ceiling, 146 passes
+  held for it, 3 held for the GPU, 96 ticks a second at p50 0.12 ms. Found: under `--logic=main` a logic tick cannot be
+  told from the widgets' (framework-notes FN-8); a run with automation and no `-Dprobe` records no ticks or GPU, and
+  a lane cannot say so (FN-9). Jobs and declared lanes write no rows yet (section 7½), so they have no lane.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

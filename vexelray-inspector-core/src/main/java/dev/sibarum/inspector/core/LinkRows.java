@@ -28,13 +28,20 @@ import java.util.concurrent.LinkedBlockingQueue;
  * sees a run's private zero. A run too old to say it is refused with that reason: a timeline that guessed would place
  * every row wrong by an amount it could not show.
  *
- * <p>Only the {@code frame} lane for now: the passes are the first lane the timeline draws (R1's first slice).
+ * <p><b>Lost rows are a row.</b> A batch says which rows its link lost before it; that range is added to the batch as
+ * one more row, {@link Model#LOST}, at the batch's first moment, so it is folded and kept on the tape like the rest and
+ * the readouts count it as of any moment.
  */
 @Source
 public final class LinkRows {
 
-    /** The lanes asked for. The bench reads what it knows, so asking for more only costs the link. */
-    static final List<String> LANES = List.of("frame");
+    /**
+     * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from. The bench reads what it knows, so
+     * asking for more only costs the link. The run must record them: an application started with
+     * {@code -Dprobe=all} does, while automation alone records only {@code input}, {@code frame}, {@code layout} and
+     * {@code app}, so its ticks and its GPU are not there to show.
+     */
+    static final List<String> LANES = List.of("input", "frame", "bus", "gpu");
 
     /** The end of the link, queued after its last batch. */
     private static final RowBatch CLOSED = new RowBatch(0, 0, List.of());
@@ -75,9 +82,17 @@ public final class LinkRows {
         }
     }
 
-    /** One batch, its rows set on the machine's clock. */
+    /**
+     * One batch, its rows set on the machine's clock, and what its link lost before it said first, at its first row's
+     * moment, or now on this machine's clock when it holds none.
+     */
     static Rows rows(String run, long origin, RowBatch b) {
-        List<Row> out = new ArrayList<>(b.rows().size());
+        List<Row> out = new ArrayList<>(b.rows().size() + 1);
+        if (b.lost()) {
+            long at = b.rows().isEmpty() ? System.nanoTime() : origin + b.rows().getFirst().tMonoNs();
+            out.add(new Row(-1, at, "", Model.LOST_LANE, Model.LOST,
+                    Long.toString(b.lostTo() - b.lostFrom() + 1)));
+        }
         for (dev.vexelray.gui.inspector.link.Row r : b.rows()) {
             out.add(new Row(r.seq(), origin + r.tMonoNs(), r.thread(), r.lane(), r.kind(), r.detail()));
         }

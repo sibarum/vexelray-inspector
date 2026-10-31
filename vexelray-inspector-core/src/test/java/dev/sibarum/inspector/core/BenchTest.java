@@ -718,7 +718,8 @@ class BenchTest {
                 new Row(4, at + 130_000, 0L, 9L, "vexel-logic", "state", "ledger bench", "24.2us", cause),
                 new Row(5, at + 120_000, 0L, 9L, "vexel-logic", "bus", "send",
                         timeline + " from dev.sibarum.inspector.core.Bench 1", cause),
-                new Row(6, at + 200_000, 0L, 9L, "main", "bus", "receive", timeline + " to vexelray.gui.main 1", cause)));
+                new Row(6, at + 200_000, 0L, 9L, "main", "bus", "receive",
+                        timeline + " to widgets dev.sibarum.inspector.View#timeline 1", cause)));
         for (int i = 0; i < 37; i++) {
             rows.add(new Row(7 + i, at + 300_000 + i * 1_000L, 0L, 9L, "main", "layout",
                     i < 2 ? "mutation layout" : i == 2 ? "mutation draw" : "mutation unchanged", "SetText", cause));
@@ -729,9 +730,9 @@ class BenchTest {
         assertEquals("I/O dev.example.LinkRows, firing 40   (b3702.o00.28) → published Messages.Rows on"
                 + " vexel-source-link-rows → reached Messages.Rows at Bench"
                 + " → ledger bench committed its state on vexel-logic"
-                + " → sent Messages.Timeline from Bench → reached Messages.Timeline at vexelray.gui.main"
+                + " → sent Messages.Timeline from Bench → reached Messages.Timeline at View#timeline in widgets"
                 + " → 37 changes to the GUI on main (2 relaid out, 1 redrawn) → woke pass #10", m.pathOf(published),
-                "from the source to the pass it woke, a hop at a time");
+                "from the source to the pass it woke, a hop at a time, a named mailbox by its method");
         assertEquals(List.of("Messages.Rows", "Messages.Timeline"), m.lane(Model.MESSAGES).marks().stream()
                 .map(e -> e.field(Model.TYPE)).toList(), "a component's send is a message too");
     }

@@ -126,8 +126,12 @@ all three; the row naming its topic would let the Inspector match it to the grap
 **Sender and receiver fixed upstream 2026-10-31**, ruled by the author: the cause is kept (FN-12), and atchung's
 `Inbox` writes a `send` row (`<topic> from <inbox> <hops>`) when a component's step sends and a `receive` row
 (`<topic> to <inbox> <hops>`) when a tick delivers, each in the message's own cause, so every hop between a source and
-the GUI is a row. Still not recorded: which `@View` method a GUI delivery reached (the GUI's inbox is one, `widgets`;
-the processor knows `View#timeline`, but `Gui.mailbox` takes no name), and how a message travelled (bus graph 2).
+the GUI is a row. **Receiving method fixed upstream the same day**: atchung's `Inbox.subscribe` takes a mailbox name
+and its `receive` row says it after the inbox's (`<topic> to widgets dev.sibarum.inspector.View#timeline <hops>`);
+`Gui.mailbox`, the framework's `Views.mailbox` and `Inboxes.mailbox` pass it, and the processor names every
+`@Subscribe` mailbox by its bus-graph name, `class#method`. A ledger's steps (`Ledger.on`) are still unnamed, so a
+delivery to a component that hears through its ledger says the component only. Still not recorded: how a message
+travelled (bus graph 2).
 
 ## FN-4 · No verb closes an application 🔬
 

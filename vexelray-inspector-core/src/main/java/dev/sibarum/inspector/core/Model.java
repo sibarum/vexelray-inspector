@@ -356,6 +356,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             return null;
         }
         String inbox = detail.substring(split + by.length(), end);
+        // A named mailbox follows its inbox, as class#method: the method it reached says more than the inbox does.
+        int named = inbox.indexOf(' ');
+        if (named > 0) {
+            return verb + typeName(detail.substring(0, split)) + at + typeName(inbox.substring(named + 1))
+                    + " in " + inbox.substring(0, named);
+        }
         return verb + typeName(detail.substring(0, split)) + at + (isMessageType(inbox) ? typeName(inbox) : inbox);
     }
 

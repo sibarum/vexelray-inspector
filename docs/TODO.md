@@ -19,8 +19,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       `localX`/`localY` into an event through the view's `Strip`.
 - [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter, which
       matches `Mark.fields` by name and value (`Model.FIELDS`), the same on every lane.
-- [ ] A delivery to the GUI says `widgets`, its one inbox, not which `@View` method it reached: name the mailbox
-      upstream (the processor knows `View#timeline`; `Views.mailbox` and `Gui.mailbox` would pass it on), FN-10.
 - [ ] The path is a line of text a filter can match; a hop at a time (click one to go to its event) waits for the
       graph panel (R2).
 - [ ] Injected input on the Input lane is held by `BenchTest` only: drive a traced target with keys while another

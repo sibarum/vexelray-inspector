@@ -100,6 +100,11 @@ class ViewTest {
         }
 
         @Override
+        public Drawn opacity(Node node, float opacity) {
+            return this;
+        }
+
+        @Override
         public Drawn show(Feed feed, int slot) {
             return this;
         }

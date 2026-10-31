@@ -20,8 +20,13 @@ final class Keys {
         static final Topic<PauseKey> TOPIC = Topic.edge(PauseKey.class);
     }
 
-    /** An arrow: step the cursor by {@code byNanos}, back when negative. */
+    /** Shift and an arrow: step the cursor by {@code byNanos}, back when negative. */
     record StepKey(long byNanos) {
         static final Topic<StepKey> TOPIC = Topic.edge(StepKey.class);
+    }
+
+    /** An arrow: step the cursor onto the next or previous event, {@code by} of them, back when negative. */
+    record EventKey(int by) {
+        static final Topic<EventKey> TOPIC = Topic.edge(EventKey.class);
     }
 }

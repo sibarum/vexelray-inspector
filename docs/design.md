@@ -367,6 +367,10 @@ Each step ends with something to watch or something an agent can ask, and lands 
   bench `Pause` and `Step` with the moment the lane rests at. Held by `GlideTest` (no jump in speed or acceleration
   through five interruptions; exact landings; a pause never backwards); seen with `ottermate`: every glide settles,
   and a step back lands the marks 91 px right. Not yet: event stepping, zoom, Sequence and the filter.
+  **Event stepping done 2026-10-30:** the arrows step the cursor onto the previous or next pass (`StepEvent`), Shift
+  with them a second; the pass the cursor is on is drawn over the others in the text's colour, two pixels wide at
+  least, and the status line says how long it took and when it ended. Seen with `ottermate`: steps through passes 3 to
+  9 ms apart, stopping at the oldest. Found: at the 10 s lane those steps move it under a pixel, so zoom comes next.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

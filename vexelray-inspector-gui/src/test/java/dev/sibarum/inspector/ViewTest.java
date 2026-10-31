@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -79,7 +80,7 @@ class ViewTest {
     @Test
     void aTimelineToldIsDrawnForTheLaneAndFollowedWhileLive() throws InterruptedException {
         Timeline t = new Timeline("calculator-11", "Inspecting Calculator (calculator-11)", true, 900 * MS,
-                List.of(new Span(880 * MS, 890 * MS)));
+                List.of(new Span(880 * MS, 890 * MS)), Optional.empty());
         shell.bus().publish(Messages.TIMELINE_TOPIC, t);
         eventually("the lane laid out and the timeline drawn", () -> wiring.view().state.pxPerNano() > 0f
                 && wiring.view().state.from().rate() == 1.0);
@@ -129,13 +130,33 @@ class ViewTest {
     void aPassIsDrawnFromItsStartToItsEndWithTheEdgeMomentAtTheRightEdge() {
         long newest = 20_000 * MS;
         Timeline t = new Timeline("r", "", true, newest, List.of(new Span(newest - 500 * MS, newest - 400 * MS),
-                new Span(newest - 100_000L, newest - 99_900L), new Span(newest - 11_000 * MS, newest - 10_500 * MS)));
+                new Span(newest - 100_000L, newest - 99_900L), new Span(newest - 11_000 * MS, newest - 10_500 * MS)),
+                Optional.empty());
         // A lane 1000 px wide over 10 s: 0.1 px a millisecond.
-        Picture p = View.passes(t, 1000f, 20f, 1000f / View.SPAN_NANOS, Color.WHITE, newest - View.SPAN_NANOS,
-                Double.MAX_VALUE);
-        List<String> boxes = p.marks().stream().map(m -> (Picture.Fill) m)
-                .map(f -> Math.round(f.x() - 1000f * View.SLIDE_LANES) + "+" + Math.round(f.w())).toList();
-        assertEquals(List.of("950+10", "1000+1"), boxes,
+        Picture p = View.passes(t, 1000f, 20f, 1000f / View.SPAN_NANOS, Color.WHITE, Color.BLACK,
+                newest - View.SPAN_NANOS, Double.MAX_VALUE);
+        assertEquals(List.of("950+10", "1000+1"), boxes(p),
                 "100 ms is 10 px, a pass shorter than a pixel still a pixel, and one before the range not drawn");
+    }
+
+    @Test
+    void thePassTheCursorIsOnIsDrawnOverTheOthersTheLanesHeightAndAtLeastTwoPixelsWide() {
+        long at = 20_000 * MS;
+        Span on = new Span(at - 100_000L, at);
+        Timeline t = new Timeline("r", "", false, at, List.of(new Span(at - 500 * MS, at - 400 * MS), on),
+                Optional.of(on));
+        Picture p = View.passes(t, 1000f, 20f, 1000f / View.SPAN_NANOS, Color.WHITE, Color.BLACK,
+                at - View.SPAN_NANOS, at);
+        assertEquals(List.of("950+10", "1000+1", "998+2"), boxes(p), "drawn last, so over the others, ending at its end");
+        Picture.Fill mark = (Picture.Fill) p.marks().getLast();
+        assertEquals(0f, mark.y());
+        assertEquals(20f, mark.h(), "the lane's whole height");
+        assertEquals(Color.BLACK, mark.color());
+    }
+
+    /** Each fill's left edge, relative to the lane's left at rest, and its width, rounded. */
+    private static List<String> boxes(Picture p) {
+        return p.marks().stream().map(m -> (Picture.Fill) m)
+                .map(f -> Math.round(f.x() - 1000f * View.SLIDE_LANES) + "+" + Math.round(f.w())).toList();
     }
 }

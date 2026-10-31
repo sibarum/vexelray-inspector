@@ -3,6 +3,7 @@ package dev.sibarum.inspector.core;
 import sibarum.atchung.Topic;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Every message the application's parts send each other: what each one says, and the topic it travels on.
@@ -109,6 +110,16 @@ public final class Messages {
     public record Step(long byNanos, long fromNanos) {
     }
 
+    /**
+     * An arrow: move the cursor {@code by} events, back when negative: onto the next or previous pass, which it is then
+     * on. Stopped, from the cursor; following, from {@code fromNanos}, where the view's lane would come to rest, so the
+     * first step back is onto the newest pass. An edge, as {@link Step} is.
+     */
+    public static final Topic<StepEvent> STEP_EVENT_TOPIC = Topic.edge(StepEvent.class);
+
+    public record StepEvent(int by, long fromNanos) {
+    }
+
     // ------------------------------------------------------------------ the bench tells the view
 
     /** A stretch of time on the machine's monotonic clock: one pass of a run's main loop. */
@@ -127,10 +138,12 @@ public final class Messages {
      * @param status    what the status line says
      * @param live      whether the timeline follows the present: rows are arriving and the cursor is not stopped
      * @param edgeNanos the moment at the lane's right edge: the newest row while following, the cursor while stopped
+     * @param on        the pass the cursor is on, after a step by events; the cursor is then at its end
      */
     public static final Topic<Timeline> TIMELINE_TOPIC = Topic.state(Timeline.class);
 
-    public record Timeline(String run, String status, boolean live, long edgeNanos, List<Span> passes) {
+    public record Timeline(String run, String status, boolean live, long edgeNanos, List<Span> passes,
+                           Optional<Span> on) {
         public Timeline {
             passes = List.copyOf(passes);
         }

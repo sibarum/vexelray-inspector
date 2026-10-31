@@ -10,6 +10,7 @@ import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.Runs;
 import dev.sibarum.inspector.core.Messages.Span;
 import dev.sibarum.inspector.core.Messages.Step;
+import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.vexelray.framework.core.Timer;
 import dev.vexelray.framework.core.WindowOpened;
@@ -24,6 +25,7 @@ import sibarum.atchung.Topic;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -281,6 +283,57 @@ class BenchTest {
             tape = tape.add(batch, now.newestNanos(), Bench.RETAIN);
         }
         assertEquals(List.of(span(100 * MS), span(600 * MS), span(1_300 * MS)), tape.asOf(1_900 * MS).passes());
+    }
+
+    // ------------------------------------------------------------------ stepping by events
+
+    @Test
+    void anArrowStepsOntoEachPassInTurnAndSaysWhichItIsOn() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS, 1_300 * MS);
+        passes(4, 2_200 * MS, 2_900 * MS);
+        sent.clear();
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 2_950 * MS));
+        Timeline t = timeline();
+        assertEquals(Optional.of(span(2_900 * MS)), t.on(), "from following, back onto the newest pass");
+        assertEquals(2_900 * MS, t.edgeNanos(), "the cursor at its end");
+        assertFalse(t.live());
+        assertEquals("Pass of 1.00 ms, ending at 2.800 s of Calculator (calculator-11)", t.status());
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
+        assertEquals(Optional.of(span(2_200 * MS)), timeline().on(), "then the one before it, however far back");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-2, 0L));
+        assertEquals(Optional.of(span(600 * MS)), timeline().on(), "two at once");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(1, 0L));
+        assertEquals(Optional.of(span(1_300 * MS)), timeline().on(), "and forward again");
+    }
+
+    @Test
+    void atEitherEndAnArrowLeavesTheCursorWhereItIs() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 700 * MS));
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
+        assertEquals(Optional.of(span(100 * MS)), timeline().on());
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
+        assertEquals(List.of(), took(Timeline.class), "nothing before the oldest pass kept");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(5, 0L));
+        assertEquals(Optional.of(span(600 * MS)), timeline().on(), "forward stops at the newest");
+    }
+
+    @Test
+    void steppingByTimeOrPausingLeavesThePassItWasOn() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 700 * MS));
+        sent.clear();
+        tell(Messages.STEP_TOPIC, new Step(-100 * MS, 0L));
+        Timeline t = timeline();
+        assertEquals(Optional.empty(), t.on());
+        assertEquals(500 * MS, t.edgeNanos());
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(-1, 0L));
+        assertEquals(Optional.of(span(100 * MS)), timeline().on(), "back from between passes: the one before");
+        tell(Messages.PAUSE_TOPIC, new Pause(0L));
+        assertEquals(Optional.empty(), timeline().on(), "following again: on nothing");
     }
 
     @Test

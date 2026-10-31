@@ -89,17 +89,18 @@ its right edge; when the application goes away it stops where it was, and the st
 | Key | Does |
 | --- | --- |
 | Space | pause: the lane slows to a stop; paused, follow the present again, catching up with it |
-| Left / Right | step the cursor back or forward a second (pausing first if following) |
-| Shift+Left / Shift+Right | step a tenth of a second |
+| Left / Right | step the cursor onto the previous or next pass (pausing first if following) |
+| Shift+Left / Shift+Right | step the cursor back or forward a second |
 
 Paused, the lane shows the run as it was at the cursor, which is at the right edge, and the status line says where the
-cursor is, counted from the run's first row. The last minute is kept, and stepping stops at either end of it. Rows go
+cursor is, counted from the run's first row. On a pass, the pass is drawn over the others in the text's colour, and
+the status line says how long it took and when it ended. Where passes are closer together than a pixel, a step moves
+the lane by less than one: the mark and the status line show it, and zoom (to come) will. The last minute is kept, and stepping stops at either end of it. Rows go
 on arriving and being kept while paused.
 
 Nothing on the lane jumps: every change of where it is going, a key held down included, glides there with no corner in
 its speed or in any derivative of it, and lands exactly (design.md 9.8). Under the system's reduced-motion setting it
-goes straight there. Choosing which application to inspect, stepping one event at a time, zoom, and the Sequence mode
-are R1's later slices.
+goes straight there. Choosing which application to inspect, zoom, and the Sequence mode are R1's later slices.
 
 ## How it is put together
 

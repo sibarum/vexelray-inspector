@@ -2,11 +2,13 @@ package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.Glide.Handover;
 import dev.sibarum.inspector.Glide.Path;
+import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Span;
 import dev.sibarum.inspector.core.Messages.Step;
+import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
@@ -26,6 +28,7 @@ import sibarum.tactroller.api.Modifier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The view: what the bench decided, shown. A {@code @View}, so it runs on the GUI thread, in each frame's widget tick
@@ -58,11 +61,16 @@ import java.util.List;
  *
  * <h2>Keys</h2>
  *
- * <p>Space pauses and follows again, and the arrows step the cursor (Shift for a finer step). Each chord is declared
- * with the message it sends ({@link PauseKey}, {@link StepKey}), and the view turns it into the bench's {@link Pause}
- * or {@link Step} with the moment the lane would come to rest at, which only the view knows. The handover starts at
- * the key, though it is added when the bench answers, a tick later: the step is still flat there in every derivative,
- * so starting it a few milliseconds back moves nothing that can be seen.
+ * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event, and Shift with them
+ * steps a second. Each chord is declared with the message it sends ({@link PauseKey}, {@link EventKey},
+ * {@link StepKey}), and the view turns it into the bench's {@link Pause}, {@link StepEvent} or {@link Step} with the
+ * moment the lane would come to rest at, which only the view knows. The handover starts at the key, though it is added
+ * when the bench answers, a tick later: the step is still flat there in every derivative, so starting it a few
+ * milliseconds back moves nothing that can be seen.
+ *
+ * <p><b>The event the cursor is on</b> is drawn over the others in the text's colour, the whole height of the lane
+ * and at least two pixels wide, so that it can be told from its neighbours even where a pass is far narrower than a
+ * pixel.
  */
 @dev.vexelray.framework.api.View
 final class View {
@@ -76,9 +84,8 @@ final class View {
      */
     static final int SLIDE_LANES = 7;
 
-    /** How far an arrow steps the cursor, and Shift with it. */
+    /** How far Shift and an arrow step the cursor. */
     static final long STEP_NANOS = 1_000_000_000L;
-    static final long FINE_STEP_NANOS = 100_000_000L;
 
     /**
      * The view's state, which its {@link #draw} reads.
@@ -103,11 +110,13 @@ final class View {
     private final Gui gui;
     private final Ui ui;
     private final Color mark;
+    private final Color on;
     private final Sender<Pause> pause;
     private final Sender<Step> step;
+    private final Sender<StepEvent> stepEvent;
 
     /** What the bench last said, kept to draw again at a new size. */
-    private Timeline last = new Timeline("", "", false, 0L, List.of());
+    private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
     private float laneW;
     private float laneH;
 
@@ -115,12 +124,15 @@ final class View {
     private long pressedAt = -1L;
     private long pressWindow = -1L;
 
-    View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<StepKey> stepKey, Sender<Pause> pause, Sender<Step> step) {
+    View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<EventKey> eventKey, Sender<StepKey> stepKey,
+         Sender<Pause> pause, Sender<StepEvent> stepEvent, Sender<Step> step) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
         this.step = step;
+        this.stepEvent = stepEvent;
         this.mark = gui.theme().color(Role.ACCENT);
+        this.on = gui.theme().color(Role.INK);
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Path.stopped(0.0), List.of());
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneW = layout.rect().w();
@@ -128,10 +140,10 @@ final class View {
             show();
         });
         gui.shortcut(Shortcut.of(Key.SPACE), pauseKey, new PauseKey());
-        gui.shortcut(Shortcut.of(Key.LEFT), stepKey, new StepKey(-STEP_NANOS));
-        gui.shortcut(Shortcut.of(Key.RIGHT), stepKey, new StepKey(STEP_NANOS));
-        gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-FINE_STEP_NANOS));
-        gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), stepKey, new StepKey(FINE_STEP_NANOS));
+        gui.shortcut(Shortcut.of(Key.LEFT), eventKey, new EventKey(-1));
+        gui.shortcut(Shortcut.of(Key.RIGHT), eventKey, new EventKey(1));
+        gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-STEP_NANOS));
+        gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), stepKey, new StepKey(STEP_NANOS));
     }
 
     // ------------------------------------------------------------------ keys
@@ -145,13 +157,22 @@ final class View {
         pause.send(new Pause((long) resting(now, pressWindow)));
     }
 
-    /** An arrow: ask the bench to step the cursor, from where the lane would come to rest if it is moving. */
+    /** Shift and an arrow: ask the bench to step the cursor by time, from where the lane would rest if moving. */
     @Subscribe
     public void stepKey(StepKey key) {
         long now = System.nanoTime();
         pressedAt = now;
         pressWindow = -1L;
         step.send(new Step(key.byNanos(), (long) resting(now, Glide.window(0.0))));
+    }
+
+    /** An arrow: ask the bench to step the cursor onto the next or previous event. */
+    @Subscribe
+    public void eventKey(EventKey key) {
+        long now = System.nanoTime();
+        pressedAt = now;
+        pressWindow = -1L;
+        stepEvent.send(new StepEvent(key.by(), (long) resting(now, Glide.window(0.0))));
     }
 
     private double resting(long now, long window) {
@@ -232,18 +253,19 @@ final class View {
         if (Glide.last(state.from(), state.handovers()).rate() != 0.0) {
             hi = Double.MAX_VALUE;
         }
-        ui.strip().picture(passes(last, laneW, laneH, scale, mark, lo - SPAN_NANOS, hi));
+        ui.strip().picture(passes(last, laneW, laneH, scale, mark, on, lo - SPAN_NANOS, hi));
         state = new Strip(ui.strip(), last.edgeNanos(), scale, -SLIDE_LANES * laneW, state.from(), state.handovers());
     }
 
     /**
      * The passes between {@code fromNanos} and {@code toNanos} as marks on a strip reaching {@link #SLIDE_LANES} lanes
      * of width {@code w} either side of the lane, with the timeline's edge moment where the lane's right edge is at
-     * rest; each at least a pixel wide so that a pass far shorter than a pixel's worth of time still shows. Pure, for a
-     * test.
+     * rest; each at least a pixel wide so that a pass far shorter than a pixel's worth of time still shows. The pass
+     * the cursor is on, if any, is drawn over them in {@code onColour}, the lane's whole height and at least two pixels
+     * wide, ending where it ends. Pure, for a test.
      */
-    static Picture passes(Timeline t, float w, float h, float pxPerNano, Color colour, double fromNanos,
-                          double toNanos) {
+    static Picture passes(Timeline t, float w, float h, float pxPerNano, Color colour, Color onColour,
+                          double fromNanos, double toNanos) {
         Sketch s = new Sketch().tag("passes");
         float edge = w * (1 + SLIDE_LANES);
         float top = h * 0.2f;
@@ -256,6 +278,12 @@ final class View {
             float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
             s.fill(x0, top, Math.max(1f, x1 - x0), height, colour);
         }
+        t.on().ifPresent(p -> {
+            float x0 = edge + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
+            float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
+            float width = Math.max(2f, x1 - x0);
+            s.fill(x1 - width, 0f, width, h, onColour);
+        });
         return s.picture();
     }
 

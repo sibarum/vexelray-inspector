@@ -327,7 +327,10 @@ first things to measure (R1).
      going backwards and a resume catches up with the present and settles onto it. A handover interrupted is the path
      the next one starts from. Under reduced motion the window is zero and the landing immediate.
    - **Perceived, so measured and tried.** The step's sharpness and the window's length are set by how it looks, not
-     by argument; their values, and why, are in the view's code, and change as they are tried.
+     by argument; their values, and why, are in the view's code, and change as they are tried. *Watched by the author,
+     2026-10-30:* pause and the catch-up after it read as plain linear motion, and that is the aim: "any tweening would
+     only draw attention to itself". The smoothness is there so that nothing jumps, not to be seen; a change that makes
+     the motion noticeable as motion is a regression.
    This bends 9.4 by its letter, not its intent: the motion is not decoration but what keeps the eye on what it was
    following. The pause moment is the view's to choose (only it knows the present and where the lane can come to rest),
    so `Pause` and `Step` carry the moment they start from. *Rejected:* one shared column per event across all lanes

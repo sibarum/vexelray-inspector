@@ -399,6 +399,15 @@ Each step ends with something to watch or something an agent can ask, and lands 
   and one 650 ms pass were the same solid bar. Each stretch now stands on its band's floor at a height by the log of
   its length, a sixth of the reach at 0.1 ms or less up to all of it at a second (`View.stature`); a moment keeps the
   whole reach. Seen with `ottermate`: steady passes, under a millisecond, are a low comb.
+  **The details panel and the Messages lane, ruled by the author 2026-10-31:** what troubleshooting asks first goes
+  right under the lanes, a label and a value a line: the clock time (what the run's wall clock said at the cursor, as
+  local time of day and as UTC, from the first row's wall less its monotonic moment, so between rows too), the event,
+  its thread, and for a message its schema, From, To and Transport. Today's rows give the type and the publishing
+  thread only; To and Transport say they are not recorded yet, and From names the thread (framework-notes FN-10).
+  Messages are a lane of their own, a moment per bus row whose kind is a class name. `Details` is a state topic of its
+  own beside the readouts; `Row` carries the wall clock and `Mark` the thread and the message type. Seen with
+  `ottermate`: a click on the Messages lane said `Messages.Rows` from `vexel-source-link-rows`, and one on a pass its
+  thread and "not a message".
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

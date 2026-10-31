@@ -4,6 +4,7 @@ import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
 import dev.sibarum.inspector.View.Strip;
 import dev.sibarum.inspector.core.Messages;
+import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -163,8 +166,8 @@ class ViewTest {
         assertEquals(2f, out.stretched.getLast(), 1e-5f, "twice as many pixels a nanosecond");
     }
 
-    /** Five lanes of 20 px: the main thread's band is 20 to 40. */
-    private static final float LANES_H = 100f;
+    /** Six lanes of 20 px: the main thread's band is 20 to 40. */
+    private static final float LANES_H = 120f;
 
     @Test
     void aPassIsAFillAsLongAsItTookAndAOnePixelLineAtItsEnd() {
@@ -234,12 +237,12 @@ class ViewTest {
         assertEquals(List.of(), fills(p), "a moment has no length to fill");
         List<Picture.Line> marks = p.marks().stream().filter(m -> m instanceof Picture.Line)
                 .map(m -> (Picture.Line) m).filter(l -> l.x0() == l.x1()).toList();
-        assertEquals(List.of(4.0, 64.0, 64.0), marks.stream().map(Picture.Line::y0).toList(),
-                "input's band first, drawing's fourth");
+        assertEquals(List.of(4.0, 84.0, 84.0), marks.stream().map(Picture.Line::y0).toList(),
+                "input's band first, drawing's fifth");
         assertEquals(List.of(INKS.injected(), INKS.ceiling(), INKS.gpu()),
                 marks.stream().map(Picture.Line::color).toList());
-        assertEquals(4, p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
-                "a hairline between each two of the five lanes");
+        assertEquals(5, p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
+                "a hairline between each two of the six lanes");
     }
 
     @Test
@@ -272,6 +275,38 @@ class ViewTest {
         long at = 20_000 * MS;
         Timeline t = new Timeline("r", "", true, at, main(pass(at - 500 * MS, at - 400 * MS)), Optional.empty());
         assertEquals(List.of("960 w1"), lines(View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at)));
+    }
+
+    @Test
+    void theDetailsSayTheRunsClockAndWhatIsKnownOfAMessage() {
+        ZoneId utc = ZoneId.of("UTC");
+        long wall = Instant.parse("2026-10-31T03:32:17.456968Z").getEpochSecond() * 1_000_000_000L + 456_968_123L;
+        String type = "dev.sibarum.inspector.core.Messages.Rows";
+        Mark m = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", type);
+        List<String> said = View.details(new Details("r", 110 * MS, 6_230 * MS, wall,
+                Optional.of(new Event(Model.MESSAGES, m))), utc);
+        assertEquals(View.DETAILS.size(), said.size());
+        assertEquals("03:32:17.456968   2026-10-31T03:32:17.456968Z   6.230 s into the run", said.get(0));
+        assertEquals("Message, on the Messages lane", said.get(1));
+        assertEquals("vexel-source-link-rows", said.get(2));
+        assertEquals("Messages.Rows   in dev.sibarum.inspector.core", said.get(3));
+        assertTrue(said.get(4).startsWith("thread vexel-source-link-rows"), said.get(4));
+        assertEquals(View.NOT_RECORDED, said.get(5), "To");
+        assertEquals(View.NOT_RECORDED, said.get(6), "Transport");
+    }
+
+    @Test
+    void theDetailsOfAPassSayItIsNoMessageAndWithNoEventOnlyTheClock() {
+        Mark pass = new Mark(100 * MS, 758_250_000L, Model.PASS, "main", "");
+        List<String> said = View.details(new Details("r", 758_250_000L, 4_672 * MS, -1L,
+                Optional.of(new Event(Model.MAIN, pass))), ZoneId.of("UTC"));
+        assertEquals("not said by the run   4.672 s into the run", said.get(0));
+        assertEquals("Pass of 658.25 ms, on the Main thread lane", said.get(1));
+        assertEquals(List.of("main", "not a message", "", "", ""), said.subList(2, 7));
+        assertEquals("none at the cursor",
+                View.details(new Details("r", 1L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")).get(1));
+        assertEquals(List.of("", "", "", "", "", "", ""),
+                View.details(new Details("", 0L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")), "nothing attached");
     }
 
     @Test

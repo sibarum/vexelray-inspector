@@ -2,6 +2,7 @@ package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
+import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.GoTo;
@@ -44,7 +45,8 @@ import java.util.Optional;
  * recomputed from the tape by the same fold ({@link Tape#asOf}), exactly as it was. The passes lane needs none of
  * that: it shows every event kept, which is the same fold over the retained reach, and puts the cursor at its right
  * edge, so at rest it shows the events as of the cursor and while it glides it shows what it passes (design.md 9.8).
- * The {@link Readouts} are where the model as of the cursor is shown, sent beside every timeline.
+ * The {@link Readouts} are where the model as of the cursor is shown, sent beside every timeline. So are the
+ * {@link Details}: what the run's clock said at the cursor, and the event it is on.
  *
  * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Step}
  * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked event, {@link Seek} to a
@@ -57,7 +59,7 @@ import java.util.Optional;
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class, StepEvent.class,
         GoTo.class, Seek.class})
-@Publishes({FindRuns.class, Attach.class, Timeline.class, Readouts.class})
+@Publishes({FindRuns.class, Attach.class, Timeline.class, Readouts.class, Details.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -110,6 +112,13 @@ public final class Bench {
         /** The readouts as of the cursor: the model the tape recomputes for it, or the live one while following. */
         Readouts readouts() {
             return (paused ? tape.asOf(cursor) : now).readouts(run);
+        }
+
+        /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
+        Details details() {
+            long at = paused ? cursor : now.newestNanos();
+            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at),
+                    paused ? on : Optional.empty());
         }
 
         State withStatus(String status) {
@@ -314,7 +323,8 @@ public final class Bench {
 
     private static State on(State s, Event e) {
         Mark m = e.mark();
-        String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1);
+        String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1)
+                + (m.what().isEmpty() ? "" : " " + Model.typeName(m.what()));
         String what = m.toNanos() == m.fromNanos()
                 ? String.format(Locale.ROOT, "%s at %.3f s", kind, (m.toNanos() - s.first()) / 1e9)
                 : String.format(Locale.ROOT, "%s of %.2f ms, ending at %.3f s", kind,
@@ -337,10 +347,11 @@ public final class Bench {
         return (s.arriving() ? "Inspecting " : "Attaching to ") + named(s.title(), s.run());
     }
 
-    /** Tell the view the timeline and the readouts, both as of the cursor. */
+    /** Tell the view the timeline, the readouts and the details, all as of the cursor. */
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
         out.send(Messages.READOUTS_TOPIC, s.readouts());
+        out.send(Messages.DETAILS_TOPIC, s.details());
         return s;
     }
 

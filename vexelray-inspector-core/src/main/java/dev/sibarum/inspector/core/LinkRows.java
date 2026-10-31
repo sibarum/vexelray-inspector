@@ -94,7 +94,7 @@ public final class LinkRows {
                     Long.toString(b.lostTo() - b.lostFrom() + 1)));
         }
         for (dev.vexelray.gui.inspector.link.Row r : b.rows()) {
-            out.add(new Row(r.seq(), origin + r.tMonoNs(), r.thread(), r.lane(), r.kind(), r.detail()));
+            out.add(new Row(r.seq(), origin + r.tMonoNs(), r.tWallNs(), r.thread(), r.lane(), r.kind(), r.detail()));
         }
         return new Rows(run, b.lostFrom(), b.lostTo(), out);
     }

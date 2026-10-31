@@ -2,6 +2,7 @@ package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
+import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.GoTo;
@@ -62,7 +63,7 @@ class BenchTest {
         new Bench(tick.inbox("bench"), timer);
         Inbox heard = tick.inbox("heard");
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.TIMELINE_TOPIC,
-                Messages.READOUTS_TOPIC)) {
+                Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -97,6 +98,11 @@ class BenchTest {
     /** The last readouts sent, keeping the rest of what was sent. */
     private Readouts readouts() {
         return sent.stream().filter(Readouts.class::isInstance).map(Readouts.class::cast).toList().getLast();
+    }
+
+    /** The last details sent, keeping the rest of what was sent. */
+    private Details details() {
+        return sent.stream().filter(Details.class::isInstance).map(Details.class::cast).toList().getLast();
     }
 
     /** A timeline's main-thread lane: its passes. */
@@ -160,8 +166,8 @@ class BenchTest {
                 new Row(2, 101 * MS, "main", "frame", "loop.park", "7ms"),
                 pass(3, 120 * MS, "539.5us"))));
         Timeline t = timeline();
-        assertEquals(List.of(new Mark(96 * MS, 100 * MS, Model.PASS),
-                new Mark(120 * MS - 539_500, 120 * MS, Model.PASS)), passes(t));
+        assertEquals(List.of(new Mark(96 * MS, 100 * MS, Model.PASS, "main", ""),
+                new Mark(120 * MS - 539_500, 120 * MS, Model.PASS, "main", "")), passes(t));
         assertEquals(120 * MS, t.edgeNanos(), "following: the newest row at the right edge");
         assertTrue(t.live());
         assertEquals("Inspecting Calculator (calculator-11)", t.status());
@@ -176,8 +182,8 @@ class BenchTest {
         assertEquals(2, passes(timeline()).size(), "past the panels' reach, but kept for the lane to glide over");
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0,
                 List.of(pass(3, 1_000 * MS + Bench.RETAIN + MS, "1ms"))));
-        assertEquals(List.of(new Mark(1_000 * MS + Bench.REACH, 1_000 * MS + Bench.REACH + MS, Model.PASS),
-                        new Mark(1_000 * MS + Bench.RETAIN, 1_000 * MS + Bench.RETAIN + MS, Model.PASS)),
+        assertEquals(List.of(new Mark(1_000 * MS + Bench.REACH, 1_000 * MS + Bench.REACH + MS, Model.PASS, "main", ""),
+                        new Mark(1_000 * MS + Bench.RETAIN, 1_000 * MS + Bench.RETAIN + MS, Model.PASS, "main", "")),
                 passes(timeline()));
     }
 
@@ -224,7 +230,7 @@ class BenchTest {
     }
 
     private static Mark span(long end) {
-        return new Mark(end - MS, end, Model.PASS);
+        return new Mark(end - MS, end, Model.PASS, "main", "");
     }
 
     @Test
@@ -373,7 +379,7 @@ class BenchTest {
         Timeline t = timeline();
         assertEquals(on(span(600 * MS)), t.on(), "from following: paused on it");
         assertEquals(600 * MS, t.edgeNanos());
-        tell(Messages.GO_TO_TOPIC, new GoTo(new Event(Model.MAIN, new Mark(1, 2, Model.PASS))));
+        tell(Messages.GO_TO_TOPIC, new GoTo(new Event(Model.MAIN, new Mark(1, 2, Model.PASS, "main", ""))));
         assertEquals(List.of(), took(Timeline.class), "not a pass that was kept");
     }
 
@@ -461,18 +467,53 @@ class BenchTest {
         tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
         Timeline t = timeline();
         assertEquals(Model.LANES, t.lanes().stream().map(Messages.Lane::name).toList(), "every lane, in order");
-        assertEquals(List.of(new Mark(91 * MS, 91 * MS, Model.INPUT_TAKEN), new Mark(93 * MS, 93 * MS, Model.INJECTED)),
+        assertEquals(List.of(new Mark(91 * MS, 91 * MS, Model.INPUT_TAKEN, "main", ""), new Mark(93 * MS, 93 * MS, Model.INJECTED, "vexelray-automation-1", "")),
                 lane(t, Model.INPUT), "a snapshot that took nothing is no input; an automation verb is told apart");
-        assertEquals(List.of(new Mark(100 * MS + 10_000 - 2_920_000, 100 * MS + 10_000, Model.PASS)), passes(t));
-        assertEquals(List.of(new Mark(95 * MS - 448_100, 95 * MS, Model.TICK)), lane(t, Model.LOGIC),
+        assertEquals(List.of(new Mark(100 * MS + 10_000 - 2_920_000, 100 * MS + 10_000, Model.PASS, "main", "")), passes(t));
+        assertEquals(List.of(new Mark(95 * MS - 448_100, 95 * MS, Model.TICK, "vexel-logic", "")), lane(t, Model.LOGIC),
                 "the logic lane's thread only: main's tick is the widgets'");
-        assertEquals(List.of(new Mark(100 * MS - 1_950_000, 100 * MS, Model.DRAW),
-                        new Mark(113 * MS, 113 * MS, Model.HELD_FOR_CEILING),
-                        new Mark(120 * MS, 120 * MS, Model.HELD_FOR_GPU)),
+        assertEquals(List.of(new Mark(100 * MS - 1_950_000, 100 * MS, Model.DRAW, "main", ""),
+                        new Mark(113 * MS, 113 * MS, Model.HELD_FOR_CEILING, "main", ""),
+                        new Mark(120 * MS, 120 * MS, Model.HELD_FOR_GPU, "main", "")),
                 lane(t, Model.DRAWING));
-        assertEquals(List.of(new Mark(100 * MS - 2_900_000 - 2_900, 100 * MS - 2_900_000, "dxgi wait"),
-                        new Mark(100 * MS - 2_800_000 - 15_400, 100 * MS - 2_800_000, "wait fence")),
+        assertEquals(List.of(new Mark(100 * MS - 2_900_000 - 2_900, 100 * MS - 2_900_000, "dxgi wait", "main", ""),
+                        new Mark(100 * MS - 2_800_000 - 15_400, 100 * MS - 2_800_000, "wait fence", "main", "")),
                 lane(t, Model.GPU), "what the presenter waited on; recording is not a wait");
+    }
+
+    @Test
+    void aMessageIsAMomentOnItsOwnLaneAndTheDetailsSayWhatTheRunsClockSaid() {
+        attached(ONE);
+        long wall = 1_793_000_000_000_000_000L;      // what the run's clock said at 100 ms on this machine's
+        String rows = "dev.sibarum.inspector.core.Messages.Rows";
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(
+                new Row(1, 100 * MS, wall, "main", "frame", "frame", "1ms"),
+                new Row(2, 110 * MS, wall + 10 * MS, "vexel-source-link-rows", "bus", rows, "21.8us"),
+                new Row(3, 111 * MS, wall + 11 * MS, "main", "bus", "vexelray.gui.main.mutations depth", "1"),
+                new Row(4, 112 * MS, wall + 12 * MS, "main", "bus", "vexelray.gui.main.node.resize", "5.0us"),
+                new Row(5, 113 * MS, wall + 13 * MS, "main", "bus", "pump drain", "25.1us"),
+                new Row(6, 114 * MS, wall + 14 * MS, "vexel-job-1", "bus", "uncaused vexel-job-1", "1"))));
+        Timeline t = timeline();
+        Mark published = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", rows);
+        assertEquals(List.of(published), lane(t, Model.MESSAGES), "the bus's own rows are no message");
+        sent.clear();
+        tell(Messages.GO_TO_TOPIC, new GoTo(new Event(Model.MESSAGES, published)));
+        assertEquals(new Details(ONE.name(), 110 * MS, 10 * MS, wall + 10 * MS,
+                Optional.of(new Event(Model.MESSAGES, published))), details());
+        assertEquals("Message Messages.Rows at 0.010 s of Calculator (calculator-11)", timeline().status());
+        assertEquals("Messages.Rows", Model.typeName(rows));
+        assertEquals("dev.sibarum.inspector.core", Model.typePackage(rows));
+        assertEquals("WindowOpened", Model.typeName("dev.vexelray.framework.core.WindowOpened"));
+    }
+
+    @Test
+    void untilARowSaysItsWallClockTheDetailsSayItIsNotKnown() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        Details d = details();
+        assertEquals(600 * MS, d.atNanos(), "following: the newest row");
+        assertEquals(-1L, d.clockNanos());
+        assertEquals(Optional.empty(), d.on());
     }
 
     @Test
@@ -484,13 +525,13 @@ class BenchTest {
         sent.clear();
         tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.DRAWING, -1, 250 * MS));
         Timeline t = timeline();
-        assertEquals(Optional.of(new Event(Model.DRAWING, new Mark(213 * MS, 213 * MS, Model.HELD_FOR_CEILING))),
+        assertEquals(Optional.of(new Event(Model.DRAWING, new Mark(213 * MS, 213 * MS, Model.HELD_FOR_CEILING, "main", ""))),
                 t.on(), "the drawing lane's newest event, a hold, not a pass that ended later");
         assertEquals("Draw held for the ceiling at 0.116 s of Calculator (calculator-11)", t.status(),
                 "a moment says when; counted from the run's first row, the first GPU wait");
         tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.DRAWING, -1, 0L));
         t = timeline();
-        assertEquals(new Mark(200 * MS - 1_950_000, 200 * MS, Model.DRAW), t.on().orElseThrow().mark());
+        assertEquals(new Mark(200 * MS - 1_950_000, 200 * MS, Model.DRAW, "main", ""), t.on().orElseThrow().mark());
         assertTrue(t.status().startsWith("Draw of 1.95 ms, ending at"), t.status());
         tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
         assertEquals(Model.MAIN, timeline().on().orElseThrow().lane(),

@@ -9,6 +9,8 @@ import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
+import java.util.List;
+
 /**
  * The window: the framework's title bar, the timeline, and a status line under both.
  *
@@ -21,6 +23,11 @@ import dev.vexelray.gui.widget.TitleBar;
  * inside it (a container's clip is anchored, so a child slides within it). The name of the lane the arrows step
  * through is in the text's colour, the others dimmed ({@link #focus}), and the view outlines its band with an
  * overlay on the lanes' box, which the strip's slide does not move.
+ *
+ * <h2>The details</h2>
+ *
+ * <p>Right under the lanes, where the eye goes first: a label and a value a line ({@link #details}), what the run's
+ * clock said at the cursor and what is known of the event it is on.
  *
  * <h2>The readouts</h2>
  *
@@ -49,6 +56,7 @@ final class Ui {
     private final Node strip;
     private final Node[] names;
     private final Node readouts;
+    private final Node[] details;
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
@@ -76,8 +84,20 @@ final class Ui {
         readouts = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         gui.landmark(Landmarks.READOUTS, readouts);
 
+        details = new Node[View.DETAILS.size()];
+        Node[] detailRows = new Node[details.length];
+        for (int i = 0; i < details.length; i++) {
+            Node label = gui.text(View.DETAILS.get(i)).width(NAMES).textColor(gui.theme().color(Role.DIM))
+                    .textSize(Type.SMALL);
+            details[i] = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
+            gui.landmark(Landmarks.detail(View.DETAILS.get(i)), details[i]);
+            detailRows[i] = gui.row().width(Length.FILL).gap(Type.TIGHT).children(label, details[i]);
+        }
+        Node detailsPanel = gui.column().width(Length.FILL).padding(Type.TIGHT).children(detailRows);
+        gui.landmark(Landmarks.DETAILS, detailsPanel);
+
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(lanes, readouts);
+                .children(lanes, detailsPanel, readouts);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -95,6 +115,13 @@ final class Ui {
     void focus(String name) {
         for (int i = 0; i < names.length; i++) {
             names[i].textColor(gui.theme().color(Model.LANES.get(i).equals(name) ? Role.INK : Role.DIM));
+        }
+    }
+
+    /** What the details panel says, a value for each of {@code View.DETAILS} in its order. */
+    void details(List<String> values) {
+        for (int i = 0; i < details.length; i++) {
+            details[i].text(values.get(i));
         }
     }
 

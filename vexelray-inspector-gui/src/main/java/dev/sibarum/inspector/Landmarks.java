@@ -21,12 +21,26 @@ final class Landmarks {
     /** The lanes, one band a clock: a click on one focuses it and goes to the event nearest it. */
     static final String LANES = "lanes";
 
+    /** The details panel, under the lanes. */
+    static final String DETAILS = "details";
+
+    /**
+     * One value in it: this, then its label in lower case with a dash for each space ({@code detail.clock-time},
+     * {@code detail.schema}); see {@link #detail}.
+     */
+    static final String DETAIL = "detail.";
+
     /** The readouts line, over the second before the cursor. */
     static final String READOUTS = "readouts";
 
     /** The status line, and its slot saying which run is inspected or why none is. */
     static final String STATUS = "status";
     static final String STATUS_RUN = "status.run";
+
+    /** The landmark of the details panel's value labelled {@code label}. */
+    static String detail(String label) {
+        return DETAIL + label.toLowerCase(java.util.Locale.ROOT).replace(' ', '-');
+    }
 
     private Landmarks() {
     }

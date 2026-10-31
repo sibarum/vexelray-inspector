@@ -7,6 +7,7 @@ import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
+import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Lane;
@@ -34,6 +35,10 @@ import sibarum.atchung.Sender;
 import sibarum.tactroller.api.Key;
 import sibarum.tactroller.api.Modifier;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -506,6 +511,60 @@ final class View {
     static float stature(long nanos) {
         double share = Math.log(nanos / STATURE_SHORT_NANOS) / Math.log(STATURE_LONG_NANOS / STATURE_SHORT_NANOS);
         return (float) Math.clamp(share, STATURE_MIN, 1.0);
+    }
+
+    // ------------------------------------------------------------------ the details
+
+    /** The details panel's labels, top to bottom. */
+    static final List<String> DETAILS = List.of("Clock time", "Event", "Thread", "Schema", "From", "To", "Transport");
+
+    /** What a message's receivers and transport say until the rows can tell them (framework-notes FN-10). */
+    static final String NOT_RECORDED = "not recorded yet: needs bus graph version 2 (FN-10)";
+
+    /** The local time of day, to the microsecond, as the application's own log has it. */
+    private static final DateTimeFormatter LOCAL = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS", Locale.ROOT);
+
+    /** The bench's details of the cursor's moment, into the panel. */
+    @Subscribe
+    public void details(Details d) {
+        ui.details(details(d, ZoneId.systemDefault()));
+    }
+
+    /**
+     * What the details panel says, a value for each of {@link #DETAILS}: the run's clock as local time of day, as the
+     * application's log has it, then as UTC, as its probe's rows have it; and of the event the cursor is on, what it
+     * is, its thread, and for a message its type and what the rows cannot say of it yet. Pure, for a test.
+     */
+    static List<String> details(Details d, ZoneId zone) {
+        if (d.run().isEmpty() && d.atNanos() == 0L) {
+            return DETAILS.stream().map(l -> "").toList();
+        }
+        String clock = d.clockNanos() < 0 ? "not said by the run" : clock(d.clockNanos(), zone);
+        clock += String.format(Locale.ROOT, "   %.3f s into the run", d.intoNanos() / 1e9);
+        if (d.on().isEmpty()) {
+            return List.of(clock, "none at the cursor", "", "", "", "", "");
+        }
+        Event e = d.on().get();
+        Mark m = e.mark();
+        String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1);
+        String event = (m.toNanos() == m.fromNanos() ? kind
+                : String.format(Locale.ROOT, "%s of %.2f ms", kind, (m.toNanos() - m.fromNanos()) / 1e6))
+                + ", on the " + e.lane() + " lane";
+        String thread = m.thread().isEmpty() ? "not said" : m.thread();
+        if (m.what().isEmpty()) {
+            return List.of(clock, event, thread, "not a message", "", "", "");
+        }
+        String pkg = Model.typePackage(m.what());
+        String schema = Model.typeName(m.what()) + (pkg.isEmpty() ? "" : "   in " + pkg);
+        String from = "thread " + thread + "; which component is not recorded yet (FN-10)";
+        return List.of(clock, event, thread, schema, from, NOT_RECORDED, NOT_RECORDED);
+    }
+
+    /** {@code epochNanos} as local time of day in {@code zone}, then as UTC to the microsecond. */
+    static String clock(long epochNanos, ZoneId zone) {
+        Instant at = Instant.ofEpochSecond(Math.floorDiv(epochNanos, 1_000_000_000L),
+                Math.floorMod(epochNanos, 1_000_000_000L));
+        return LOCAL.format(at.atZone(zone)) + "   " + at.truncatedTo(ChronoUnit.MICROS);
     }
 
     // ------------------------------------------------------------------ the readouts

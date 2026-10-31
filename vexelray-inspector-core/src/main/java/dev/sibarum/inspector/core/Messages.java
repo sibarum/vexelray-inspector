@@ -75,8 +75,16 @@ public final class Messages {
     public record Detached(String run, String why) {
     }
 
-    /** One probe row of a run, its time on the machine's monotonic clock. */
-    public record Row(long seq, long atNanos, String thread, String lane, String kind, String detail) {
+    /**
+     * One probe row of a run, its time on the machine's monotonic clock, and what the run's wall clock said when it was
+     * written, in nanoseconds since the epoch; 0 when it did not say.
+     */
+    public record Row(long seq, long atNanos, long wallNanos, String thread, String lane, String kind, String detail) {
+
+        /** A row whose wall clock is not known. */
+        public Row(long seq, long atNanos, String thread, String lane, String kind, String detail) {
+            this(seq, atNanos, 0L, thread, lane, kind, detail);
+        }
     }
 
     /**
@@ -147,8 +155,16 @@ public final class Messages {
      * One event on a lane, on the machine's monotonic clock: a stretch from its start to its end (a pass, a tick, a
      * draw, a wait), or a moment when the two are equal (an input, a draw held). {@code kind} says which, in words the
      * status line can use, and is one of {@link Model}'s kinds.
+     *
+     * @param thread the thread whose row said it, as the probe names it; empty when not known
+     * @param what   a message's type, its full class name, for a {@link Model#MESSAGE}; empty for any other kind
      */
-    public record Mark(long fromNanos, long toNanos, String kind) {
+    public record Mark(long fromNanos, long toNanos, String kind, String thread, String what) {
+
+        /** An event whose thread is not known and that is not a message. */
+        public Mark(long fromNanos, long toNanos, String kind) {
+            this(fromNanos, toNanos, kind, "", "");
+        }
     }
 
     /** One lane of the timeline: a clock's events, in the order their rows arrived. */
@@ -206,5 +222,23 @@ public final class Messages {
 
     public record Readouts(String run, int draws, int heldForCeiling, int heldForGpu, int ticks, long tickP50Nanos,
                            long tickP95Nanos, long rowsLost) {
+    }
+
+    /**
+     * What is known about the cursor's moment and the event it is on, for the details panel: what the inspected run's
+     * clock said then, how far into the run it was, and the event. Who received a message, how it travelled and which
+     * component sent it are not known from the rows yet (framework-notes FN-10), so they are not fields here. A state
+     * topic, as the timeline is.
+     *
+     * @param run         the run attached, or empty when none is
+     * @param atNanos     the cursor's moment, the newest row's while following, on the machine's monotonic clock
+     * @param intoNanos   how far into the run that is, from its first row read
+     * @param clockNanos  what the run's wall clock said at that moment, in nanoseconds since the epoch; -1 when no row
+     *                    has said
+     * @param on          the event the cursor is on, if any
+     */
+    public static final Topic<Details> DETAILS_TOPIC = Topic.state(Details.class);
+
+    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
     }
 }

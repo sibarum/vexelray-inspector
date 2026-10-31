@@ -109,6 +109,16 @@ only (its startup line says so), so attached to one, the Logic, Drawing and GPU 
 run records no ticks" from "this run had none". The link's `StreamOpened` saying which lanes the run records would let a
 lane say "not recorded" instead of showing nothing, which any client of the stream would want.
 
+## FN-10 · A message's row names no sender, no receiver and no transport 🔬
+
+A message published on the bus writes one row on the `bus` lane whose kind is its type and whose thread is the one
+that published it. That is all the details panel can say of it: not which component sent it (the cause would link it,
+and the recorder drops the cause, design.md section 7), not who received it (bus graph version 1 lists `@Subscribe`
+mailboxes only, and most 0.2 receivers are `Inbox`es), and not how it travelled (state or edge topic, which mailbox,
+its lane and capacity), which version 1 does not say either. Worked around by saying so in the panel: From is the
+thread, and To and Transport say "not recorded yet". Bus graph version 2 (design.md 7½) and the kept cause would fill
+all three; the row naming its topic would let the Inspector match it to the graph.
+
 ## FN-4 · No verb closes an application 🔬
 
 A run started outside `--launch` is closed by clicking where the title bar draws its close button

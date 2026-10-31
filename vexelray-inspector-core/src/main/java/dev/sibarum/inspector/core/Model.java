@@ -32,6 +32,10 @@ import java.util.List;
  *   <li><b>Logic</b>: the {@code tick} zone on the {@code bus} lane, on any thread but {@code main}, whose own tick
  *       is the widgets'. Under {@code --logic=main} the logic's ticks are on {@code main} too and cannot be told from
  *       the widgets' (framework-notes FN-8), so this lane is empty there.</li>
+ *   <li><b>Messages</b>: a row on the {@code bus} lane whose kind is a message's type, a class name
+ *       ({@code dev.sibarum.inspector.core.Messages.Rows}), as a moment on the thread that published it; not the
+ *       bus's own bookkeeping ({@code tick}, {@code pump drain}, {@code vexelray.gui.main.mutations depth},
+ *       {@code uncaused main}), whose kinds are no class name.</li>
  *   <li><b>Drawing</b>: the presenter's {@code present frame} zone, one a draw, from recording to present; and the
  *       loop's {@code draw held for the ceiling} and {@code draw held for the GPU} counts, as moments. A draw is not
  *       numbered yet (design.md 7½), so it is placed by its time alone.</li>
@@ -41,16 +45,19 @@ import java.util.List;
  * @param newestNanos the newest moment the rows folded so far reach, on the machine's clock
  * @param lanes       every lane, in {@link #LANES}' order, each with its events over the reach before that moment
  * @param lost        rows the link lost, in every batch folded so far
+ * @param clockOffset what the run's wall clock said less the machine's monotonic clock, in nanoseconds, from the
+ *                    first row folded that said its wall clock; 0 before one has
  */
-public record Model(long newestNanos, List<Lane> lanes, long lost) {
+public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset) {
 
     /** The lanes' names, top to bottom, which is also the order of {@link #lanes}. */
     public static final String INPUT = "Input";
     public static final String MAIN = "Main thread";
     public static final String LOGIC = "Logic";
+    public static final String MESSAGES = "Messages";
     public static final String DRAWING = "Drawing";
     public static final String GPU = "GPU";
-    public static final List<String> LANES = List.of(INPUT, MAIN, LOGIC, DRAWING, GPU);
+    public static final List<String> LANES = List.of(INPUT, MAIN, LOGIC, MESSAGES, DRAWING, GPU);
 
     /** The events' kinds, in words the status line puts first. */
     public static final String INPUT_TAKEN = "input";
@@ -60,6 +67,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
     public static final String DRAW = "draw";
     public static final String HELD_FOR_CEILING = "draw held for the ceiling";
     public static final String HELD_FOR_GPU = "draw held for the GPU";
+    public static final String MESSAGE = "message";
 
     /** The row {@link LinkRows} adds to a batch for the rows its link lost: its detail is how many. */
     static final String LOST_LANE = "link";
@@ -75,7 +83,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
     private static final List<String> WAITS = List.of("wait fence", "dxgi wait", "acquire image");
 
     /** Before any row. */
-    static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L);
+    static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L);
 
     public Model {
         lanes = List.copyOf(lanes);
@@ -84,6 +92,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
     /** The lane named {@code name}, which is one of {@link #LANES}. */
     public Lane lane(String name) {
         return lanes.get(LANES.indexOf(name));
+    }
+
+    /** What the run's wall clock said at {@code atNanos}, in nanoseconds since the epoch; -1 when no row has said. */
+    public long clockAt(long atNanos) {
+        return clockOffset == 0L ? -1L : atNanos + clockOffset;
     }
 
     /**
@@ -98,6 +111,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
     Model fold(List<Row> rows, long upToNanos, long reachNanos) {
         long newest = newestNanos;
         long lostNow = lost;
+        long offset = clockOffset;
         List<List<Mark>> next = new ArrayList<>(lanes.size());
         boolean[] changed = new boolean[lanes.size()];
         for (Lane l : lanes) {
@@ -108,6 +122,9 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
                 continue;
             }
             newest = Math.max(newest, r.atNanos());
+            if (offset == 0L && r.wallNanos() != 0L) {
+                offset = r.wallNanos() - r.atNanos();
+            }
             if (r.lane().equals(LOST_LANE) && r.kind().equals(LOST)) {
                 lostNow += Long.parseLong(r.detail());
                 continue;
@@ -137,7 +154,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
             }
             out.add(changed[i] ? new Lane(LANES.get(i), marks) : lanes.get(i));
         }
-        return new Model(newest, out, lostNow);
+        return new Model(newest, out, lostNow, offset);
     }
 
     /** Which of {@link #LANES} a row belongs on, by where it came from; -1 for none. */
@@ -145,36 +162,54 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
         String lane = r.lane();
         String kind = r.kind();
         if (lane.equals("input") && (kind.equals("edges") || VERBS.contains(kind))) {
-            return 0;
+            return LANES.indexOf(INPUT);
         }
         if (lane.equals("frame") && kind.equals("frame")) {
-            return 1;
+            return LANES.indexOf(MAIN);
         }
         if (lane.equals("bus") && kind.equals("tick") && !r.thread().equals("main")) {
-            return 2;
+            return LANES.indexOf(LOGIC);
+        }
+        if (lane.equals("bus") && isMessageType(kind)) {
+            return LANES.indexOf(MESSAGES);
         }
         if ((lane.equals("gpu") && kind.equals("present frame"))
                 || (lane.equals("frame") && (kind.equals(HELD_FOR_CEILING) || kind.equals(HELD_FOR_GPU)))) {
-            return 3;
+            return LANES.indexOf(DRAWING);
         }
         if (lane.equals("gpu") && WAITS.contains(kind)) {
-            return 4;
+            return LANES.indexOf(GPU);
         }
         return -1;
+    }
+
+    /**
+     * Whether a bus row's kind is a message's type: a class name, dotted, with no space, its last part capitalised
+     * ({@code dev.vexelray.framework.core.WindowOpened}), unlike the bus's own rows ({@code vexelray.gui.main.node.resize},
+     * {@code pump drain}).
+     */
+    static boolean isMessageType(String kind) {
+        int dot = kind.lastIndexOf('.');
+        return dot > 0 && dot < kind.length() - 1 && kind.indexOf(' ') < 0
+                && Character.isUpperCase(kind.charAt(dot + 1));
     }
 
     /** The event a row on a lane says, or null when it says none (an {@code edges} count of nothing). */
     private static Mark markOf(Row r) {
         long at = r.atNanos();
         String kind = r.kind();
+        String thread = r.thread();
         if (kind.equals("edges")) {
-            return count(r.detail()) > 0 ? new Mark(at, at, INPUT_TAKEN) : null;
+            return count(r.detail()) > 0 ? new Mark(at, at, INPUT_TAKEN, thread, "") : null;
         }
         if (VERBS.contains(kind)) {
-            return new Mark(at, at, INJECTED);
+            return new Mark(at, at, INJECTED, thread, "");
         }
         if (kind.equals(HELD_FOR_CEILING) || kind.equals(HELD_FOR_GPU)) {
-            return new Mark(at, at, kind);
+            return new Mark(at, at, kind, thread, "");
+        }
+        if (r.lane().equals("bus") && isMessageType(kind)) {
+            return new Mark(at, at, MESSAGE, thread, kind);
         }
         long took = Durations.nanos(r.detail());
         if (took < 0) {
@@ -182,7 +217,28 @@ public record Model(long newestNanos, List<Lane> lanes, long lost) {
         }
         String what = kind.equals("frame") ? PASS : kind.equals("tick") ? TICK : kind.equals("present frame") ? DRAW
                 : kind;
-        return new Mark(at - took, at, what);
+        return new Mark(at - took, at, what, thread, "");
+    }
+
+    /**
+     * A message type's name without its package: from its first capitalised part, so a nested type keeps its outer
+     * one ({@code Messages.Rows}).
+     */
+    public static String typeName(String type) {
+        int from = 0;
+        for (int dot = type.indexOf('.'); dot >= 0; dot = type.indexOf('.', dot + 1)) {
+            if (Character.isUpperCase(type.charAt(from))) {
+                break;
+            }
+            from = dot + 1;
+        }
+        return type.substring(from);
+    }
+
+    /** A message type's package: all of it before {@link #typeName}; empty when it has none. */
+    public static String typePackage(String type) {
+        int at = type.length() - typeName(type).length();
+        return at == 0 ? "" : type.substring(0, at - 1);
     }
 
     private static long count(String detail) {

@@ -82,15 +82,22 @@ groups the button with other Java programs, and pinning it pins Java. The native
 
 ## Using it
 
-The window shows five lanes on one time axis, ten seconds across at first, and a line of readouts under them:
+The window shows six lanes on one time axis, ten seconds across at first, the details of the cursor under them, and a
+line of readouts:
 
 | Lane | Shows |
 | --- | --- |
 | **Input** | each time the application took input from a device; input an automation verb injected, dimmed |
 | **Main thread** | each pass of the main loop, from when it started to when it ended |
 | **Logic** | each tick of the logic lane (empty under `--logic=main`, framework-notes FN-8) |
+| **Messages** | each message published on the bus, as a moment on the thread that published it; not the bus's own bookkeeping |
 | **Drawing** | each draw, from recording to present; a draw held for the ceiling (faint) or for the GPU (caution) |
 | **GPU** | what the presenter waited on: the fence, the DXGI waitable, a swapchain image |
+
+The details panel says what the inspected run's clock said at the cursor, as local time of day (as the application's
+log has it) and as UTC (as its probe's rows have it), and how far into the run that is; on an event, what it was, its
+thread, and for a message its type. From, To and Transport say what they can: the publishing thread, and that the
+receivers and how the message travelled are not recorded yet (framework-notes FN-10).
 
 The readouts count the second before the cursor: draws, draws held by reason, ticks and their median and 95th
 percentile, and the rows the link lost. Only a run started with `-Dprobe=all` records ticks and the GPU
@@ -280,7 +287,8 @@ ottermate --size 36emx20em shot smallest.png --launch ...                # the m
 ```
 
 The landmarks in `Landmarks.java` are the names a script uses: `await status.run Inspecting` waits for the first rows
-of an attached run, `lanes` is the box the lanes are drawn in, and `readouts` the line of numbers under it.
+of an attached run, `lanes` is the box the lanes are drawn in, `details` the panel under it with a landmark per value (`detail.clock-time`,
+`detail.schema`, ...), and `readouts` the line of numbers.
 `ottermate help` lists every verb.
 
 ## Logging

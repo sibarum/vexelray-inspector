@@ -12,6 +12,9 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       tape's `RETAIN` included, and the fold, which copies every lane kept on each batch), and inspect W1 to W3 in
       both modes. Slices 1 to 3 (attach and the live lane; checkpoints, pause and stepping; every lane and the
       readouts) are done.
+- [ ] The Messages lane is a solid band at ten seconds across: a message is a moment, the band's whole height, and a
+      run publishes one every few milliseconds. Draw a moment by how many share its pixel, or let the filter hide the
+      busiest types. Its event highlight is lost in it too.
 - [ ] Hover on an event, a colour change only: hear `NodeEvent.POINTER` on the lanes (FN-7, now upstream) and turn
       `localX`/`localY` into an event through the view's `Strip`.
 - [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter.

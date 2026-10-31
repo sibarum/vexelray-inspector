@@ -175,36 +175,72 @@ public final class Messages {
      * draw, a wait), or a moment when the two are equal (an input, a draw held). {@code kind} says which, in words the
      * status line can use, and is one of {@link Model}'s kinds.
      *
-     * @param thread  the thread whose row said it, as the probe names it; empty when not known
-     * @param what    what its own row said of it, in the run's words: a message's type, its full class name; what an
-     *                automation verb injected ({@code key SPACE}); how many edges the devices gave; empty when its row
-     *                says nothing more than its kind and length
-     * @param frame   the main loop's pass it happened in, its number; 0 when the run did not say
-     * @param cause   what set it off, as the probe writes a cause ({@code 3f2a1.t07.4f2}); empty when not known
-     * @param context what the rows around it say of it, in words: for a pass, what woke it, whether it drew or why
-     *                not, and how long it parked; empty when they say nothing
+     * @param thread the thread whose row said it, as the probe names it; empty when not known
+     * @param frame  the main loop's pass it happened in, its number; 0 when the run did not say
+     * @param cause  what set it off, as the probe writes a cause ({@code 3f2a1.t07.4f2}); empty when not known
+     * @param fields what is known of it, in the event schema's order ({@link Model#FIELDS}): only the fields the rows
+     *               filled, so a field that is absent was not recorded, and none says so in words
      */
-    public record Mark(long fromNanos, long toNanos, String kind, String thread, String what, long frame, String cause,
-                       String context) {
+    public record Mark(long fromNanos, long toNanos, String kind, String thread, long frame, String cause,
+                       List<Field> fields) {
+
+        public Mark {
+            fields = List.copyOf(fields);
+        }
 
         /** An event whose thread is not known and whose rows say nothing more of it. */
         public Mark(long fromNanos, long toNanos, String kind) {
-            this(fromNanos, toNanos, kind, "", "");
+            this(fromNanos, toNanos, kind, "");
         }
 
-        /** An event whose pass, cause and context are not known. */
-        public Mark(long fromNanos, long toNanos, String kind, String thread, String what) {
-            this(fromNanos, toNanos, kind, thread, what, 0L, "", "");
+        /** An event whose pass, cause and fields are not known. */
+        public Mark(long fromNanos, long toNanos, String kind, String thread) {
+            this(fromNanos, toNanos, kind, thread, 0L, "", List.of());
         }
 
-        /** This event, with {@code more} said of it after what its context already says. */
-        public Mark said(String more) {
-            if (more.isEmpty()) {
+        /** The value of its field {@code name}; empty when it has none. */
+        public String field(String name) {
+            for (Field f : fields) {
+                if (f.name().equals(name)) {
+                    return f.value();
+                }
+            }
+            return "";
+        }
+
+        /**
+         * This event with its field {@code name} set to {@code value}, in the schema's order; with it left as it was
+         * when {@code value} is empty, or when {@code keep} and it is already set.
+         */
+        public Mark with(String name, String value, boolean keep) {
+            if (value.isEmpty() || (keep && !field(name).isEmpty()) || value.equals(field(name))) {
                 return this;
             }
-            return new Mark(fromNanos, toNanos, kind, thread, what, frame, cause,
-                    context.isEmpty() ? more : context + "; " + more);
+            List<Field> out = new java.util.ArrayList<>(fields.size() + 1);
+            int order = Model.FIELDS.indexOf(name);
+            boolean placed = false;
+            for (Field f : fields) {
+                if (f.name().equals(name)) {
+                    continue;
+                }
+                if (!placed && order >= 0 && Model.FIELDS.indexOf(f.name()) > order) {
+                    out.add(new Field(name, value));
+                    placed = true;
+                }
+                out.add(f);
+            }
+            if (!placed) {
+                out.add(new Field(name, value));
+            }
+            return new Mark(fromNanos, toNanos, kind, thread, frame, cause, out);
         }
+    }
+
+    /**
+     * One field of an event: a name from the event schema ({@link Model#FIELDS}) and its value, in words a filter can
+     * match and the details panel shows as they are.
+     */
+    public record Field(String name, String value) {
     }
 
     /** One lane of the timeline: a clock's events, in the order their rows arrived. */
@@ -276,17 +312,9 @@ public final class Messages {
      * @param clockNanos  what the run's wall clock said at that moment, in nanoseconds since the epoch; -1 when no row
      *                    has said
      * @param on          the event the cursor is on, if any
-     * @param causedBy    what set that event off, in words, from the sources the run named ({@link Model#causeOf});
-     *                    empty when there is no event or the run did not say
      */
     public static final Topic<Details> DETAILS_TOPIC = Topic.state(Details.class);
 
-    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on,
-                          String causedBy) {
-
-        /** Details whose event's cause is not known. */
-        public Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
-            this(run, atNanos, intoNanos, clockNanos, on, "");
-        }
+    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
     }
 }

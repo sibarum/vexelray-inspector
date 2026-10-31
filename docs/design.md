@@ -444,18 +444,23 @@ Each step ends with something to watch or something an agent can ask, and lands 
   an event that ends before it begins is left out and counted (`View.malformed`); both are logged when they start
   and said in the status line's right-hand slot (`status.drawing`) for as long as they last. Seen with `ottermate`:
   a zoomed catch-up left that slot empty and the log without a word from the view.
-  **The details say what the rows say, ruled by the author 2026-10-31:** Schema, From, To and Transport went, since
-  the rows cannot fill them yet (FN-10). The panel is the clock, the event in a sentence, its detail, what caused it,
-  and its thread. `Row` and `Mark` carry the pass a row was written in and its cause, and `Mark.what` what its own
-  row said (an injected key, an edge count, a message's type); `Mark.context` is what the loop's rows around a pass
-  say of it, read as the recorder's `why` reads them: what woke it, whether it drew or why not (nothing to draw, held
-  for the ceiling or the GPU), how long it parked and waited. A cause is said in the run's own words
-  (`Model.causeOf`), from its `cause.source` and `agent.command` rows, which `LinkRows` now asks for on the `app`
-  lane, and the source table the link hands over when the stream opens, so a pass woken by rows arriving says
-  "mutation on Gui@1d082e88, set off by I/O …LinkRows, firing 2098". A pass's cause is what woke it, since every pass
-  is the loop's timer. This took the framework too (FN-12): the recorder and link carried no cause, and a late reader
-  could not name a source. Seen with `ottermate` against a traced Inspector: a pass said its number, that its draw
-  was held for the ceiling so it only updated, that it parked up to 11 ms and waited 7.04 ms, and what woke it.
+  **Every event is a record of one schema, ruled by the author 2026-10-31:** what the author asked for from the
+  first day, From, To and Type, as fields every event has, filterable. A first try put the rows' new facts into
+  sentences (an event line, a detail line, a cause line); the author rejected it: that is the same From, To and
+  Type, following no schema and matching no filter. Now `Mark.fields` holds an event's fields, named from
+  `Model.FIELDS` and kept in that order: Type, From (what set it off), To (where it went), Pass, Took and Thread on
+  every lane, then a type's own: Drew, Parked and Waited for a pass; Package for a message; Verb and Sent for injected
+  input; Edges for device input; Reason for a draw held. A field the rows cannot fill is absent, never a placeholder,
+  and the panel is a row a field, shown only while the event at the cursor has it, each with its landmark
+  (`detail.from`, `detail.drew`). To is absent everywhere until the bus records a message's receivers (FN-10). From
+  is the run's own words for the row's cause (`Model.causeOf`), from its `cause.source` and `agent.command` rows,
+  which `LinkRows` now asks for on the `app` lane, and the source table the link hands over when the stream opens;
+  a pass's From is what woke it, since every pass is the loop's timer, read as the recorder's `why` reads the loop's
+  rows: "mutation on Gui@1d082e88, set off by I/O …LinkRows, firing 2098". `Row` and `Mark` carry the pass and the
+  cause. This took the framework too (FN-12). A click now finds its event by lane, moments and kind, since the rows
+  after a pass fill fields the view may not have had when it was clicked. Seen with `ottermate` against a traced
+  Inspector: pass #707 showed Type, From ("asked on Gui@1d082e88, set off by timer gui.frame, firing 706"), Pass,
+  Took 1.27 ms, Thread, Drew yes, Parked 15ms and Waited 328.5us, and no other row.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

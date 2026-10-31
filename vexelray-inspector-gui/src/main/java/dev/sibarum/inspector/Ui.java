@@ -30,7 +30,8 @@ import java.util.List;
  * <h2>The details</h2>
  *
  * <p>Right under the lanes, where the eye goes first: a label and a value a line ({@link #details}), what the run's
- * clock said at the cursor and what is known of the event it is on.
+ * clock said at the cursor and the fields of the event it is on, a row for each field of the event schema, shown only
+ * while that event has it.
  *
  * <h2>The readouts</h2>
  *
@@ -62,6 +63,7 @@ final class Ui {
     private final Node readouts;
     private final IconButton follow;
     private final Node[] details;
+    private final Node[] detailRows;
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
@@ -99,7 +101,7 @@ final class Ui {
                 .children(follow.node(), readouts);
 
         details = new Node[View.DETAILS.size()];
-        Node[] detailRows = new Node[details.length];
+        detailRows = new Node[details.length];
         for (int i = 0; i < details.length; i++) {
             Node label = gui.text(View.DETAILS.get(i)).width(NAMES).textColor(gui.theme().color(Role.DIM))
                     .textSize(Type.SMALL);
@@ -132,10 +134,14 @@ final class Ui {
         }
     }
 
-    /** What the details panel says, a value for each of {@code View.DETAILS} in its order. */
+    /**
+     * What the details panel says, a value for each of {@code View.DETAILS} in its order: a row whose value is empty is
+     * hidden, since the event at the cursor has no such field, and the clock's row always shows.
+     */
     void details(List<String> values) {
         for (int i = 0; i < details.length; i++) {
             details[i].text(values.get(i));
+            detailRows[i].visible(i == 0 || !values.get(i).isEmpty());
         }
     }
 

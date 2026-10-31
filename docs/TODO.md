@@ -17,7 +17,9 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       records the bus: the traced Inspector's Messages lane was empty.
 - [ ] Hover on an event, a colour change only: hear `NodeEvent.POINTER` on the lanes (FN-7, now upstream) and turn
       `localX`/`localY` into an event through the view's `Strip`.
-- [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter.
+- [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter, which
+      matches `Mark.fields` by name and value (`Model.FIELDS`), the same on every lane.
+- [ ] To is in the schema and filled by nothing: record a message's receivers upstream (FN-10), then fill it.
 - [ ] Injected input on the Input lane is held by `BenchTest` only: drive a traced target with keys while another
       Inspector watches, and look.
 - [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state

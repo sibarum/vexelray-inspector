@@ -9,6 +9,7 @@ import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Details;
+import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
@@ -965,11 +966,18 @@ final class View {
 
     // ------------------------------------------------------------------ the details
 
+    /** The details panel's clock row, the one row that is not a field of the event. */
+    static final String CLOCK = "Clock time";
+
     /**
-     * The details panel's labels, top to bottom. Only what the rows can say: a message's receivers and transport come
-     * back as lines of their own when the bus records them (framework-notes FN-10).
+     * The details panel's labels, top to bottom: the clock, then the event schema's fields ({@code Model.FIELDS}), a
+     * row each, shown only while the event at the cursor has that field.
      */
-    static final List<String> DETAILS = List.of("Clock time", "Event", "Detail", "Caused by", "Thread");
+    static final List<String> DETAILS = java.util.stream.Stream.concat(java.util.stream.Stream.of(CLOCK),
+            Model.FIELDS.stream()).toList();
+
+    /** What the type row says when the cursor is on no event. */
+    static final String NO_EVENT = "no event at the cursor";
 
     /** The local time of day, to the microsecond, as the application's own log has it. */
     private static final DateTimeFormatter LOCAL = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS", Locale.ROOT);
@@ -981,83 +989,28 @@ final class View {
     }
 
     /**
-     * What the details panel says, a value for each of {@link #DETAILS}: the run's clock as local time of day, as the
-     * application's log has it, then as UTC, as its probe's rows have it; and of the event the cursor is on, what it
-     * was in a sentence ({@link #event}), what its rows and the rows around it say of it ({@link #detail}), what set
-     * it off, and its thread. Pure, for a test.
+     * What the details panel says, a value for each of {@link #DETAILS}, empty for a row to hide: the run's clock as
+     * local time of day, as the application's log has it, then as UTC, as its probe's rows have it; and each field of
+     * the event the cursor is on, as the rows filled it. Pure, for a test.
      */
     static List<String> details(Details d, ZoneId zone) {
+        List<String> values = new java.util.ArrayList<>(java.util.Collections.nCopies(DETAILS.size(), ""));
         if (d.run().isEmpty() && d.atNanos() == 0L) {
-            return DETAILS.stream().map(l -> "").toList();
+            return values;
         }
         String clock = d.clockNanos() < 0 ? "not said by the run" : clock(d.clockNanos(), zone);
-        clock += String.format(Locale.ROOT, "   %.3f s into the run", d.intoNanos() / 1e9);
+        values.set(0, clock + String.format(Locale.ROOT, "   %.3f s into the run", d.intoNanos() / 1e9));
         if (d.on().isEmpty()) {
-            return List.of(clock, "none at the cursor", "", "", "");
+            values.set(DETAILS.indexOf(Model.TYPE), NO_EVENT);
+            return values;
         }
-        Mark m = d.on().get().mark();
-        String caused = !d.causedBy().isEmpty() ? d.causedBy()
-                : m.cause().isEmpty() ? "no cause recorded: work nothing the run wrapped" : m.cause();
-        if (m.kind().equals(Model.PASS) && m.context().startsWith(WOKEN)) {
-            // Every pass is the loop's timer firing; what made this one run is what woke it.
-            int end = m.context().indexOf("; ");
-            caused = m.context().substring(WOKEN.length(), end < 0 ? m.context().length() : end);
-        }
-        return List.of(clock, event(m), detail(m), caused, m.thread().isEmpty() ? "not said" : m.thread());
-    }
-
-    /** How a pass's context says what woke it, which the panel says as its cause rather than in its detail. */
-    private static final String WOKEN = "woken by ";
-
-    /** What an event was, in a sentence: its kind in words, what its row said, and how long it took. */
-    static String event(Mark m) {
-        String took = String.format(Locale.ROOT, "%.2f ms", (m.toNanos() - m.fromNanos()) / 1e6);
-        return switch (m.kind()) {
-            case Model.PASS -> (m.frame() > 0 ? "Pass #" + m.frame() + " of the main loop" : "A pass of the main loop")
-                    + ", " + took;
-            case Model.TICK -> "A logic tick, delivering the bus's messages, " + took;
-            case Model.DRAW -> "A draw, from recording to present, " + took;
-            case Model.INPUT_TAKEN -> "Input from the devices: " + m.what() + " key "
-                    + (m.what().equals("1") ? "edge" : "edges") + " (presses and releases)";
-            case Model.INJECTED -> "Input injected by automation: " + m.what();
-            case Model.HELD_FOR_CEILING -> "A draw held for the frame-rate ceiling: the pass only updated";
-            case Model.HELD_FOR_GPU -> "A draw held for the GPU: it had not finished the last frame";
-            case Model.MESSAGE -> "Message " + Model.typeName(m.what());
-            case "wait fence" -> "Waited for the GPU's fence, " + took;
-            case "dxgi wait" -> "Waited for DXGI to be ready for a frame, " + took;
-            case "acquire image" -> "Waited to acquire the next swapchain image, " + took;
-            default -> Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1)
-                    + (m.toNanos() == m.fromNanos() ? "" : ", " + took);
-        };
-    }
-
-    /**
-     * What the rows say of an event beyond what it was: for a pass, what woke it, whether it drew or why not, and how
-     * long it parked; for a held draw, when it can run; for a message, its package; and for any other, the pass it
-     * happened in.
-     */
-    static String detail(Mark m) {
-        String said = m.context();
-        if (m.kind().equals(Model.PASS) && said.startsWith(WOKEN)) {
-            int end = said.indexOf("; ");
-            said = end < 0 ? "" : said.substring(end + 2);
-        }
-        String context = said.isEmpty() ? "" : Character.toUpperCase(said.charAt(0)) + said.substring(1);
-        String pass = m.frame() > 0 ? "In pass #" + m.frame() : "";
-        return switch (m.kind()) {
-            case Model.PASS -> context;
-            case Model.MESSAGE -> {
-                String pkg = Model.typePackage(m.what());
-                yield join(pkg.isEmpty() ? "" : "In " + pkg, pass);
+        for (Field f : d.on().get().mark().fields()) {
+            int row = DETAILS.indexOf(f.name());
+            if (row > 0) {
+                values.set(row, f.value());
             }
-            case Model.HELD_FOR_CEILING -> join(pass, "The draw runs at the ceiling's next slot");
-            case Model.HELD_FOR_GPU -> join(pass, "The presenter wakes the loop when the GPU is done");
-            default -> join(pass, context);
-        };
-    }
-
-    private static String join(String a, String b) {
-        return a.isEmpty() ? b : b.isEmpty() ? a : a + ". " + b;
+        }
+        return values;
     }
 
     /** {@code epochNanos} as local time of day in {@code zone}, then as UTC to the microsecond. */

@@ -177,9 +177,8 @@ public final class Bench {
         /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
         Details details() {
             long at = paused ? cursor : now.newestNanos();
-            Optional<Event> event = paused ? on : Optional.empty();
-            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event,
-                    event.map(e -> kept.causeOf(e.mark().cause())).orElse(""));
+            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at),
+                    paused ? on : Optional.empty());
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -361,11 +360,17 @@ public final class Bench {
     static State goTo(State s, GoTo g, Out out) {
         Event e = g.event();
         Island island = s.held(e.mark().toNanos());
-        if (!Model.LANES.contains(e.lane()) || island.clamp(e.mark().toNanos()) != e.mark().toNanos()
-                || !island.kept().lane(e.lane()).marks().contains(e.mark())) {
+        if (!Model.LANES.contains(e.lane()) || island.clamp(e.mark().toNanos()) != e.mark().toNanos()) {
             return s;
         }
-        return say(on(s, island, e), out);
+        // The same event as the tape keeps it: the rows after a pass fill fields of it the view may not have seen yet.
+        Mark m = e.mark();
+        for (Mark kept : island.kept().lane(e.lane()).marks()) {
+            if (kept.fromNanos() == m.fromNanos() && kept.toNanos() == m.toNanos() && kept.kind().equals(m.kind())) {
+                return say(on(s, island, new Event(e.lane(), kept)), out);
+            }
+        }
+        return s;
     }
 
     /** A click where no event is near: the cursor at that moment, kept on the island. */
@@ -408,10 +413,10 @@ public final class Bench {
 
     private static State on(State s, Island island, Event e) {
         Mark m = e.mark();
+        String type = m.field(Model.TYPE);
         String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1)
-                + (m.kind().equals(Model.PASS) && m.frame() > 0 ? " #" + m.frame() : "")
-                + (m.what().isEmpty() ? "" : " " + (m.kind().equals(Model.MESSAGE) ? Model.typeName(m.what())
-                        : m.kind().equals(Model.INPUT_TAKEN) ? "(" + m.what() + " edges)" : m.what()));
+                + (type.isEmpty() || type.equals(m.kind()) ? "" : " " + type)
+                + (m.kind().equals(Model.PASS) && m.frame() > 0 ? " #" + m.frame() : "");
         String what = m.toNanos() == m.fromNanos()
                 ? String.format(Locale.ROOT, "%s at %.3f s", kind, (m.toNanos() - s.first()) / 1e9)
                 : String.format(Locale.ROOT, "%s of %.2f ms, ending at %.3f s", kind,

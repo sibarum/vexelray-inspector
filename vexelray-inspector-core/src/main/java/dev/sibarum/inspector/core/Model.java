@@ -1,5 +1,6 @@
 package dev.sibarum.inspector.core;
 
+import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
@@ -9,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -44,16 +46,21 @@ import java.util.Map;
  *   <li><b>GPU</b>: what the presenter waited on: {@code wait fence}, {@code dxgi wait}, {@code acquire image}.</li>
  * </ul>
  *
- * @param newestNanos the newest moment the rows folded so far reach, on the machine's clock
- * @param lanes       every lane, in {@link #LANES}' order, each with its events over the reach before that moment
- * @param lost        rows the link lost, in every batch folded so far
+ * <h2>The event schema</h2>
+ *
+ * <p>Every event says what is known of it as fields, named from {@link #FIELDS} and kept in that order, the same names
+ * on every lane so that one filter reads them all: {@link #TYPE}, {@link #FROM} (what set it off), {@link #TO} (where
+ * it went), {@link #PASS}, {@link #TOOK} and {@link #THREAD}, then those of its type alone. A field the rows cannot
+ * fill is absent, never a placeholder: {@link #TO} is absent from every event until the bus records a message's
+ * receivers (framework-notes FN-10).
+ *
  * <h2>What a pass's rows say of it</h2>
  *
- * <p>Every row carries the pass it was written in, and the loop's own rows around its {@code frame} zone tell its
- * story: a {@code wake} in pass {@code F} (in its work or its park) is what woke {@code F + 1}; {@code draw skipped}
- * and a draw held come before the zone's row, {@code frame.present} or {@code frame.update}, {@code loop.park} and
- * {@code wait for events} after it. Those before wait in {@link #ahead} until their pass is folded; those after are
- * said on its mark ({@link Mark#context}). This is the recorder's {@code why} (vexelray-gui's {@code Frames}), read
+ * <p>Every row carries the pass it was written in, and the loop's own rows around its {@code frame} zone fill a pass's
+ * fields: a {@code wake} in pass {@code F} (in its work or its park) is what woke {@code F + 1}, its {@link #FROM};
+ * {@code draw skipped} and a draw held come before the zone's row, {@code frame.present} or {@code frame.update},
+ * {@code loop.park} and {@code wait for events} after it. Those before wait in {@link #ahead} until their pass is
+ * folded; those after are set on its mark. This is the recorder's {@code why} (vexelray-gui's {@code Frames}), read
  * from the same rows.
  *
  * <h2>What set an event off</h2>
@@ -63,14 +70,40 @@ import java.util.Map;
  * {@code agent.command} row in that command's own cause: both are kept in {@link #names} for as long as the run is,
  * and {@link #causeOf} turns a cause into words with them.
  *
+ * @param newestNanos the newest moment the rows folded so far reach, on the machine's clock
+ * @param lanes       every lane, in {@link #LANES}' order, each with its events over the reach before that moment
+ * @param lost        rows the link lost, in every batch folded so far
  * @param clockOffset what the run's wall clock said less the machine's monotonic clock, in nanoseconds, from the
  *                    first row folded that said its wall clock; 0 before one has
  * @param names       what the run called its cause sources, by key ({@code t03} to {@code gui.frame}), and its
  *                    automation commands, by cause without the process ({@code c11.2} to {@code key SPACE})
- * @param ahead       what rows have said of passes not folded yet, by pass number: what woke one, a draw held
+ * @param ahead       the fields rows have filled of passes not folded yet, by pass number: what woke one, a draw held
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
-                    Map<Long, String> ahead) {
+                    Map<Long, List<Field>> ahead) {
+
+    /** The event schema's fields, in the order every event keeps them; see the class comment. */
+    public static final String TYPE = "Type";
+    public static final String FROM = "From";
+    public static final String TO = "To";
+    public static final String PASS_NUMBER = "Pass";
+    public static final String TOOK = "Took";
+    public static final String THREAD = "Thread";
+    /** A pass's: whether it drew, or why not; the most it parked for after; how long it waited. */
+    public static final String DREW = "Drew";
+    public static final String PARKED = "Parked";
+    public static final String WAITED = "Waited";
+    /** A message's: its type's package. */
+    public static final String PACKAGE = "Package";
+    /** Injected input's: the automation verb, and what it sent. */
+    public static final String VERB = "Verb";
+    public static final String SENT = "Sent";
+    /** Input from the devices: how many key edges, presses and releases. */
+    public static final String EDGES = "Edges";
+    /** A draw held's: what it was held for. */
+    public static final String REASON = "Reason";
+    public static final List<String> FIELDS = List.of(TYPE, FROM, TO, PASS_NUMBER, TOOK, THREAD, DREW, PARKED, WAITED,
+            PACKAGE, VERB, SENT, EDGES, REASON);
 
     /** The lanes' names, top to bottom, which is also the order of {@link #lanes}. */
     public static final String INPUT = "Input";
@@ -146,7 +179,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         long lostNow = lost;
         long offset = clockOffset;
         Map<String, String> named = names;
-        Map<Long, String> told = ahead;
+        Map<Long, List<Field>> told = ahead;
         List<List<Mark>> next = new ArrayList<>(lanes.size());
         boolean[] changed = new boolean[lanes.size()];
         for (Lane l : lanes) {
@@ -169,13 +202,16 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 named = learn(named, r);
                 continue;
             }
-            String about = r.frame() > 0 ? aboutPass(r, named) : null;
+            Field about = r.frame() > 0 ? aboutPass(r, named) : null;
             if (about != null) {
                 long pass = r.kind().equals("wake") ? r.frame() + 1 : r.frame();
-                if (!sayOn(next, changed, main, pass, about)) {
-                    String before = told.get(pass);
-                    if (before == null || !(r.kind().equals("wake") && before.contains(WOKEN))) {
-                        told = with(told, pass, before == null ? about : before + "; " + about);
+                // The first wake is what woke it, and a reason a draw was held outranks that it only updated.
+                if (!setOn(next, changed, main, pass, about)) {
+                    List<Field> before = told.getOrDefault(pass, List.of());
+                    if (before.stream().noneMatch(f -> f.name().equals(about.name()))) {
+                        List<Field> after = new ArrayList<>(before);
+                        after.add(about);
+                        told = withPass(told, pass, after);
                     }
                 }
             }
@@ -183,16 +219,18 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             if (lane < 0) {
                 continue;
             }
-            Mark m = markOf(r);
+            Mark m = markOf(r, named);
             if (m == null) {
                 continue;
             }
             if (lane == main && m.frame() > 0) {
                 // A pass: what was said of it before its own row, and nothing older than a few passes before it.
-                m = m.said(told.getOrDefault(m.frame(), ""));
+                for (Field f : told.getOrDefault(m.frame(), List.of())) {
+                    m = m.with(f.name(), f.value(), false);
+                }
                 long pass = m.frame();
                 if (told.keySet().stream().anyMatch(k -> k <= pass)) {
-                    Map<Long, String> kept = new HashMap<>(told);
+                    Map<Long, List<Field>> kept = new HashMap<>(told);
                     kept.keySet().removeIf(k -> k <= pass || k > pass + AHEAD_PASSES);
                     told = kept;
                 }
@@ -217,35 +255,42 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         return new Model(newest, out, lostNow, offset, named, told);
     }
 
-    /** How a pass's waking is said, so that only its first wake is. */
-    private static final String WOKEN = "woken by ";
+    /** What {@link #DREW} says of a pass that did not draw because it did not need to, or could not. */
+    public static final String DREW_YES = "yes";
+    public static final String DREW_UPDATED = "no, it only updated";
+    public static final String DREW_NOTHING = "no, nothing had changed";
+    public static final String DREW_CEILING = "no, held for the frame-rate ceiling";
+    public static final String DREW_GPU = "no, held for the GPU";
 
     /**
-     * What a loop row says of its pass, in words, or null when it says nothing of one: what woke the next, whether it
-     * drew or why not, and how long it parked and waited after.
+     * The field a loop row fills of its pass, or null when it fills none: what woke the next ({@link #FROM}), whether
+     * it drew or why not ({@link #DREW}), and how long it parked and waited after.
      */
-    private static String aboutPass(Row r, Map<String, String> names) {
+    private static Field aboutPass(Row r, Map<String, String> names) {
         if (!r.lane().equals("frame")) {
             return null;
         }
         return switch (r.kind()) {
             case "wake" -> {
                 String by = causeOf(r.cause(), names);
-                yield WOKEN + r.detail() + (by.isEmpty() ? "" : ", set off by " + by);
+                yield new Field(FROM, r.detail() + (by.isEmpty() ? "" : ", set off by " + by));
             }
-            case "draw skipped" -> "nothing had changed that needed drawing";
-            case HELD_FOR_CEILING -> "its draw was held for the frame-rate ceiling's next slot";
-            case HELD_FOR_GPU -> "its draw was held: the GPU had not finished the last one";
-            case "frame.present" -> "it drew";
-            case "frame.update" -> "it updated without drawing";
-            case "loop.park" -> "then parked for up to " + r.detail();
-            case "wait for events" -> "and waited " + r.detail();
+            case "draw skipped" -> new Field(DREW, DREW_NOTHING);
+            case HELD_FOR_CEILING -> new Field(DREW, DREW_CEILING);
+            case HELD_FOR_GPU -> new Field(DREW, DREW_GPU);
+            case "frame.present" -> new Field(DREW, DREW_YES);
+            case "frame.update" -> new Field(DREW, DREW_UPDATED);
+            case "loop.park" -> new Field(PARKED, r.detail());
+            case "wait for events" -> new Field(WAITED, r.detail());
             default -> null;
         };
     }
 
-    /** Say {@code about} on lane {@code lane}'s mark of pass {@code pass}, if it is folded; whether it was. */
-    private static boolean sayOn(List<List<Mark>> next, boolean[] changed, int lane, long pass, String about) {
+    /**
+     * Set {@code about} on lane {@code lane}'s mark of pass {@code pass}, if it is folded, keeping what is already
+     * there (a reason it did not draw over that it only updated); whether it was folded.
+     */
+    private static boolean setOn(List<List<Mark>> next, boolean[] changed, int lane, long pass, Field about) {
         List<Mark> marks = next.get(lane);
         for (int i = marks.size() - 1; i >= 0; i--) {
             Mark m = marks.get(i);
@@ -258,7 +303,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     next.set(lane, marks);
                     changed[lane] = true;
                 }
-                marks.set(i, m.said(about));
+                marks.set(i, m.with(about.name(), about.value(), true));
                 return true;
             }
         }
@@ -279,6 +324,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             return with(names, firing(r.cause()), said.startsWith("#") && space > 0 ? said.substring(space + 1) : said);
         }
         return names;
+    }
+
+    private static Map<Long, List<Field>> withPass(Map<Long, List<Field>> map, long pass, List<Field> fields) {
+        Map<Long, List<Field>> out = new HashMap<>(map);
+        out.put(pass, List.copyOf(fields));
+        return out;
     }
 
     private static <K> Map<K, String> with(Map<K, String> map, K key, String value) {
@@ -380,21 +431,26 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     }
 
     /** The event a row on a lane says, or null when it says none (an {@code edges} count of nothing). */
-    private static Mark markOf(Row r) {
+    private static Mark markOf(Row r, Map<String, String> names) {
         long at = r.atNanos();
         String kind = r.kind();
         if (kind.equals("edges")) {
             long edges = count(r.detail());
-            return edges > 0 ? mark(r, at, INPUT_TAKEN, Long.toString(edges)) : null;
+            return edges > 0 ? moment(r, at, INPUT_TAKEN, "the devices").with(EDGES, Long.toString(edges), false)
+                    : null;
         }
+        String from = causeOf(r.cause(), names);
         if (VERBS.contains(kind)) {
-            return mark(r, at, INJECTED, r.detail().isEmpty() ? kind : kind + " " + r.detail());
+            return moment(r, at, INJECTED, from).with(VERB, kind, false).with(SENT, r.detail(), false);
         }
         if (kind.equals(HELD_FOR_CEILING) || kind.equals(HELD_FOR_GPU)) {
-            return mark(r, at, kind, "");
+            return moment(r, at, kind, from).with(REASON,
+                    kind.equals(HELD_FOR_CEILING) ? "the frame-rate ceiling's next slot had not come"
+                            : "the GPU had not finished the last frame", false);
         }
         if (r.lane().equals("bus") && isMessageType(kind)) {
-            return mark(r, at, MESSAGE, kind);
+            return moment(r, at, MESSAGE, from).with(TYPE, typeName(kind), false)
+                    .with(PACKAGE, typePackage(kind), false);
         }
         long took = Durations.nanos(r.detail());
         if (took < 0) {
@@ -402,12 +458,19 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
         String what = kind.equals("frame") ? PASS : kind.equals("tick") ? TICK : kind.equals("present frame") ? DRAW
                 : kind;
-        return new Mark(at - took, at, what, r.thread(), "", r.frame(), r.cause(), "");
+        return fields(new Mark(at - took, at, what, r.thread(), r.frame(), r.cause(), List.of()), from)
+                .with(TOOK, String.format(Locale.ROOT, "%.2f ms", took / 1e6), false);
     }
 
-    /** A moment {@code r} said, with its pass and cause. */
-    private static Mark mark(Row r, long at, String kind, String what) {
-        return new Mark(at, at, kind, r.thread(), what, r.frame(), r.cause(), "");
+    /** A moment {@code r} said, with its pass, cause and the fields every event has. */
+    private static Mark moment(Row r, long at, String kind, String from) {
+        return fields(new Mark(at, at, kind, r.thread(), r.frame(), r.cause(), List.of()), from);
+    }
+
+    /** {@code m} with the fields every event has: its type, what set it off, its pass and its thread. */
+    private static Mark fields(Mark m, String from) {
+        return m.with(TYPE, m.kind(), false).with(FROM, from, false)
+                .with(PASS_NUMBER, m.frame() > 0 ? "#" + m.frame() : "", false).with(THREAD, m.thread(), false);
     }
 
     /**

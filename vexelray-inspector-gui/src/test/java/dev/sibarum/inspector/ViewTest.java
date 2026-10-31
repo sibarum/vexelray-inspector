@@ -6,6 +6,7 @@ import dev.sibarum.inspector.View.Strip;
 import dev.sibarum.inspector.core.Messages;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
+import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
@@ -401,47 +402,32 @@ class ViewTest {
     }
 
     @Test
-    void theDetailsSayTheRunsClockAndAMessagesTypeAndWhatSetItOff() {
+    void theDetailsAreTheClockAndARowForEachFieldTheEventHas() {
         ZoneId utc = ZoneId.of("UTC");
         long wall = Instant.parse("2026-10-31T03:32:17.456968Z").getEpochSecond() * 1_000_000_000L + 456_968_123L;
-        String type = "dev.sibarum.inspector.core.Messages.Rows";
-        Mark m = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", type, 64L, "76673.o00.6c", "");
+        Mark m = new Mark(110 * MS, 110 * MS, Model.MESSAGE, "vexel-source-link-rows", 64L, "76673.o00.6c", List.of(
+                new Field(Model.TYPE, "Messages.Rows"), new Field(Model.FROM, "I/O LinkRows, firing 108"),
+                new Field(Model.PASS_NUMBER, "#64"), new Field(Model.THREAD, "vexel-source-link-rows"),
+                new Field(Model.PACKAGE, "dev.sibarum.inspector.core")));
         List<String> said = View.details(new Details("r", 110 * MS, 6_230 * MS, wall,
-                Optional.of(new Event(Model.MESSAGES, m)), "I/O dev.sibarum.inspector.core.LinkRows, firing 108"), utc);
-        assertEquals(View.DETAILS.size(), said.size());
-        assertEquals(List.of("03:32:17.456968   2026-10-31T03:32:17.456968Z   6.230 s into the run",
-                "Message Messages.Rows", "In dev.sibarum.inspector.core. In pass #64",
-                "I/O dev.sibarum.inspector.core.LinkRows, firing 108", "vexel-source-link-rows"), said);
+                Optional.of(new Event(Model.MESSAGES, m))), utc);
+        assertEquals(View.DETAILS.size(), said.size(), "the clock, and a row for every field of the schema");
+        assertEquals("03:32:17.456968   2026-10-31T03:32:17.456968Z   6.230 s into the run", said.get(0));
+        assertEquals("Messages.Rows", said.get(View.DETAILS.indexOf(Model.TYPE)));
+        assertEquals("I/O LinkRows, firing 108", said.get(View.DETAILS.indexOf(Model.FROM)));
+        assertEquals("dev.sibarum.inspector.core", said.get(View.DETAILS.indexOf(Model.PACKAGE)));
+        assertEquals("", said.get(View.DETAILS.indexOf(Model.TO)), "not recorded: its row is hidden");
+        assertEquals("", said.get(View.DETAILS.indexOf(Model.DREW)), "a pass's field: hidden for a message");
     }
 
     @Test
-    void aPassSaysItsNumberAndItsStoryAndWithNoEventOnlyTheClockIsSaid() {
-        Mark pass = new Mark(100 * MS, 758_250_000L, Model.PASS, "main", "", 64L, "",
-                "woken by mutation on Gui@1d08; it drew; then parked for up to 200ms");
-        List<String> said = View.details(new Details("r", 758_250_000L, 4_672 * MS, -1L,
-                Optional.of(new Event(Model.MAIN, pass))), ZoneId.of("UTC"));
-        assertEquals(List.of("not said by the run   4.672 s into the run", "Pass #64 of the main loop, 658.25 ms",
-                "It drew; then parked for up to 200ms",
-                "mutation on Gui@1d08", "main"), said, "what woke a pass is its cause; every pass is the timer's");
-        assertEquals("none at the cursor",
-                View.details(new Details("r", 1L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")).get(1));
-        assertEquals(List.of("", "", "", "", ""),
-                View.details(new Details("", 0L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")), "nothing attached");
-    }
-
-    @Test
-    void eachKindOfEventIsSaidInWords() {
-        assertEquals("Input injected by automation: key SPACE",
-                View.event(new Mark(1, 1, Model.INJECTED, "a", "key SPACE")));
-        assertEquals("Input from the devices: 3 key edges (presses and releases)",
-                View.event(new Mark(1, 1, Model.INPUT_TAKEN, "main", "3")));
-        assertEquals("A draw held for the GPU: it had not finished the last frame",
-                View.event(new Mark(1, 1, Model.HELD_FOR_GPU, "main", "")));
-        assertEquals("In pass #9. The presenter wakes the loop when the GPU is done",
-                View.detail(new Mark(1, 1, Model.HELD_FOR_GPU, "main", "", 9L, "", "")));
-        assertEquals("A logic tick, delivering the bus's messages, 0.45 ms",
-                View.event(new Mark(0, 450_000, Model.TICK, "vexel-logic", "")));
-        assertEquals("Waited for the GPU's fence, 1.10 ms", View.event(new Mark(0, 1_100_000, "wait fence", "", "")));
+    void withNoEventOnlyTheClockAndThatThereIsNoneAreSaid() {
+        List<String> said = View.details(new Details("r", 1L, 0L, -1L, Optional.empty()), ZoneId.of("UTC"));
+        assertEquals("not said by the run   0.000 s into the run", said.get(0));
+        assertEquals(View.NO_EVENT, said.get(View.DETAILS.indexOf(Model.TYPE)));
+        assertEquals(2, said.stream().filter(s -> !s.isEmpty()).count());
+        assertTrue(View.details(new Details("", 0L, 0L, -1L, Optional.empty()), ZoneId.of("UTC")).stream()
+                .allMatch(String::isEmpty), "nothing attached");
     }
 
     @Test

@@ -15,6 +15,7 @@ import dev.vexelray.canvas.Color;
 import dev.vexelray.framework.shell.Shell;
 import dev.vexelray.framework.shell.VexelApplication;
 import dev.vexelray.gui.core.Drawn;
+import dev.vexelray.gui.core.Feed;
 import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.draw.Picture;
@@ -89,6 +90,11 @@ class ViewTest {
         public Drawn stretch(Node node, float factor, float originX) {
             stretched.add(factor);
             about.add(originX);
+            return this;
+        }
+
+        @Override
+        public Drawn show(Feed feed, int slot) {
             return this;
         }
     }

@@ -281,6 +281,42 @@ class ViewTest {
     }
 
     @Test
+    void theStripReachesAsFarAsTheGlideGoes() {
+        double span = View.SPAN_NANOS;
+        double at = 200_000 * MS;
+        assertEquals(View.SLIDE_LANES, View.reach(at, at - 3_000 * MS, at, span, span), "a step: the least reach");
+        assertEquals(11, View.reach(at, at - 85_000 * MS, at, span, span),
+                "End after 85 s: eight and a half lanes back, a lane for the zoom's widest and one more");
+        assertEquals(View.MAX_REACH, View.reach(at, at - 600_000 * MS, at, View.MIN_SPAN_NANOS, View.MIN_SPAN_NANOS),
+                "ten minutes at the closest zoom: no further than the most");
+    }
+
+    @Test
+    void aWideStripIsAPixelACellOnlyWhereAGlideStartsAndLands() {
+        View.Cells narrow = View.Cells.about(15_000, LANE, new float[] {8_000f});
+        assertEquals(1, narrow.width(100), "the least reach: a pixel a cell throughout");
+        int columns = (int) (LANE * (1 + 2 * 60));
+        View.Cells wide = View.Cells.about(columns, LANE, new float[] {61_000f, 10_000f});
+        assertEquals(1, wide.width(60_500), "the lane at rest where it lands");
+        assertEquals(1, wide.width(8_500), "and where it starts");
+        assertTrue(wide.width(40_000) > 1, "between, coarser");
+        int cells = 0;
+        for (int x = 0; x < columns; x = wide.end(x)) {
+            cells++;
+        }
+        assertTrue(cells <= 2 * 3 * LANE + View.Cells.COARSE_CELLS + 2,
+                columns + " pixels in " + cells + " cells: three lanes fine about each end, the rest coarse");
+        long at = 600_000 * MS;
+        java.util.ArrayList<Mark> passes = new java.util.ArrayList<>();
+        for (long from = at - 600_000 * MS; from < at; from += 2 * MS) {
+            passes.add(pass(from, from + MS + (from / MS % 7) * 300_000L));
+        }
+        Timeline t = new Timeline("r", "", true, at, main(passes.toArray(Mark[]::new)), Optional.empty());
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - 600_000 * MS, at, 61, at, at - 590_000 * MS);
+        assertTrue(p.marks().size() < 20_000, "ten minutes of passes drew " + p.marks().size() + " marks");
+    }
+
+    @Test
     void theFocusedLaneIsWashedAndOutlinedOverItsOwnBand() {
         Picture p = View.focusGlow(LANE, LANES_H, Model.LANES.indexOf(Model.LOGIC), Color.WHITE);
         Picture.Fill wash = (Picture.Fill) p.marks().getFirst();

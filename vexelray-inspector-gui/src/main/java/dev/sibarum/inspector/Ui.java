@@ -70,8 +70,9 @@ final class Ui {
         gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
 
         int count = Model.LANES.size();
-        // Wider than the lanes by View.SLIDE_LANES lanes each side: a picture is clipped to its own node's box where the
-        // node is drawn, so a strip only as wide as the lanes left the edge it slid away from empty for a whole glide.
+        // Wider than the lanes by View.SLIDE_LANES lanes each side, or more for a long glide (reach): a picture is
+        // clipped to its own node's box where the node is drawn, so a strip only as wide as the lanes left the edge it
+        // slid away from empty for a whole glide.
         strip = gui.box().width(Length.percent(100f * (1 + 2 * View.SLIDE_LANES))).height(Length.FILL);
         // Clipped but never scrolled: the strip overflows it on purpose, and overflow alone would give it a scrollbar.
         lane = gui.box().width(Length.grow(1f)).height(Length.rem(LANE_REM * count)).clip(true).scroll(false, false)
@@ -151,6 +152,17 @@ final class Ui {
     /** The address the follow button presses with. */
     String followAddress() {
         return follow.address();
+    }
+
+    /** How many lanes the strip reaches past the lane each side, as {@link #reach} last set it. */
+    private int reach = View.SLIDE_LANES;
+
+    /** Reach {@code lanes} lanes past the lane each side, so a glide that far never slides past the strip's end. */
+    void reach(int lanes) {
+        if (lanes != reach) {
+            reach = lanes;
+            strip.width(Length.percent(100f * (1 + 2 * lanes)));
+        }
     }
 
     /** The strip in the lane: what the view draws its marks on, and slides. */

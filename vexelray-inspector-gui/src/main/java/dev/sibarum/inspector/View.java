@@ -120,9 +120,9 @@ final class View {
     static final double ZOOM_AS_PX = 120.0;
 
     /**
-     * How many lanes wide the strip reaches past the lane on each side: room for the longest glide the kept minute
-     * allows at the first zoom (six lanes of ten seconds), and one more for the present moving on during it. Ui sizes
-     * the strip by it.
+     * The fewest lanes the strip reaches past the lane on each side: room for the longest glide the kept minute allows
+     * at the first zoom (six lanes of ten seconds), and one more for the present moving on during it. A longer glide,
+     * as from an island long kept, widens the strip for as long as it lasts ({@link #reach}).
      */
     static final int SLIDE_LANES = 7;
 
@@ -138,12 +138,24 @@ final class View {
      * @param strip        the node the marks are drawn on, a handle
      * @param edgeNanos    the moment the picture puts at the lane's right edge, on the machine's clock
      * @param pictureScale the pixels a nanosecond the picture was built at
-     * @param laneW        the lane's width; the strip reaches {@link #SLIDE_LANES} of it past the lane each side
+     * @param laneW        the lane's width
+     * @param reach        how many of it the strip reaches past the lane each side, {@link #SLIDE_LANES} or more
      * @param edge         where the lane's right edge is, a moment, as a function of the present
      * @param zoom         how much time the lane spans, as its natural logarithm, so that each doubling takes as long
      */
-    record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, Motion edge, Motion zoom) {
+    record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, int reach, Motion edge, Motion zoom) {
+
+        /** A strip at the least reach. */
+        Strip(Node strip, long edgeNanos, float pictureScale, float laneW, Motion edge, Motion zoom) {
+            this(strip, edgeNanos, pictureScale, laneW, SLIDE_LANES, edge, zoom);
+        }
     }
+
+    /**
+     * The most lanes the strip reaches past the lane each side: a glide longer than this, as at the closest zoom after a
+     * long pause, still empties the lanes for its middle frames, which go by too fast to read.
+     */
+    static final int MAX_REACH = 256;
 
     /**
      * The colours the lanes are drawn in: a stretch or a moment, a draw held for the ceiling, one held for the GPU,
@@ -294,7 +306,8 @@ final class View {
                         : edge.then(now, Glide.window(ZOOM_AS_PX), Path.stopped(keep));
             }
         }
-        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), edge, zoom);
+        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.reach(), edge,
+                zoom);
         show();
     }
 
@@ -406,7 +419,7 @@ final class View {
         pressedAt = -1L;
         pressWindow = -1L;
         last = t;
-        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), edge,
+        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.reach(), edge,
                 state.zoom().settled(now));
         ui.status(t.status());
         ui.canFollow(!t.live());
@@ -454,19 +467,36 @@ final class View {
         long now = System.nanoTime();
         float scale = (float) (laneW / span);
         Motion edge = state.edge();
-        double lo = edge.at(now);
+        double[] rests = new double[1 + edge.handovers().size()];
+        rests[0] = edge.at(now);
+        double lo = rests[0];
         double hi = lo;
-        for (Handover h : edge.handovers()) {
-            double at = h.to().at(h.endNanos());
-            lo = Math.min(lo, at);
-            hi = Math.max(hi, at);
+        for (int i = 1; i < rests.length; i++) {
+            Handover h = edge.handovers().get(i - 1);
+            rests[i] = h.to().at(h.endNanos());
+            lo = Math.min(lo, rests[i]);
+            hi = Math.max(hi, rests[i]);
         }
+        double widest = Math.max(span, Math.exp(state.zoom().at(now)));
+        int reach = reach(last.edgeNanos(), lo, hi, span, widest);
         if (edge.last().rate() != 0.0) {
             hi = Double.MAX_VALUE;
         }
-        double widest = Math.max(span, Math.exp(state.zoom().at(now)));
-        ui.strip().picture(lanes(last, laneW, laneH, scale, inks, lo - widest, hi));
-        state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, edge, state.zoom());
+        ui.reach(reach);
+        ui.strip().picture(lanes(last, laneW, laneH, scale, inks, lo - widest, hi, reach, rests));
+        state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, reach, edge, state.zoom());
+    }
+
+    /**
+     * How many lanes the strip must reach past the lane each side for a picture placing {@code edgeNanos} at the lane's
+     * right edge to cover every right edge from {@code loNanos} to {@code hiNanos}, lanes spanning {@code spanNanos} and
+     * as much as {@code widestNanos} while a zoom goes on: {@link #SLIDE_LANES} at least, as the present moving on
+     * needs, and at most {@link #MAX_REACH}. Pure, for a test.
+     */
+    static int reach(double edgeNanos, double loNanos, double hiNanos, double spanNanos, double widestNanos) {
+        double far = Math.max(edgeNanos - loNanos, hiNanos - edgeNanos);
+        int lanes = (int) Math.ceil((far + widestNanos) / spanNanos) + 1;
+        return Math.clamp(lanes, SLIDE_LANES, MAX_REACH);
     }
 
     /**
@@ -484,13 +514,29 @@ final class View {
      * lane at the edge moment. Pure, for a test.
      */
     static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos) {
+        return lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, SLIDE_LANES);
+    }
+
+    /**
+     * As {@link #lanes(Timeline, float, float, float, Inks, double, double)}, on a strip reaching {@code reach} lanes
+     * either side, and {@code restsNanos} the right-edge moments a glide starts and lands at. A strip wider than
+     * {@link Cells#FINE_PX} is drawn a pixel a column only about those, and coarser between, which a glide crosses
+     * too fast to see.
+     */
+    static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos,
+                         int slideLanes, double... restsNanos) {
         Sketch s = new Sketch().tag("lanes");
-        float edge = w * (1 + SLIDE_LANES);
+        float edge = w * (1 + slideLanes);
         float band = h / Model.LANES.size();
         for (int i = 1; i < Model.LANES.size(); i++) {
-            s.line(0f, band * i, edge + w * SLIDE_LANES, band * i, 1f, inks.line());
+            s.line(0f, band * i, edge + w * slideLanes, band * i, 1f, inks.line());
         }
-        int columns = (int) Math.ceil(edge + w * SLIDE_LANES);
+        int columns = (int) Math.ceil(edge + w * slideLanes);
+        float[] rests = new float[restsNanos.length];
+        for (int i = 0; i < rests.length; i++) {
+            rests[i] = edge + (float) ((restsNanos[i] - t.edgeNanos()) * pxPerNano);
+        }
+        Cells cells = Cells.about(columns, w, rests);
         Columns ends = new Columns(columns);
         Columns moments = new Columns(columns);
         for (Lane l : t.lanes()) {
@@ -517,8 +563,8 @@ final class View {
                 }
                 float height = reach * stature(m.toNanos() - m.fromNanos());
                 ends.tallest(column, Math.round(height), c);
-                if (x1 - x0 < 1f || x1 < 0f || x0 > columns) {
-                    continue;   // its end's column is all a pixel can show of it
+                if (x1 < 0f || x0 > columns || x1 - x0 < cells.width(column)) {
+                    continue;   // its end's cell is all a pixel, or a cell of a glide, can show of it
                 }
                 if (c.equals(runC) && Math.abs(height - runH) < 0.5f && x0 <= runX1 + 0.5f) {
                     runX1 = Math.max(runX1, x1);    // touching and alike: one fill, so a packed storm is one bar
@@ -535,8 +581,8 @@ final class View {
             if (runC != null) {
                 s.fill(runX0, floor - runH, runX1 - runX0, runH, runC);
             }
-            ends.draw(s, floor, reach, false);
-            moments.draw(s, floor, reach, true);
+            ends.draw(s, floor, reach, false, cells);
+            moments.draw(s, floor, reach, true, cells);
         }
         t.on().ifPresent(e -> {
             Mark m = e.mark();
@@ -610,27 +656,52 @@ final class View {
          * Draw the columns standing on {@code floor}: as moments, the band's whole {@code reach} in a strength by how
          * many share the column, a step for each doubling; otherwise as the tallest stretch's end.
          */
-        void draw(Sketch s, float floor, float reach, boolean moments) {
-            int i = 0;
-            while (i < color.length) {
-                if (color[i] == null) {
-                    i++;
-                    continue;
+        void draw(Sketch s, float floor, float reach, boolean moments, Cells cells) {
+            int runFrom = 0;
+            int runTo = 0;
+            float runKey = 0f;
+            Color runC = null;
+            for (int x = 0; x < color.length; ) {
+                int to = Math.min(cells.end(x), color.length);
+                // The cell's columns as one: the tallest end and its colour, or every moment and the first's colour.
+                Color c = null;
+                float tallest = 0f;
+                int n = 0;
+                for (int i = x; i < to; i++) {
+                    if (color[i] == null) {
+                        continue;
+                    }
+                    if (moments ? c == null : height[i] > tallest) {
+                        c = color[i];
+                    }
+                    tallest = Math.max(tallest, height[i]);
+                    n += count[i];
                 }
-                float key = moments ? level(count[i]) : height[i];
-                int end = i + 1;
-                while (end < color.length && color[i].equals(color[end])
-                        && (moments ? level(count[end]) : height[end]) == key) {
-                    end++;
+                float key = moments ? level(n) : tallest;
+                if (c == null || !c.equals(runC) || key != runKey) {
+                    drawRun(s, floor, reach, moments, runFrom, runTo, runKey, runC);
+                    runC = c;
+                    runFrom = x;
+                    runKey = key;
                 }
-                float h = moments ? reach : key;
-                Color c = moments ? Color.withAlpha(color[i], color[i].a() * strength(count[i])) : color[i];
-                if (end - i == 1) {
-                    s.line(i + 0.5f, floor - h, i + 0.5f, floor, 1f, c);
-                } else {
-                    s.fill(i, floor - h, end - i, h, c);
-                }
-                i = end;
+                runTo = to;
+                x = to;
+            }
+            drawRun(s, floor, reach, moments, runFrom, runTo, runKey, runC);
+        }
+
+        /** A run of alike columns: a line if it is one pixel, else a fill. */
+        private static void drawRun(Sketch s, float floor, float reach, boolean moments, int from, int to, float key,
+                                    Color c) {
+            if (c == null) {
+                return;
+            }
+            float h = moments ? reach : key;
+            Color ink = moments ? Color.withAlpha(c, c.a() * strengthAt((int) key)) : c;
+            if (to - from == 1) {
+                s.line(from + 0.5f, floor - h, from + 0.5f, floor, 1f, ink);
+            } else {
+                s.fill(from, floor - h, to - from, h, ink);
             }
         }
 
@@ -639,10 +710,89 @@ final class View {
             return Math.min(31 - Integer.numberOfLeadingZeros(n), 31 - Integer.numberOfLeadingZeros(DENSE));
         }
 
-        /** How strong {@code n} moments in a column are drawn: {@link #SPARSE} alone, full at {@link #DENSE}. */
-        static float strength(int n) {
+        /** How strong moments {@code level} doublings past one are drawn: {@link #SPARSE} alone, full at {@link #DENSE}. */
+        static float strengthAt(int level) {
             float steps = 31 - Integer.numberOfLeadingZeros(DENSE);
-            return SPARSE + (1f - SPARSE) * level(n) / steps;
+            return SPARSE + (1f - SPARSE) * level / steps;
+        }
+    }
+
+    /**
+     * How wide a strip's cells are, a cell being what {@link Columns} draws as one: a pixel near where a glide starts
+     * and lands, where the lanes are looked at, and coarser between, where a glide crosses lanes a frame and nothing
+     * finer than a cell can be seen. A strip no wider than {@link #FINE_PX} is a pixel a cell throughout, so what the
+     * lanes look like at rest never depends on how far the last glide went.
+     */
+    static final class Cells {
+
+        /** A strip this wide or narrower is fine throughout: the least reach, with room. */
+        static final int FINE_PX = 20_000;
+        /** About how many cells the coarse stretches of a wider strip are cut into, all told. */
+        static final int COARSE_CELLS = 4_000;
+
+        static final Cells FINE = new Cells(1, new int[0]);
+
+        private final int coarse;
+        /** The fine windows, as pixel ranges {@code [from, to)} in order, two ints each. */
+        private final int[] fine;
+
+        private Cells(int coarse, int[] fine) {
+            this.coarse = coarse;
+            this.fine = fine;
+        }
+
+        /**
+         * The cells of a strip {@code columns} pixels wide whose lanes are {@code w} wide, fine from two lanes before
+         * each of {@code restsPx} (a right edge's place on the strip) to a lane after it.
+         */
+        static Cells about(int columns, float w, float[] restsPx) {
+            if (columns <= FINE_PX || restsPx.length == 0) {
+                return FINE;
+            }
+            float[] sorted = restsPx.clone();
+            java.util.Arrays.sort(sorted);
+            int[] windows = new int[sorted.length * 2];
+            int pairs = 0;
+            int fineTotal = 0;
+            for (float rest : sorted) {
+                int from = Math.clamp((int) Math.floor(rest - 2 * w), 0, columns);
+                int to = Math.clamp((int) Math.ceil(rest + w), 0, columns);
+                if (pairs > 0 && from <= windows[2 * pairs - 1]) {
+                    fineTotal += Math.max(0, to - windows[2 * pairs - 1]);
+                    windows[2 * pairs - 1] = Math.max(to, windows[2 * pairs - 1]);
+                } else if (to > from) {
+                    windows[2 * pairs] = from;
+                    windows[2 * pairs + 1] = to;
+                    fineTotal += to - from;
+                    pairs++;
+                }
+            }
+            int coarse = Math.max(1, (int) Math.ceil((columns - fineTotal) / (double) COARSE_CELLS));
+            return new Cells(coarse, java.util.Arrays.copyOf(windows, 2 * pairs));
+        }
+
+        /** Where the cell starting at pixel {@code x} ends: the next pixel in a fine window, else a coarse step on. */
+        int end(int x) {
+            int next = (x / coarse + 1) * coarse;
+            for (int i = 0; i < fine.length; i += 2) {
+                if (x >= fine[i] && x < fine[i + 1]) {
+                    return x + 1;
+                }
+                if (fine[i] > x && fine[i] < next) {
+                    next = fine[i];
+                }
+            }
+            return next;
+        }
+
+        /** How wide the cell holding pixel {@code x} is. */
+        int width(int x) {
+            for (int i = 0; i < fine.length; i += 2) {
+                if (x >= fine[i] && x < fine[i + 1]) {
+                    return 1;
+                }
+            }
+            return coarse;
         }
     }
 
@@ -747,8 +897,8 @@ final class View {
         double edge = still ? s.edge().last().at(t) : s.edge().at(t);
         double scale = s.laneW() / Math.exp(still ? s.zoom().last().at(t) : s.zoom().at(t));
         float stretch = s.pictureScale() > 0f ? (float) (scale / s.pictureScale()) : 1f;
-        out.stretch(s.strip(), stretch, s.laneW() * (1 + SLIDE_LANES));
-        out.offset(s.strip(), -SLIDE_LANES * s.laneW() + (float) ((s.edgeNanos() - edge) * scale), 0f);
+        out.stretch(s.strip(), stretch, s.laneW() * (1 + s.reach()));
+        out.offset(s.strip(), -s.reach() * s.laneW() + (float) ((s.edgeNanos() - edge) * scale), 0f);
         return s.edge().moving(t) || s.zoom().moving(t) ? frame.presentNanos() : Frame.NEVER;
     }
 }

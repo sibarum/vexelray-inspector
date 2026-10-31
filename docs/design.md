@@ -426,8 +426,15 @@ Each step ends with something to watch or something an agent can ask, and lands 
   and touching alike stretches wider than a pixel are one fill too. A mark alone is still a line, in the pixel its
   end is in. The picture is bounded by its width, not by how many events it spans. Seen with `ottermate` against a
   traced Inspector: live, the comb and the Drawing lane read as before, the draws shaded by how many share a pixel;
-  End after 75 s paused logged no overflow and drew the title bar, details and status through the glide. Found: that
-  glide, 8.5 lanes long, outruns the strip's seven, so the lanes are empty mid-glide (TODO).
+  End after 75 s paused logged no overflow and drew the title bar, details and status through the glide. Its first
+  frames show empty lanes: following again lets the island go, and the live tape keeps only the last minute.
+  **A strip as wide as its glide, 2026-10-31:** zoomed in, a glide crossed more lanes than the strip's seven each
+  side, and the lanes were empty mid-glide. The strip now reaches as far as the glide it is built for goes
+  (`View.reach`, seven lanes at least and 256 at most), and once wider than 20 000 px it is drawn a pixel a cell only
+  three lanes about where the glide starts and lands, and in about 4 000 coarser cells between, which a glide crosses
+  too fast to read (`View.Cells`); at rest it is the least reach and every pixel is fine. Seen with `ottermate`
+  against a traced Inspector: zoomed to 1.25 s a lane and paused 30 s, End's catch-up of 24 lanes showed passes and
+  draws in every frame shot, with no vertex warning.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

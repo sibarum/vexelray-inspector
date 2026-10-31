@@ -243,10 +243,20 @@ public final class Messages {
     public record Field(String name, String value) {
     }
 
-    /** One lane of the timeline: a clock's events, in the order their rows arrived. */
-    public record Lane(String name, List<Mark> marks) {
+    /**
+     * One lane of the timeline: a clock's events, in the order their rows arrived.
+     *
+     * @param recorded whether the run's probe records the rows this lane is read from: false says an empty lane is
+     *                 not a quiet one, and so it is never said of a run that did not say what it records
+     */
+    public record Lane(String name, List<Mark> marks, boolean recorded) {
         public Lane {
             marks = List.copyOf(marks);
+        }
+
+        /** A lane the run is not known not to record. */
+        public Lane(String name, List<Mark> marks) {
+            this(name, marks, true);
         }
     }
 

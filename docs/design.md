@@ -461,6 +461,20 @@ Each step ends with something to watch or something an agent can ask, and lands 
   after a pass fill fields the view may not have had when it was clicked. Seen with `ottermate` against a traced
   Inspector: pass #707 showed Type, From ("asked on Gui@1d082e88, set off by timer gui.frame, firing 706"), Pass,
   Took 1.27 ms, Thread, Drew yes, Parked 15ms and Waited 328.5us, and no other row.
+  **A lane the run does not record says so, ruled by the author 2026-10-31:** every traced run checked before this
+  day recorded only automation's lanes, since `-Dprobe` on the mvn line never reached the app (FN-9), so Logic,
+  Messages and GPU were always empty and nothing said why. The pom passes the probe on by name now, the link says
+  which lanes the run records, and `Lane.recorded` dims a lane's name; the status line's `status.lanes` names those
+  lanes and how to record them. Seen with `ottermate`, two Inspectors each watching the other: the one watching a
+  run started without the probe dimmed Logic, Messages, Drawing and GPU and said so; the one watching a run started
+  with `-Dprobe=all` on the mvn line said nothing, and for the first time showed ticks (97/s, p50 0.34 ms), messages,
+  draws (54/s) and GPU waits. Drawing is read from the `gpu` lane for draws and the `frame` lane for holds, so without
+  the GPU's lane it still shows holds.
+  **Next, ruled by the author 2026-10-31: an event's path, not From and To.** A cause travels through several hops
+  (I/O, an app component, the GUI, a pass), and every hop writes rows under the same cause: in a fully traced run one
+  `LinkRows` cause was `Messages.Rows` published on `vexel-source-link-rows`, the `bench` ledger on `vexel-logic`, 37
+  mutations on the GUI thread, and the wake of the next pass. The ledger's sends and the View's deliveries write no
+  row, so that gap is upstream (FN-10).
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

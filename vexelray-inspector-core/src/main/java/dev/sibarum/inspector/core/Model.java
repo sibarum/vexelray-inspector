@@ -78,9 +78,11 @@ import java.util.Map;
  * @param names       what the run called its cause sources, by key ({@code t03} to {@code gui.frame}), and its
  *                    automation commands, by cause without the process ({@code c11.2} to {@code key SPACE})
  * @param ahead       the fields rows have filled of passes not folded yet, by pass number: what woke one, a draw held
+ * @param probed      the lanes the run's probe records, by key, as its link said; empty when it has not said, and
+ *                    then every lane is taken as recorded ({@link Lane#recorded})
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
-                    Map<Long, List<Field>> ahead) {
+                    Map<Long, List<Field>> ahead, List<String> probed) {
 
     /** The event schema's fields, in the order every event keeps them; see the class comment. */
     public static final String TYPE = "Type";
@@ -139,12 +141,25 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** Before any row. */
     static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of());
+            Map.of(), Map.of(), List.of());
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
     static final String SOURCE = "cause.source";
     static final String COMMAND = "agent.command";
+    /** The row {@link LinkRows} adds for the lanes the run's probe records: its detail, their keys a space apart. */
+    static final String RECORDED = "probe.lanes";
+
+    /** The probe lane each of {@link #LANES} is read from, in that order; see the class comment. */
+    private static final List<String> PROBE_LANES = List.of("input", "frame", "bus", "bus", "gpu", "gpu");
+
+    /**
+     * Whether a run whose probe records {@code probe} records the rows lane {@code lane} is read from; true when the run
+     * has not said what it records, so that no lane is said to be missing from a run that never told.
+     */
+    static boolean records(String lane, List<String> probe) {
+        return probe.isEmpty() || probe.contains(PROBE_LANES.get(LANES.indexOf(lane)));
+    }
 
     /** How many passes back a word about a pass not yet folded is kept for before it is let go. */
     private static final long AHEAD_PASSES = 4;
@@ -153,6 +168,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         lanes = List.copyOf(lanes);
         names = Map.copyOf(names);
         ahead = Map.copyOf(ahead);
+        probed = List.copyOf(probed);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -180,6 +196,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         long offset = clockOffset;
         Map<String, String> named = names;
         Map<Long, List<Field>> told = ahead;
+        List<String> probe = probed;
         List<List<Mark>> next = new ArrayList<>(lanes.size());
         boolean[] changed = new boolean[lanes.size()];
         for (Lane l : lanes) {
@@ -199,6 +216,10 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 continue;
             }
             if (r.lane().equals(APP_LANE)) {
+                if (r.kind().equals(RECORDED)) {
+                    probe = r.detail().isBlank() ? List.of() : List.of(r.detail().trim().split(" +"));
+                    continue;
+                }
                 named = learn(named, r);
                 continue;
             }
@@ -250,9 +271,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 marks.removeIf(m -> m.toNanos() < from);
                 changed[i] = true;
             }
-            out.add(changed[i] ? new Lane(LANES.get(i), marks) : lanes.get(i));
+            boolean recorded = records(LANES.get(i), probe);
+            out.add(changed[i] || recorded != lanes.get(i).recorded() ? new Lane(LANES.get(i), marks, recorded)
+                    : lanes.get(i));
         }
-        return new Model(newest, out, lostNow, offset, named, told);
+        return new Model(newest, out, lostNow, offset, named, told, probe);
     }
 
     /** What {@link #DREW} says of a pass that did not draw because it did not need to, or could not. */

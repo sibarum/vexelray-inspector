@@ -68,9 +68,11 @@ final class Ui {
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
         status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "")
+                .slot(Landmarks.STATUS_LANES, StatusBar.Side.RIGHT, "")
                 .slot(Landmarks.STATUS_DRAWING, StatusBar.Side.RIGHT, "");
         gui.landmark(Landmarks.STATUS, status.node());
         gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
+        gui.landmark(Landmarks.STATUS_LANES, status.slot(Landmarks.STATUS_LANES));
         gui.landmark(Landmarks.STATUS_DRAWING, status.slot(Landmarks.STATUS_DRAWING));
 
         int count = Model.LANES.size();
@@ -129,8 +131,29 @@ final class Ui {
 
     /** Show {@code name} as the lane the arrows step through. */
     void focus(String name) {
+        names(name, List.of());
+    }
+
+    /**
+     * Show {@code focus} as the lane the arrows step through, and the lanes in {@code unrecorded} as ones the run's
+     * probe does not record, faintest of all, so an empty band there reads as not looked at rather than quiet.
+     */
+    void names(String focus, List<String> unrecorded) {
         for (int i = 0; i < names.length; i++) {
-            names[i].textColor(gui.theme().color(Model.LANES.get(i).equals(name) ? Role.INK : Role.DIM));
+            String name = Model.LANES.get(i);
+            names[i].textColor(gui.theme().color(unrecorded.contains(name) ? Role.FAINT
+                    : name.equals(focus) ? Role.INK : Role.DIM));
+        }
+    }
+
+    /** What the status line's lanes slot last said. */
+    private String lanesNote = "";
+
+    /** What the status line says of the lanes the run does not record; empty while it records them all. */
+    void lanesNote(String note) {
+        if (!note.equals(lanesNote)) {
+            lanesNote = note;
+            status.text(Landmarks.STATUS_LANES, note);
         }
     }
 

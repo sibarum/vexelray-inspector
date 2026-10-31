@@ -101,13 +101,17 @@ empty there rather than wrong. Seen in a traced run (2026-10-30): `vexel-logic` 
 rows a second. A tick's own row, numbered and named for its `Tick` (design.md 7½, the row per tick), would close it; so
 would the zone naming its tick (`tick logic`, `tick widgets`). The mode itself is also not said (design.md section 7).
 
-## FN-9 · Automation alone records no ticks and no GPU 🔬
+## FN-9 · Automation alone records no ticks and no GPU, and the template's pom dropped `-Dprobe` 🔬 (fixed upstream)
 
 An application started with `--automation=0` and no `-Dprobe` records the `input`, `frame`, `layout` and `app` lanes
-only (its startup line says so), so attached to one, the Logic, Drawing and GPU lanes stay empty with no word of why;
-`-Dprobe=all` is needed, as README and the status line say. Not worked around further: the Inspector cannot tell "this
-run records no ticks" from "this run had none". The link's `StreamOpened` saying which lanes the run records would let a
-lane say "not recorded" instead of showing nothing, which any client of the stream would want.
+only (its startup line says so), so attached to one, the Logic, Drawing and GPU lanes stay empty with no word of why.
+Worse, found 2026-10-31: the template's pom passes `-Dautomation` to the forked JVM by name and nothing else, so
+`mvn exec:exec -Dautomation=0 -Dprobe=all` ran the app with automation's lanes only, and every "traced" run checked
+in this file and in design.md before then (the author's too) had no bus, state, draw or GPU rows. Fixed, ruled by the
+author: the template's pom (vexelray-framework) and this one pass `-Dprobe` and `-Dprobe.format` by name, blank
+meaning unset; the link's `StreamOpened` says which lanes the run records (`recorded`, minor 3), and a lane the run
+does not record has its name dimmed and the status line names it with how to start one that does (`status.lanes`).
+Still a trap for any other pom that forks the JVM: a `-D` the forked command line does not name is silently dropped.
 
 ## FN-10 · A message's row names no sender, no receiver and no transport 🔬
 

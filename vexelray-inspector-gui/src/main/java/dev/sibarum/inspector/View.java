@@ -333,7 +333,7 @@ final class View {
         }
         int band = Math.clamp((int) ((y - laneY) / (laneH / Model.LANES.size())), 0, Model.LANES.size() - 1);
         focus = Model.LANES.get(band);
-        ui.focus(focus);
+        ui.names(focus, unrecorded(last));
         showFocus();
         double at = state.edge().at(now) - (laneX + laneW - x) / scale;
         pressedAt = now;
@@ -433,7 +433,28 @@ final class View {
                 state.zoom().settled(now));
         ui.status(t.status());
         ui.canFollow(!t.live());
+        List<String> unrecorded = unrecorded(t);
+        ui.names(focus, unrecorded);
+        ui.lanesNote(lanesNote(unrecorded));
         show();
+    }
+
+    /** The names of {@code t}'s lanes the run's probe does not record. Pure, for a test. */
+    static List<String> unrecorded(Timeline t) {
+        return t.lanes().stream().filter(l -> !l.recorded()).map(Lane::name).toList();
+    }
+
+    /**
+     * What the status line says of the lanes in {@code unrecorded}: that the run does not record them, and how to start
+     * one that does; empty when there are none. Pure, for a test.
+     */
+    static String lanesNote(List<String> unrecorded) {
+        if (unrecorded.isEmpty()) {
+            return "";
+        }
+        String names = unrecorded.size() == 1 ? unrecorded.getFirst()
+                : String.join(", ", unrecorded.subList(0, unrecorded.size() - 1)) + " and " + unrecorded.getLast();
+        return "Not recorded by this run: " + names + ". Start it with -Dprobe=all, or PROBE=all";
     }
 
     /**

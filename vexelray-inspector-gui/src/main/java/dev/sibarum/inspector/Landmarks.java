@@ -40,6 +40,9 @@ final class Landmarks {
     static final String STATUS = "status";
     static final String STATUS_RUN = "status.run";
 
+    /** The status line's slot naming the lanes the run's probe does not record, empty while it records them all. */
+    static final String STATUS_LANES = "status.lanes";
+
     /** The status line's slot saying what the lanes could not draw as they should, empty while they can. */
     static final String STATUS_DRAWING = "status.drawing";
 

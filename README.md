@@ -19,8 +19,8 @@ last left it, at 1180x720 the first time.
 
 It inspects another VexelRay application, which has to be running with its link open and its probe recording: start
 that one with `--automation=0 -Dprobe=all -Dprobe.format=csv` (for one built from this template,
-`mvn compile exec:exec -Dautomation=0 "-Dapp.jvmArgs=-Dprobe=all -Dprobe.format=csv"`). Until one is, the status line
-says so, and the Inspector looks again every two seconds.
+`mvn compile exec:exec -Dautomation=0 -Dprobe=all -Dprobe.format=csv`, which the pom passes on by name). Until one
+is, the status line says so, and the Inspector looks again every two seconds.
 
 ```
 mvn compile exec:exec -Dapp.args=120                      # 120 frames and quit
@@ -100,9 +100,10 @@ thread, and for a message its type. From, To and Transport say what they can: th
 receivers and how the message travelled are not recorded yet (framework-notes FN-10).
 
 The readouts count the second before the cursor: draws, draws held by reason, ticks and their median and 95th
-percentile, and the rows the link lost. Only a run started with `-Dprobe=all` records ticks and the GPU
-(framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application
-goes away they stop where they were, and the status line says what happened.
+percentile, and the rows the link lost. Only a run started with `-Dprobe=all` records ticks and the GPU; a lane its run
+does not record has its name dimmed and the status line names it, with how to start one that does (framework-notes
+FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they
+stop where they were, and the status line says what happened.
 
 | Key | Does |
 | --- | --- |

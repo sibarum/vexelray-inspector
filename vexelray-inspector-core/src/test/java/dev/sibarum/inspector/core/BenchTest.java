@@ -730,6 +730,20 @@ class BenchTest {
     }
 
     @Test
+    void aLaneTheRunsProbeDoesNotRecordSaysSoAndARunThatNeverSaidIsTakenAtItsWord() {
+        Rows r = LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(0, -1, List.of(
+                new dev.vexelray.gui.inspector.link.Row(10, 50L, 0L, 1L, "main", "frame", "frame", "1ms", ""))),
+                List.of(), List.of("input", "frame", "layout", "app"));
+        assertEquals(new Row(-1, 1_050L, "", Model.APP_LANE, Model.RECORDED, "input frame layout app"),
+                r.rows().getFirst(), "what automation alone records");
+        Model m = Model.EMPTY.fold(r.rows(), Long.MAX_VALUE);
+        assertEquals(List.of(Model.INPUT, Model.MAIN), m.lanes().stream().filter(Lane::recorded).map(Lane::name)
+                .toList(), "ticks and messages are on the bus lane, draws and waits on the GPU's");
+        assertTrue(Model.EMPTY.fold(List.of(), Long.MAX_VALUE).lanes().stream().allMatch(Lane::recorded),
+                "a run that has not said what it records is not said to be missing anything");
+    }
+
+    @Test
     void aCauseIsSaidByWhatTheRunCalledIt() {
         Map<String, String> names = Map.of("c11", "automation.command", "c11.2", "key SPACE", "i04", "input.key");
         assertEquals("automation command \"key SPACE\"   (76673.c11.2)", Model.causeOf("76673.c11.2", names));

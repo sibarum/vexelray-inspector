@@ -421,6 +421,19 @@ class ViewTest {
     }
 
     @Test
+    void theLanesARunDoesNotRecordAreNamedWithHowToRecordThem() {
+        Timeline t = new Timeline("r", "", true, 0L, List.of(new Lane(Model.INPUT, List.of()),
+                new Lane(Model.MAIN, List.of()), new Lane(Model.LOGIC, List.of(), false),
+                new Lane(Model.GPU, List.of(), false)), Optional.empty());
+        assertEquals(List.of(Model.LOGIC, Model.GPU), View.unrecorded(t));
+        assertEquals("Not recorded by this run: Logic and GPU. Start it with -Dprobe=all, or PROBE=all",
+                View.lanesNote(View.unrecorded(t)));
+        assertEquals("Not recorded by this run: Logic, Messages and GPU. Start it with -Dprobe=all, or PROBE=all",
+                View.lanesNote(List.of(Model.LOGIC, Model.MESSAGES, Model.GPU)));
+        assertEquals("", View.lanesNote(List.of()), "all recorded: nothing to say");
+    }
+
+    @Test
     void withNoEventOnlyTheClockAndThatThereIsNoneAreSaid() {
         List<String> said = View.details(new Details("r", 1L, 0L, -1L, Optional.empty()), ZoneId.of("UTC"));
         assertEquals("not said by the run   0.000 s into the run", said.get(0));

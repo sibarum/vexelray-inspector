@@ -72,11 +72,14 @@ public final class LinkRows {
                         + " placed in time: rebuild it against this stack");
             }
             long origin = opened.originNanos().get();
-            // The run's sources were named in rows written before the stream began; the link names them again.
-            List<String> sources = opened.sources() == null ? List.of() : opened.sources();
+            // The run's sources were named in rows written before the stream began, and what its probe records in
+            // none: the link says both, and the first batch carries them as rows, so they are folded like the rest.
+            List<String> said = opened.sources() == null ? List.of() : opened.sources();
+            List<String> recorded = opened.recorded();
             for (RowBatch b = arrived.take(); b != CLOSED; b = arrived.take()) {
-                rows.send(rows(request.run(), origin, b, sources));
-                sources = List.of();
+                rows.send(rows(request.run(), origin, b, said, recorded));
+                said = List.of();
+                recorded = null;
             }
             return new Detached(request.run(), "it went away");
         } catch (InterruptedException stopped) {
@@ -99,8 +102,19 @@ public final class LinkRows {
      * named it ({@code t03 gui.frame}), at the batch's first moment.
      */
     static Rows rows(String run, long origin, RowBatch b, List<String> sources) {
-        List<Row> out = new ArrayList<>(b.rows().size() + 1 + sources.size());
+        return rows(run, origin, b, sources, null);
+    }
+
+    /**
+     * As {@link #rows(String, long, RowBatch, List)}, and, unless {@code recorded} is null, the lanes the run's probe
+     * records as one more row first ({@link Model#RECORDED}).
+     */
+    static Rows rows(String run, long origin, RowBatch b, List<String> sources, List<String> recorded) {
+        List<Row> out = new ArrayList<>(b.rows().size() + 2 + sources.size());
         long first = b.rows().isEmpty() ? System.nanoTime() : origin + b.rows().getFirst().tMonoNs();
+        if (recorded != null) {
+            out.add(new Row(-1, first, "", Model.APP_LANE, Model.RECORDED, String.join(" ", recorded)));
+        }
         for (String source : sources) {
             out.add(new Row(-1, first, "", Model.APP_LANE, Model.SOURCE, source));
         }

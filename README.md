@@ -103,7 +103,7 @@ goes away they stop where they were, and the status line says what happened.
 | Left / Right | step the cursor onto the focused lane's previous or next event (pausing first if following) |
 | Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lanes span |
 | = / - | zoom in or out about the right edge: half or twice the time across, from 10 ms to a minute |
-| Click a lane | focus it (its name brightens), and put the cursor on its event nearest the click, or where it was clicked if none is near |
+| Click a lane | focus it (its name brightens and its band is outlined with a soft glow), and put the cursor on its event nearest the click, or where it was clicked if none is near |
 
 Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
 says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click

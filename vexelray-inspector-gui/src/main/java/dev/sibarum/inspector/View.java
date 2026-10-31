@@ -199,6 +199,7 @@ final class View {
             laneY = layout.rect().y();
             laneW = layout.rect().w();
             laneH = layout.rect().h();
+            showFocus();
             show();
         });
         gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x(), click.y()));
@@ -279,6 +280,7 @@ final class View {
         int band = Math.clamp((int) ((y - laneY) / (laneH / Model.LANES.size())), 0, Model.LANES.size() - 1);
         focus = Model.LANES.get(band);
         ui.focus(focus);
+        showFocus();
         double at = state.edge().at(now) - (laneX + laneW - x) / scale;
         pressedAt = now;
         pressWindow = -1L;
@@ -288,6 +290,29 @@ final class View {
         } else {
             seek.send(new Seek((long) at));
         }
+    }
+
+    /** Mark the focused lane's band over the lanes, where the strip's slide does not move it. */
+    private void showFocus() {
+        if (laneH > 0f) {
+            ui.lane().overlay(focusGlow(laneW, laneH, Model.LANES.indexOf(focus), inks.mark()));
+        }
+    }
+
+    /**
+     * The focused lane's mark, over lanes {@code w} by {@code h}, of which it is the {@code index}th band: a faint wash
+     * of {@code c} across the band and a one-pixel outline of it, with two fainter rings inside that fade into the
+     * wash, which reads as a glow. Pure, for a test.
+     */
+    static Picture focusGlow(float w, float h, int index, Color c) {
+        float band = h / Model.LANES.size();
+        float y = band * index;
+        return new Sketch().tag("focus")
+                .fill(0f, y, w, band, Color.withAlpha(c, 0.06f))
+                .outline(2f, y + 2f, w - 4f, band - 4f, 1f, Color.withAlpha(c, 0.12f))
+                .outline(1f, y + 1f, w - 2f, band - 2f, 1f, Color.withAlpha(c, 0.3f))
+                .outline(0f, y, w, band, 1f, Color.withAlpha(c, 0.85f))
+                .picture();
     }
 
     /** The events of {@code t}'s lane named {@code name}; none before the bench has said anything. */

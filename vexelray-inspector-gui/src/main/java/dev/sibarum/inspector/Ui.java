@@ -19,7 +19,8 @@ import dev.vexelray.gui.widget.TitleBar;
  * that clips, holding one {@link #strip} whose picture the view draws a band a lane: the view slides the strip left as
  * the present moves on, which is the frame contract's asked half, and the box's clip is what keeps the slid strip
  * inside it (a container's clip is anchored, so a child slides within it). The name of the lane the arrows step
- * through is in the text's colour, the others dimmed ({@link #focus}).
+ * through is in the text's colour, the others dimmed ({@link #focus}), and the view outlines its band with an
+ * overlay on the lanes' box, which the strip's slide does not move.
  *
  * <h2>The readouts</h2>
  *

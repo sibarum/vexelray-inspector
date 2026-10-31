@@ -243,6 +243,17 @@ class ViewTest {
     }
 
     @Test
+    void theFocusedLaneIsWashedAndOutlinedOverItsOwnBand() {
+        Picture p = View.focusGlow(LANE, LANES_H, Model.LANES.indexOf(Model.LOGIC), Color.WHITE);
+        Picture.Fill wash = (Picture.Fill) p.marks().getFirst();
+        assertEquals(40.0, wash.y(), "the logic lane, the third band");
+        assertEquals(20.0, wash.h());
+        assertEquals(LANE, wash.w(), 1e-6);
+        assertTrue(wash.color().a() < 0.1f, "faint, so the marks under it still read");
+        assertEquals(4, p.marks().size(), "the wash, and three rings fading inward");
+    }
+
+    @Test
     void theLanesStayPutWhileTheCursorIsInViewAndOtherwisePutItInTheMiddle() {
         double span = View.SPAN_NANOS;
         double rest = 50_000 * MS;

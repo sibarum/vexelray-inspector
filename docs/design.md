@@ -371,6 +371,12 @@ Each step ends with something to watch or something an agent can ask, and lands 
   with them a second; the pass the cursor is on is drawn over the others in the text's colour, two pixels wide at
   least, and the status line says how long it took and when it ended. Seen with `ottermate`: steps through passes 3 to
   9 ms apart, stopping at the oldest. Found: at the 10 s lane those steps move it under a pixel, so zoom comes next.
+  **Zoom and click done 2026-10-30:** `=` and `-` halve and double the lane's span (10 ms to 60 s) about the right
+  edge, a second glide in doublings, drawn by stretching the picture along x (`Drawn.stretch`, added upstream in
+  vexelray-gui with the author's approval) until the picture is built at the new scale; a pass is a fill as long as
+  it took and a pixel-wide line at its end, so it neither vanishes zoomed out nor fattens zoomed in. A click on a pass
+  goes to it (`GoTo`). Seen with `ottermate`: zoomed nine times, passes 0.3 to 2.3 ms long stand apart and step one by
+  one; a click on one glides it to the edge. Hover waits on FN-7.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

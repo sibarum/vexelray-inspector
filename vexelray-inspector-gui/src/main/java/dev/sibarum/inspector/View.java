@@ -1,10 +1,13 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.Glide.Handover;
+import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
 import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
+import dev.sibarum.inspector.Keys.ZoomKey;
+import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Span;
 import dev.sibarum.inspector.core.Messages.Step;
@@ -26,7 +29,6 @@ import sibarum.atchung.Sender;
 import sibarum.tactroller.api.Key;
 import sibarum.tactroller.api.Modifier;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,8 +63,10 @@ import java.util.Optional;
  *
  * <h2>Keys</h2>
  *
- * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event, and Shift with them
- * steps a second. Each chord is declared with the message it sends ({@link PauseKey}, {@link EventKey},
+ * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event, Shift with them steps
+ * a tenth of the lane, and {@code =} and {@code -} zoom about the right edge: a second motion, of the time the lane
+ * spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch}) until the next
+ * picture is built at the new scale. A click on a pass goes to it ({@link GoTo}). Each chord is declared with the message it sends ({@link PauseKey}, {@link EventKey},
  * {@link StepKey}), and the view turns it into the bench's {@link Pause}, {@link StepEvent} or {@link Step} with the
  * moment the lane would come to rest at, which only the view knows. The handover starts at the key, though it is added
  * when the bench answers, a tick later: the step is still flat there in every derivative, so starting it a few
@@ -75,33 +79,37 @@ import java.util.Optional;
 @dev.vexelray.framework.api.View
 final class View {
 
-    /** How much time the lane spans, right edge to left: the bench's reach. */
+    /** How much time the lane spans at first, right edge to left: the bench's reach. */
     static final long SPAN_NANOS = 10_000_000_000L;
+
+    /** The least and most the lane can span: passes milliseconds apart a lane apart, and all the tape keeps. */
+    static final long MIN_SPAN_NANOS = 10_000_000L;
+    static final long MAX_SPAN_NANOS = 60_000_000_000L;
+
+    /** How long a zoom by one press takes: as long as a move of this many pixels. */
+    static final double ZOOM_AS_PX = 120.0;
 
     /**
      * How many lanes wide the strip reaches past the lane on each side: room for the longest glide the kept minute
-     * allows (six lanes of ten seconds), and one more for the present moving on during it. Ui sizes the strip by it.
+     * allows at the first zoom (six lanes of ten seconds), and one more for the present moving on during it. Ui sizes
+     * the strip by it.
      */
     static final int SLIDE_LANES = 7;
 
-    /** How far Shift and an arrow step the cursor. */
-    static final long STEP_NANOS = 1_000_000_000L;
+    /** How close a click must be to a pass to go to it, in pixels. */
+    static final float CLICK_REACH_PX = 6f;
 
     /**
      * The view's state, which its {@link #draw} reads.
      *
-     * @param strip      the node the marks are drawn on, a handle
-     * @param edgeNanos  the moment the picture puts at the lane's right edge, on the machine's clock
-     * @param pxPerNano  the lane's width over {@link #SPAN_NANOS}
-     * @param restPx     the offset that puts the picture's edge moment at the lane's right edge: the strip reaches
-     *                   {@link #SLIDE_LANES} lanes left of the lane
-     * @param from       the path the motion started on
-     * @param handovers  each change since, oldest first: where the right edge is, as a function of the present
+     * @param strip        the node the marks are drawn on, a handle
+     * @param edgeNanos    the moment the picture puts at the lane's right edge, on the machine's clock
+     * @param pictureScale the pixels a nanosecond the picture was built at
+     * @param laneW        the lane's width; the strip reaches {@link #SLIDE_LANES} of it past the lane each side
+     * @param edge         where the lane's right edge is, a moment, as a function of the present
+     * @param zoom         how much time the lane spans, as its natural logarithm, so that each doubling takes as long
      */
-    record Strip(Node strip, long edgeNanos, float pxPerNano, float restPx, Path from, List<Handover> handovers) {
-        Strip {
-            handovers = List.copyOf(handovers);
-        }
+    record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, Motion edge, Motion zoom) {
     }
 
     /** The one state the asked half reads: replaced when the timeline, the motion or the lane changes. */
@@ -114,39 +122,51 @@ final class View {
     private final Sender<Pause> pause;
     private final Sender<Step> step;
     private final Sender<StepEvent> stepEvent;
+    private final Sender<GoTo> goTo;
 
-    /** What the bench last said, kept to draw again at a new size. */
+    /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
+    private float laneX;
     private float laneW;
     private float laneH;
+
+    /** How much time the lane spans, or is zooming to. */
+    private double span = SPAN_NANOS;
 
     /** When the last key was pressed, so the motion it causes starts then; and, for a pause, the window it chose. */
     private long pressedAt = -1L;
     private long pressWindow = -1L;
 
     View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<EventKey> eventKey, Sender<StepKey> stepKey,
-         Sender<Pause> pause, Sender<StepEvent> stepEvent, Sender<Step> step) {
+         Sender<ZoomKey> zoomKey, Sender<Pause> pause, Sender<StepEvent> stepEvent, Sender<Step> step,
+         Sender<GoTo> goTo) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
         this.step = step;
         this.stepEvent = stepEvent;
+        this.goTo = goTo;
         this.mark = gui.theme().color(Role.ACCENT);
         this.on = gui.theme().color(Role.INK);
-        this.state = new Strip(ui.strip(), 0L, 0f, 0f, Path.stopped(0.0), List.of());
+        this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
+                Motion.of(Path.stopped(Math.log(span))));
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
+            laneX = layout.rect().x();
             laneW = layout.rect().w();
             laneH = layout.rect().h();
             show();
         });
+        gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x()));
         gui.shortcut(Shortcut.of(Key.SPACE), pauseKey, new PauseKey());
         gui.shortcut(Shortcut.of(Key.LEFT), eventKey, new EventKey(-1));
         gui.shortcut(Shortcut.of(Key.RIGHT), eventKey, new EventKey(1));
-        gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-STEP_NANOS));
-        gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), stepKey, new StepKey(STEP_NANOS));
+        gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-1));
+        gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), stepKey, new StepKey(1));
+        gui.shortcut(Shortcut.of(Key.EQUAL), zoomKey, new ZoomKey(true));
+        gui.shortcut(Shortcut.of(Key.MINUS), zoomKey, new ZoomKey(false));
     }
 
-    // ------------------------------------------------------------------ keys
+    // ------------------------------------------------------------------ keys and clicks
 
     /** Space: ask the bench to stop where the lane would come to rest from now, or, stopped, to follow again. */
     @Subscribe
@@ -154,16 +174,16 @@ final class View {
         long now = System.nanoTime();
         pressedAt = now;
         pressWindow = Glide.window(0.0);
-        pause.send(new Pause((long) resting(now, pressWindow)));
+        pause.send(new Pause((long) state.edge().rest(now, pressWindow)));
     }
 
-    /** Shift and an arrow: ask the bench to step the cursor by time, from where the lane would rest if moving. */
+    /** Shift and an arrow: ask the bench to step the cursor a tenth of the lane, from where the lane would rest. */
     @Subscribe
     public void stepKey(StepKey key) {
         long now = System.nanoTime();
         pressedAt = now;
         pressWindow = -1L;
-        step.send(new Step(key.byNanos(), (long) resting(now, Glide.window(0.0))));
+        step.send(new Step(key.direction() * (long) (span / 10), (long) state.edge().rest(now, Glide.window(0.0))));
     }
 
     /** An arrow: ask the bench to step the cursor onto the next or previous event. */
@@ -172,11 +192,58 @@ final class View {
         long now = System.nanoTime();
         pressedAt = now;
         pressWindow = -1L;
-        stepEvent.send(new StepEvent(key.by(), (long) resting(now, Glide.window(0.0))));
+        stepEvent.send(new StepEvent(key.by(), (long) state.edge().rest(now, Glide.window(0.0))));
     }
 
-    private double resting(long now, long window) {
-        return Glide.rest(state.from(), state.handovers(), now, window);
+    /** {@code =} or {@code -}: halve or double what the lane spans, about its right edge, gliding there. */
+    @Subscribe
+    public void zoomKey(ZoomKey key) {
+        span = Math.clamp(key.in() ? span / 2 : span * 2, MIN_SPAN_NANOS, MAX_SPAN_NANOS);
+        long now = System.nanoTime();
+        Path to = Path.stopped(Math.log(span));
+        Motion zoom = state.zoom().settled(now);
+        if (gui.reducedMotion()) {
+            zoom = Motion.of(to);
+        } else if (!zoom.goingTo(to)) {
+            zoom = zoom.then(now, Glide.window(ZOOM_AS_PX), to);
+        }
+        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.edge(), zoom);
+        show();
+    }
+
+    /** A click on the lane: go to the pass nearest it, if one is within {@link #CLICK_REACH_PX}. */
+    private void clicked(float x) {
+        long now = System.nanoTime();
+        double scale = scale(now);
+        if (scale <= 0) {
+            return;
+        }
+        double at = state.edge().at(now) - (laneX + laneW - x) / scale;
+        nearest(last.passes(), at, CLICK_REACH_PX / scale).ifPresent(pass -> {
+            pressedAt = now;
+            pressWindow = -1L;
+            goTo.send(new GoTo(pass));
+        });
+    }
+
+    /** The pass nearest {@code atNanos}, if one is within {@code reachNanos} of it. Pure, for a test. */
+    static Optional<Span> nearest(List<Span> passes, double atNanos, double reachNanos) {
+        Span best = null;
+        double bestGap = reachNanos;
+        for (Span p : passes) {
+            double gap = atNanos < p.fromNanos() ? p.fromNanos() - atNanos
+                    : atNanos > p.toNanos() ? atNanos - p.toNanos() : 0.0;
+            if (gap <= bestGap) {
+                best = p;
+                bestGap = gap;
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    /** The pixels a nanosecond the lane is drawn at now: its width over the span the zoom has it at. */
+    private double scale(long now) {
+        return laneW > 0f ? laneW / Math.exp(state.zoom().at(now)) : 0.0;
     }
 
     // ------------------------------------------------------------------ the bench's timeline
@@ -185,84 +252,71 @@ final class View {
     @Subscribe
     public void timeline(Timeline t) {
         long now = System.nanoTime();
-        // Once a handover has landed, it and all before it are its path: from then on the motion is that path exactly.
-        Path from = state.from();
-        List<Handover> handovers = state.handovers();
-        for (int i = handovers.size() - 1; i >= 0; i--) {
-            if (handovers.get(i).endNanos() <= now) {
-                from = handovers.get(i).to();
-                handovers = handovers.subList(i + 1, handovers.size());
-                break;
-            }
-        }
+        Motion edge = state.edge().settled(now);
         boolean fresh = last.passes().isEmpty() || (!t.run().isEmpty() && !t.run().equals(last.run()));
-        Path to = t.live() ? Path.following(now) : Path.stopped(stopAt(t, from, handovers, now));
+        Path to = t.live() ? Path.following(now) : Path.stopped(stopAt(t, edge, now));
         if (fresh || gui.reducedMotion()) {
-            from = to;
-            handovers = List.of();
-        } else if (!same(Glide.last(from, handovers), to)) {
+            edge = Motion.of(to);
+        } else if (!edge.goingTo(to)) {
             long start = pressedAt >= 0 ? pressedAt : now;
-            double distancePx = (to.at(now) - Glide.at(from, handovers, now)) * scale();
+            double distancePx = (to.at(now) - edge.at(now)) * scale(now);
             // A pause stops where the key reckoned the lane would rest, over the window it reckoned with.
             long window = pressWindow >= 0 && to.rate() == 0.0 ? pressWindow : Glide.window(distancePx);
-            List<Handover> next = new ArrayList<>(handovers);
-            next.add(Glide.handover(from, handovers, start, window, to));
-            handovers = next;
+            edge = edge.then(start, window, to);
         }
         pressedAt = -1L;
         pressWindow = -1L;
         last = t;
-        state = new Strip(ui.strip(), t.edgeNanos(), scale(), -SLIDE_LANES * laneW, from, handovers);
+        state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), edge,
+                state.zoom().settled(now));
         ui.status(t.status());
         show();
     }
 
     /**
-     * Where to stop. Where the bench put the cursor, if a key asked; if the run went away while followed, wherever the
-     * lane comes to rest from now, so that it coasts to a stop rather than going back to the last row.
+     * Where to stop. Where the bench put the cursor, if a key or a click asked; if the run went away while followed,
+     * wherever the lane comes to rest from now, so that it coasts to a stop rather than going back to the last row.
      */
-    private double stopAt(Timeline t, Path from, List<Handover> handovers, long now) {
-        if (pressedAt < 0 && Glide.last(from, handovers).rate() != 0.0) {
-            return Glide.rest(from, handovers, now, Glide.window(0.0));
+    private double stopAt(Timeline t, Motion edge, long now) {
+        if (pressedAt < 0 && edge.last().rate() != 0.0) {
+            return edge.rest(now, Glide.window(0.0));
         }
         return t.edgeNanos();
     }
 
-    private static boolean same(Path a, Path b) {
-        return a.rate() == b.rate() && (a.rate() != 0.0 || a.value() == b.value());
-    }
-
-    private float scale() {
-        return laneW > 0f ? laneW / SPAN_NANOS : 0f;
-    }
-
-    /** Build the strip's picture for the lane's size, over every moment the motion will pass through. */
+    /**
+     * Build the strip's picture at the scale the zoom is going to, over every moment the motion will pass through, and
+     * the state the asked half draws it by.
+     */
     private void show() {
         if (laneW <= 0f) {
             return;     // not laid out yet: the lane's size arrives and draws it
         }
-        float scale = scale();
         long now = System.nanoTime();
-        double lo = Glide.at(state.from(), state.handovers(), now);
+        float scale = (float) (laneW / span);
+        Motion edge = state.edge();
+        double lo = edge.at(now);
         double hi = lo;
-        for (Handover h : state.handovers()) {
+        for (Handover h : edge.handovers()) {
             double at = h.to().at(h.endNanos());
             lo = Math.min(lo, at);
             hi = Math.max(hi, at);
         }
-        if (Glide.last(state.from(), state.handovers()).rate() != 0.0) {
+        if (edge.last().rate() != 0.0) {
             hi = Double.MAX_VALUE;
         }
-        ui.strip().picture(passes(last, laneW, laneH, scale, mark, on, lo - SPAN_NANOS, hi));
-        state = new Strip(ui.strip(), last.edgeNanos(), scale, -SLIDE_LANES * laneW, state.from(), state.handovers());
+        double widest = Math.max(span, Math.exp(state.zoom().at(now)));
+        ui.strip().picture(passes(last, laneW, laneH, scale, mark, on, lo - widest, hi));
+        state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, edge, state.zoom());
     }
 
     /**
      * The passes between {@code fromNanos} and {@code toNanos} as marks on a strip reaching {@link #SLIDE_LANES} lanes
      * of width {@code w} either side of the lane, with the timeline's edge moment where the lane's right edge is at
-     * rest; each at least a pixel wide so that a pass far shorter than a pixel's worth of time still shows. The pass
-     * the cursor is on, if any, is drawn over them in {@code onColour}, the lane's whole height and at least two pixels
-     * wide, ending where it ends. Pure, for a test.
+     * rest. Each pass is a fill as long as it took, which a zoom stretches, and a one-pixel line at its end, which it
+     * does not, so a pass far shorter than a pixel still shows at any zoom and none grows fat. The pass the cursor is
+     * on, if any, is drawn over them in {@code onColour}, the lane's whole height, with a two-pixel line at its end.
+     * Pure, for a test.
      */
     static Picture passes(Timeline t, float w, float h, float pxPerNano, Color colour, Color onColour,
                           double fromNanos, double toNanos) {
@@ -276,27 +330,32 @@ final class View {
             }
             float x0 = edge + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
             float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
-            s.fill(x0, top, Math.max(1f, x1 - x0), height, colour);
+            s.fill(x0, top, x1 - x0, height, colour);
+            s.line(x1 - 0.5f, top, x1 - 0.5f, top + height, 1f, colour);
         }
         t.on().ifPresent(p -> {
             float x0 = edge + (p.fromNanos() - t.edgeNanos()) * pxPerNano;
             float x1 = edge + (p.toNanos() - t.edgeNanos()) * pxPerNano;
-            float width = Math.max(2f, x1 - x0);
-            s.fill(x1 - width, 0f, width, h, onColour);
+            s.fill(x0, 0f, x1 - x0, h, onColour);
+            s.line(x1 - 1f, 0f, x1 - 1f, h, 2f, onColour);
         });
         return s.picture();
     }
 
     /**
-     * The asked half: where the motion puts the right edge at the frame's present, and the strip slid by how far that
-     * is from the moment its picture puts there. Due again while anything moves.
+     * The asked half: where the motions put the right edge and the zoom at the frame's present; the picture stretched
+     * from the scale it was built at to the zoom's, about the edge moment; and the strip slid by how far the right
+     * edge is from that moment. Due again while either moves.
      */
     @Draw
     static long draw(Strip s, Frame frame, Drawn out) {
         long t = frame.monoNanos();
-        double edge = frame.reducedMotion() ? Glide.last(s.from(), s.handovers()).at(t)
-                : Glide.at(s.from(), s.handovers(), t);
-        out.offset(s.strip(), s.restPx() + (float) ((s.edgeNanos() - edge) * s.pxPerNano()), 0f);
-        return Glide.moving(s.from(), s.handovers(), t) ? frame.presentNanos() : Frame.NEVER;
+        boolean still = frame.reducedMotion();
+        double edge = still ? s.edge().last().at(t) : s.edge().at(t);
+        double scale = s.laneW() / Math.exp(still ? s.zoom().last().at(t) : s.zoom().at(t));
+        float stretch = s.pictureScale() > 0f ? (float) (scale / s.pictureScale()) : 1f;
+        out.stretch(s.strip(), stretch, s.laneW() * (1 + SLIDE_LANES));
+        out.offset(s.strip(), -SLIDE_LANES * s.laneW() + (float) ((s.edgeNanos() - edge) * scale), 0f);
+        return s.edge().moving(t) || s.zoom().moving(t) ? frame.presentNanos() : Frame.NEVER;
     }
 }

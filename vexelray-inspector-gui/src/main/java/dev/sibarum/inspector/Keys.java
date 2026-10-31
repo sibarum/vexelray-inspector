@@ -20,9 +20,14 @@ final class Keys {
         static final Topic<PauseKey> TOPIC = Topic.edge(PauseKey.class);
     }
 
-    /** Shift and an arrow: step the cursor by {@code byNanos}, back when negative. */
-    record StepKey(long byNanos) {
+    /** Shift and an arrow: step the cursor a tenth of what the lane spans, back when {@code direction} is negative. */
+    record StepKey(int direction) {
         static final Topic<StepKey> TOPIC = Topic.edge(StepKey.class);
+    }
+
+    /** {@code =} and {@code -}: zoom in, halving what the lane spans, or out, doubling it. */
+    record ZoomKey(boolean in) {
+        static final Topic<ZoomKey> TOPIC = Topic.edge(ZoomKey.class);
     }
 
     /** An arrow: step the cursor onto the next or previous event, {@code by} of them, back when negative. */

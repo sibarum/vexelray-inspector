@@ -3,6 +3,7 @@ package dev.sibarum.inspector.core;
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.FindRuns;
+import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
@@ -42,13 +43,15 @@ import java.util.Optional;
  * The readouts, the next panels, are where the model as of the cursor will be shown.
  *
  * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Step}
- * moves it by time, from that resting moment if following, and {@link StepEvent} onto the next or previous pass, which
+ * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked pass, and {@link StepEvent}
+ * onto the next or previous pass, which
  * it is then on and the status line describes. It goes no further back than the tape holds. Rows go on arriving
  * and being kept while paused, and are shown only if they are before the cursor (a late batch), so a paused timeline
  * is still. A run that goes away keeps its tape, to step through, until another is attached.
  */
 @Component
-@Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class, StepEvent.class})
+@Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class, StepEvent.class,
+        GoTo.class})
 @Publishes({FindRuns.class, Attach.class, Timeline.class})
 public final class Bench {
 
@@ -127,7 +130,8 @@ public final class Bench {
                 .on(Messages.DETACHED_TOPIC, b.step("detached", Bench::detached))
                 .on(Messages.PAUSE_TOPIC, b.step("pause", Bench::pause))
                 .on(Messages.STEP_TOPIC, b.step("step", Bench::step))
-                .on(Messages.STEP_EVENT_TOPIC, b.step("step event", Bench::stepEvent));
+                .on(Messages.STEP_EVENT_TOPIC, b.step("step event", Bench::stepEvent))
+                .on(Messages.GO_TO_TOPIC, b.step("go to", Bench::goTo));
         ledger = b.build(inbox, "bench", CAPACITY);
         timer.every(LOOK_AGAIN, Messages.FIND_RUNS_TOPIC, new FindRuns());
     }
@@ -249,6 +253,15 @@ public final class Bench {
             at = next.toNanos();
         }
         return to == null ? s : say(on(s, to), out);
+    }
+
+    /** A click on a pass: the cursor onto it, if it is one the tape still holds. */
+    static State goTo(State s, GoTo g, Out out) {
+        Span pass = g.pass();
+        if (pass.toNanos() < s.tape().oldestNanos() || !s.kept().passes().contains(pass)) {
+            return s;
+        }
+        return say(on(s, pass), out);
     }
 
     /** The pass ending latest before {@code at} (or at it, unless {@code strictly}) that the tape still holds. */

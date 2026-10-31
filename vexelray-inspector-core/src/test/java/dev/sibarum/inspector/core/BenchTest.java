@@ -3,6 +3,7 @@ package dev.sibarum.inspector.core;
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.FindRuns;
+import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
@@ -334,6 +335,19 @@ class BenchTest {
         assertEquals(Optional.of(span(100 * MS)), timeline().on(), "back from between passes: the one before");
         tell(Messages.PAUSE_TOPIC, new Pause(0L));
         assertEquals(Optional.empty(), timeline().on(), "following again: on nothing");
+    }
+
+    @Test
+    void aClickOnAPassPutsTheCursorOnItAndAnythingElseIsIgnored() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS, 1_300 * MS);
+        sent.clear();
+        tell(Messages.GO_TO_TOPIC, new GoTo(span(600 * MS)));
+        Timeline t = timeline();
+        assertEquals(Optional.of(span(600 * MS)), t.on(), "from following: paused on it");
+        assertEquals(600 * MS, t.edgeNanos());
+        tell(Messages.GO_TO_TOPIC, new GoTo(new Span(1, 2)));
+        assertEquals(List.of(), took(Timeline.class), "not a pass that was kept");
     }
 
     @Test

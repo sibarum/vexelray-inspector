@@ -64,6 +64,17 @@ It costs the stepped clocks a test would hand the `Gui`: they reach the asked ha
 `Gui.monoNanos()` (or the moment a message was taken, handed to a `@Subscribe`) would close it; any part that starts a
 motion from a message will want it.
 
+## FN-7 · A view cannot hear where the pointer is over a node 🔬
+
+Asked for by the author: a hover effect on each pass in the lane. A view hears a node's `CLICK` (with where it
+landed), its `STATE` (normal, hover, pressed) and `DRAG`, but not where the pointer is while it moves over the node:
+only the input dispatcher reads `PointerMoved`. A pass is a mark in a picture, not a node, so `STATE` cannot say which
+one; and a node per pass (thousands) is not the answer. Not worked around: subscribing a view to the raw input topic
+would bypass the dispatcher's hit-testing. Clicking works, since a click carries its position. A `NodeEvent.POINTER`
+(the pointer's position while it is over the node, folded to the newest each frame, and leaving) would let any
+picture-drawn chart, plot or timeline highlight what is under the pointer. Hover stays a colour change only, per the
+stack's rule that nothing appears, moves or grows on hover.
+
 ## FN-6 · A node slid by `Drawn.offset` shows nothing beyond its own box 🔬
 
 The passes lane slides one strip node by `Drawn.offset` for a glide. A node's picture is clipped to the node's own box

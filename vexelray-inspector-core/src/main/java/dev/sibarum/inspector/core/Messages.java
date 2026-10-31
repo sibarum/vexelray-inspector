@@ -120,6 +120,12 @@ public final class Messages {
     public record StepEvent(int by, long fromNanos) {
     }
 
+    /** A click on a pass: put the cursor on it, pausing if following. Ignored unless it is a pass the tape holds. */
+    public static final Topic<GoTo> GO_TO_TOPIC = Topic.edge(GoTo.class);
+
+    public record GoTo(Span pass) {
+    }
+
     // ------------------------------------------------------------------ the bench tells the view
 
     /** A stretch of time on the machine's monotonic clock: one pass of a run's main loop. */

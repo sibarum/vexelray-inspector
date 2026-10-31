@@ -11,10 +11,12 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] R1 ([design.md](design.md) §10), slices 3 to 5: every lane and the readouts; the run panel, the picker, launch
       and replay; then measure (the tape's `RETAIN` included), and inspect W1 to W3 in both modes. Slices 1 and 2
       (attach and the live passes lane; checkpoints, pause and stepping) are done.
-- [ ] Design 9.8, next on the passes lane: Realtime's zoom about the cursor, continuous. Without it, stepping event
-      by event through a busy stretch (passes 3 to 9 ms apart) moves the lane less than a pixel a step. A continuous
-      zoom needs the asked half to scale the strip, and `Drawn` offers only `offset`: an upstream question. Then, with
-      slice 3's lanes: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter.
+- [ ] Hover on a pass, a colour change only: needs the pointer's position over the lane (FN-7), an upstream addition.
+- [ ] Design 9.8, with slice 3's lanes: Sequence (a sequence per lane, each landing on the cursor on its own), and the
+      filter.
+- [ ] Zoomed in, a long glide (Space after stepping far back, or a Shift step at a wide zoom) can run past the strip's
+      seven lanes each side, leaving the lane briefly empty mid-glide. Size the strip by the zoom, or rebuild the
+      picture at the glide's midpoint.
 - [ ] Dragging the cursor on the lane: design §8's absolute cursor on a state topic, newest position wins. The view
       turns a pixel into a moment from its `Strip`.
 - [ ] A catch-up from far back (Space after stepping a minute back) is a long, fast glide: `Glide.WINDOW_MAX_NANOS`

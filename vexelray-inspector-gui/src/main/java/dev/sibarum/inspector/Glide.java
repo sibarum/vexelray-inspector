@@ -1,5 +1,6 @@
 package dev.sibarum.inspector;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -73,6 +74,65 @@ final class Glide {
 
         long endNanos() {
             return startNanos + windowNanos;
+        }
+    }
+
+    /**
+     * One thing that moves: the path it started on and each handover since, oldest first. The view keeps two, where
+     * the lane's right edge is and how much time the lane spans. Replaced, never changed.
+     */
+    record Motion(Path from, List<Handover> handovers) {
+
+        Motion {
+            handovers = List.copyOf(handovers);
+        }
+
+        /** Still, or moving steadily, on {@code path}. */
+        static Motion of(Path path) {
+            return new Motion(path, List.of());
+        }
+
+        double at(long t) {
+            return Glide.at(from, handovers, t);
+        }
+
+        Path last() {
+            return Glide.last(from, handovers);
+        }
+
+        boolean moving(long t) {
+            return Glide.moving(from, handovers, t);
+        }
+
+        /** Where it would come to rest if stopped from {@code now} ({@link Glide#rest}). */
+        double rest(long now, long windowNanos) {
+            return Glide.rest(from, handovers, now, windowNanos);
+        }
+
+        /**
+         * The same motion with the handovers that have landed by {@code now} folded into its path: once one has landed,
+         * it and all before it are its path exactly, so nothing it does changes.
+         */
+        Motion settled(long now) {
+            for (int i = handovers.size() - 1; i >= 0; i--) {
+                if (handovers.get(i).endNanos() <= now) {
+                    return new Motion(handovers.get(i).to(), handovers.subList(i + 1, handovers.size()));
+                }
+            }
+            return this;
+        }
+
+        /** This motion handed over to {@code to}, from {@code start} over {@code windowNanos} ({@link Glide#handover}). */
+        Motion then(long start, long windowNanos, Path to) {
+            List<Handover> next = new ArrayList<>(handovers);
+            next.add(Glide.handover(from, handovers, start, windowNanos, to));
+            return new Motion(from, next);
+        }
+
+        /** Whether it is going to {@code to} already: the same rate, and, stopped, at the same place. */
+        boolean goingTo(Path to) {
+            Path end = last();
+            return end.rate() == to.rate() && (end.rate() != 0.0 || end.value() == to.value());
         }
     }
 

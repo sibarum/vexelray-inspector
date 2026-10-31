@@ -178,8 +178,28 @@ class ViewTest {
         assertEquals(List.of("960 w1", "999 w1"), lines(p), "a pixel's line inside each end, which no zoom stretches");
         Picture.Fill first = (Picture.Fill) p.marks().stream().filter(m -> m instanceof Picture.Fill).findFirst()
                 .orElseThrow();
-        assertEquals(24.0, first.y(), 1e-6, "in the main thread's band, the second, with its margin");
-        assertEquals(12.0, first.h(), 1e-6);
+        assertEquals(36.0, first.y() + first.h(), 1e-5, "standing on the main thread's floor, the second, with its margin");
+        assertEquals(9.0, first.h(), 1e-5, "100 ms stands three quarters of the band's 12 px reach");
+    }
+
+    @Test
+    void aLongPassStandsTallAndAStormOfShortOnesLow() {
+        assertEquals(View.STATURE_MIN, View.stature(10_000L), "far shorter than the shortest: still a bar");
+        assertEquals(1f / 4f, View.stature(1 * MS), 1e-6f);
+        assertEquals(1f / 2f, View.stature(10 * MS), 1e-6f);
+        assertEquals(1f, View.stature(5_000 * MS), "past a second: the whole reach");
+        long at = 20_000 * MS;
+        Mark[] storm = new Mark[20];
+        for (int i = 0; i < storm.length; i++) {
+            storm[i] = pass(at - 1_000 * MS + i * MS, at - 1_000 * MS + (i + 1) * MS);
+        }
+        Mark[] all = java.util.Arrays.copyOf(storm, storm.length + 1);
+        all[storm.length] = pass(at - 700 * MS, at - 680 * MS);
+        Timeline t = new Timeline("r", "", true, at, main(all), Optional.empty());
+        List<Double> heights = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at).marks().stream()
+                .filter(m -> m instanceof Picture.Fill).map(m -> ((Picture.Fill) m).h()).distinct().toList();
+        assertEquals(List.of(3.0, (double) (12f * View.stature(20 * MS))), heights,
+                "twenty 1 ms passes end to end stand a quarter; one 20 ms pass, as long, stands higher");
     }
 
     @Test

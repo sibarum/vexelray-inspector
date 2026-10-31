@@ -395,6 +395,10 @@ Each step ends with something to watch or something an agent can ask, and lands 
   absolute cursor of section 8, `Seek` on a state topic, which dragging will reuse. Space still pauses with the cursor
   at the right edge. Seen with `ottermate`: clicked at x 600, the line settled at 592 (the coast from following) with
   the lanes still; zoomed in three times after, the lanes glided it to the middle, x 578.
+  **A stretch stands as tall as it took, ruled by the author 2026-10-31:** packed end to end, a storm of 1 ms passes
+  and one 650 ms pass were the same solid bar. Each stretch now stands on its band's floor at a height by the log of
+  its length, a sixth of the reach at 0.1 ms or less up to all of it at a second (`View.stature`); a moment keeps the
+  whole reach. Seen with `ottermate`: steady passes, under a millisecond, are a low comb.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

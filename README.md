@@ -111,7 +111,9 @@ leaves it where it was clicked, and a step or a zoom moves only the line until i
 lanes glide to put it in the middle. Space pauses with the cursor at the right edge, where the present was. On an event, it is drawn over the others in the
 text's colour, and the status line says what it was, how long it took and when it ended. Each event is drawn as long as
 it took, with a pixel-wide line at its end so that one far shorter than a pixel still shows; zoom in and a busy
-stretch opens up into separate events. The last minute is kept, and stepping stops at either end of it. Rows go on
+stretch opens up into separate events. Each stands on its band's floor as tall as the log of how long it took, from
+a sliver at 0.1 ms or less to the band's whole height at a second or more, so a storm of short events is a low comb
+and one long blocking event a tall slab at any zoom. The last minute is kept, and stepping stops at either end of it. Rows go on
 arriving and being kept while paused.
 
 Nothing on the lane jumps: every change of where it is going or how much it spans, a key held down included, glides

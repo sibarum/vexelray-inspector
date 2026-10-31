@@ -417,7 +417,9 @@ final class View {
      * {@link #SLIDE_LANES} lanes of width {@code w} either side of the lanes, with the timeline's edge moment where the
      * lanes' right edge is at rest, each lane a band of {@code h} over {@code Model.LANES}, a hairline between bands.
      * A stretch is a fill as long as it took, which a zoom stretches, and a one-pixel line at its end, which it does
-     * not, so one far shorter than a pixel still shows at any zoom and none grows fat; a moment is the line alone. The
+     * not, so one far shorter than a pixel still shows at any zoom and none grows fat; both stand on the band's floor,
+     * as tall as {@link #stature} says, so a long block and a storm of short ones look different even where the storm
+     * packs into one solid run. A moment is the line alone, the band's whole reach. The
      * event the cursor is on, if any, is drawn over them in the text's colour, its band's whole height, with a
      * two-pixel line at its end; and while stopped, the cursor itself, a one-pixel line in that colour across every
      * lane at the edge moment. Pure, for a test.
@@ -431,8 +433,8 @@ final class View {
         }
         for (Lane l : t.lanes()) {
             float y = band * Model.LANES.indexOf(l.name());
-            float top = y + band * 0.2f;
-            float height = band * 0.6f;
+            float floor = y + band * 0.8f;
+            float reach = band * 0.6f;
             for (Mark m : l.marks()) {
                 if (m.toNanos() < fromNanos || m.fromNanos() > toNanos) {
                     continue;
@@ -440,10 +442,12 @@ final class View {
                 Color c = inks.of(m.kind());
                 float x0 = edge + (m.fromNanos() - t.edgeNanos()) * pxPerNano;
                 float x1 = edge + (m.toNanos() - t.edgeNanos()) * pxPerNano;
-                if (m.toNanos() > m.fromNanos()) {
-                    s.fill(x0, top, x1 - x0, height, c);
+                boolean stretch = m.toNanos() > m.fromNanos();
+                float height = stretch ? reach * stature(m.toNanos() - m.fromNanos()) : reach;
+                if (stretch) {
+                    s.fill(x0, floor - height, x1 - x0, height, c);
                 }
-                s.line(x1 - 0.5f, top, x1 - 0.5f, top + height, 1f, c);
+                s.line(x1 - 0.5f, floor - height, x1 - 0.5f, floor, 1f, c);
             }
         }
         t.on().ifPresent(e -> {
@@ -460,6 +464,23 @@ final class View {
             s.line(edge - 0.5f, 0f, edge - 0.5f, h, 1f, inks.on());
         }
         return s.picture();
+    }
+
+    /** A stretch this short or shorter stands {@link #STATURE_MIN} of its band's reach. */
+    static final double STATURE_SHORT_NANOS = 100_000.0;
+    /** A stretch this long or longer stands its band's whole reach. */
+    static final double STATURE_LONG_NANOS = 1_000_000_000.0;
+    /** The least a stretch stands, so the shortest still reads as a bar. */
+    static final float STATURE_MIN = 1f / 6f;
+
+    /**
+     * How tall a stretch of {@code nanos} stands, as a share of its band's reach: by the log of how long it took, from
+     * {@link #STATURE_SHORT_NANOS} to {@link #STATURE_LONG_NANOS}, so a storm of short passes is a low comb and a long
+     * one a tall slab at any zoom, however tightly the storm is packed.
+     */
+    static float stature(long nanos) {
+        double share = Math.log(nanos / STATURE_SHORT_NANOS) / Math.log(STATURE_LONG_NANOS / STATURE_SHORT_NANOS);
+        return (float) Math.clamp(share, STATURE_MIN, 1.0);
     }
 
     // ------------------------------------------------------------------ the readouts

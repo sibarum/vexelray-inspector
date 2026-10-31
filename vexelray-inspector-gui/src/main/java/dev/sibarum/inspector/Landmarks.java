@@ -40,6 +40,9 @@ final class Landmarks {
     static final String STATUS = "status";
     static final String STATUS_RUN = "status.run";
 
+    /** The status line's slot saying what the lanes could not draw as they should, empty while they can. */
+    static final String STATUS_DRAWING = "status.drawing";
+
     /** The landmark of the details panel's value labelled {@code label}. */
     static String detail(String label) {
         return DETAIL + label.toLowerCase(java.util.Locale.ROOT).replace(' ', '-');

@@ -434,7 +434,16 @@ Each step ends with something to watch or something an agent can ask, and lands 
   three lanes about where the glide starts and lands, and in about 4 000 coarser cells between, which a glide crosses
   too fast to read (`View.Cells`); at rest it is the least reach and every pixel is fine. Seen with `ottermate`
   against a traced Inspector: zoomed to 1.25 s a lane and paused 30 s, End's catch-up of 24 lanes showed passes and
-  draws in every frame shot, with no vertex warning.
+  draws in every frame shot, with no vertex warning. **The empty start of End from an island older than the tape's
+  minute stays, ruled by the author 2026-10-31:** the glide is too fast for it to be seen, and what it shows is right.
+  **What the lanes cannot draw is said, ruled by the author 2026-10-31:** the view logs, as `vexelray-inspector.view`,
+  when a glide is longer than the strip can reach (now at most a quarter of a million pixels, whatever the lane's
+  width), and when the right edge or a handover is not a number, in which case it starts again from the timeline's
+  edge rather than slide by it. A picture of more than 12 000 marks, which would overflow the window's vertex buffer
+  and cost it its title bar and status line, is drawn again in cells twice as wide until it fits (`View.fit`), and
+  an event that ends before it begins is left out and counted (`View.malformed`); both are logged when they start
+  and said in the status line's right-hand slot (`status.drawing`) for as long as they last. Seen with `ottermate`:
+  a zoomed catch-up left that slot empty and the log without a word from the view.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

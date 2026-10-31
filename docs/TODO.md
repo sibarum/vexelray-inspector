@@ -20,9 +20,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter.
 - [ ] Injected input on the Input lane is held by `BenchTest` only: drive a traced target with keys while another
       Inspector watches, and look.
-- [ ] End from an island older than the tape's minute starts its glide over time the live tape has let go, so the
-      lanes are empty for its first frames. Keep the island's picture until the glide leaves it, or start the glide
-      where the live tape begins.
 - [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state
       topic) for each position; the view turns a pixel into a moment as a click does.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the

@@ -317,6 +317,52 @@ class ViewTest {
     }
 
     @Test
+    void theStripIsNeverWiderThanItsPixelsAllowAndANumberThatIsNotOneReachesTheLeast() {
+        assertEquals(130, View.mostReach(1_000f), "a quarter of a million pixels, a thousand a lane");
+        assertEquals(View.SLIDE_LANES, View.mostReach(100_000f), "never less than the least");
+        assertEquals(View.MAX_REACH, View.mostReach(10f));
+        assertEquals(130, View.reach(400.0, 130), "a glide past the most: the most, which the view logs");
+        assertEquals(View.SLIDE_LANES, View.reach(View.lanesNeeded(Double.NaN, 0.0, 0.0, 1.0, 1.0), 130));
+        assertEquals(View.SLIDE_LANES, View.reach(
+                View.lanesNeeded(0.0, Double.NEGATIVE_INFINITY, 0.0, View.SPAN_NANOS, View.SPAN_NANOS), 130));
+    }
+
+    @Test
+    void aPictureThatWouldOverflowTheWindowIsDrawnCoarserAndSaysSo() {
+        long at = 20_000 * MS;
+        java.util.ArrayList<Mark> passes = new java.util.ArrayList<>();
+        for (long from = at - 150_000 * MS; from < at; from += 10 * MS) {
+            // Alternating colours a pixel apart across the whole strip: nothing alike to merge, so a mark a column.
+            passes.add(new Mark(from, from + 5 * MS, from / (10 * MS) % 2 == 0 ? Model.PASS : Model.HELD_FOR_GPU));
+        }
+        Timeline t = new Timeline("r", "", true, at, List.of(new Lane(Model.MAIN, passes), new Lane(Model.LOGIC,
+                passes), new Lane(Model.DRAWING, passes)), Optional.empty());
+        View.Fit fit = View.fit(t, LANE, LANES_H, SCALE, INKS, at - 150_000 * MS, at, View.SLIDE_LANES);
+        assertTrue(fit.wanted() > View.MARK_BUDGET, "drawn a pixel a mark: " + fit.wanted());
+        assertTrue(fit.cell() > 1, "so drawn coarser");
+        assertTrue(fit.picture().marks().size() <= View.MARK_BUDGET, fit.picture().marks().size() + " marks");
+        assertEquals("Lanes drawn in " + fit.cell() + " px cells: more events than the window can draw",
+                View.drawingNote(fit.cell(), 0));
+        View.Fit fine = View.fit(new Timeline("r", "", true, at, main(pass(at - MS, at)), Optional.empty()), LANE,
+                LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at, View.SLIDE_LANES);
+        assertEquals(1, fine.cell());
+        assertEquals("", View.drawingNote(fine.cell(), 0), "nothing to say");
+    }
+
+    @Test
+    void anEventEndingBeforeItBeginsIsNotDrawnAndIsCounted() {
+        long at = 20_000 * MS;
+        Timeline t = new Timeline("r", "", true, at, main(pass(at - 500 * MS, at - 400 * MS),
+                pass(at - 300 * MS, at - 350 * MS)), Optional.empty());
+        assertEquals(1, View.malformed(t));
+        assertEquals(List.of("950+10"), fills(View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at)));
+        assertEquals(List.of("960 w1"), lines(View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at)));
+        assertEquals("1 event not drawn: it ends before it begins", View.drawingNote(1, 1));
+        assertEquals("Lanes drawn in 4 px cells: more events than the window can draw.  2 events not drawn: they end"
+                + " before they begin", View.drawingNote(4, 2));
+    }
+
+    @Test
     void theFocusedLaneIsWashedAndOutlinedOverItsOwnBand() {
         Picture p = View.focusGlow(LANE, LANES_H, Model.LANES.indexOf(Model.LOGIC), Color.WHITE);
         Picture.Fill wash = (Picture.Fill) p.marks().getFirst();

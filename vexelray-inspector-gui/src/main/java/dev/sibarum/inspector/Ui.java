@@ -65,9 +65,11 @@ final class Ui {
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
-        status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "");
+        status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "")
+                .slot(Landmarks.STATUS_DRAWING, StatusBar.Side.RIGHT, "");
         gui.landmark(Landmarks.STATUS, status.node());
         gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
+        gui.landmark(Landmarks.STATUS_DRAWING, status.slot(Landmarks.STATUS_DRAWING));
 
         int count = Model.LANES.size();
         // Wider than the lanes by View.SLIDE_LANES lanes each side, or more for a long glide (reach): a picture is
@@ -168,6 +170,17 @@ final class Ui {
     /** The strip in the lane: what the view draws its marks on, and slides. */
     Node strip() {
         return strip;
+    }
+
+    /** What the status line's drawing slot last said. */
+    private String drawing = "";
+
+    /** What the status line says the lanes could not draw as they should; empty while they can. */
+    void drawing(String note) {
+        if (!note.equals(drawing)) {
+            drawing = note;
+            status.text(Landmarks.STATUS_DRAWING, note);
+        }
     }
 
     /** What the status line says: which run is inspected, or why none is. */

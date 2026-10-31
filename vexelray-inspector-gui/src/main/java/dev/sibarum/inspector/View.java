@@ -35,6 +35,7 @@ import dev.vexelray.gui.draw.Sketch;
 import dev.vexelray.gui.widget.Button;
 import dev.vexelray.canvas.Color;
 import sibarum.atchung.Sender;
+import sibarum.probe.Log;
 import sibarum.tactroller.api.Key;
 import sibarum.tactroller.api.Modifier;
 
@@ -42,6 +43,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -108,6 +110,8 @@ import java.util.Optional;
  */
 @dev.vexelray.framework.api.View
 final class View {
+
+    private static final Log LOG = Log.of("vexelray-inspector.view");
 
     /** How much time the lane spans at first, right edge to left: the bench's reach. */
     static final long SPAN_NANOS = 10_000_000_000L;
@@ -195,6 +199,11 @@ final class View {
 
     /** How much time the lane spans, or is zooming to. */
     private double span = SPAN_NANOS;
+
+    /** Whether the last picture fell short of its glide, was drawn coarser, or left events out: logged as each starts. */
+    private boolean glideCut;
+    private boolean coarsened;
+    private int malformed;
 
     /** When the last key was pressed, so the motion it causes starts then; and, for a pause, the window it chose. */
     private long pressedAt = -1L;
@@ -467,36 +476,166 @@ final class View {
         long now = System.nanoTime();
         float scale = (float) (laneW / span);
         Motion edge = state.edge();
-        double[] rests = new double[1 + edge.handovers().size()];
-        rests[0] = edge.at(now);
-        double lo = rests[0];
-        double hi = lo;
-        for (int i = 1; i < rests.length; i++) {
-            Handover h = edge.handovers().get(i - 1);
-            rests[i] = h.to().at(h.endNanos());
-            lo = Math.min(lo, rests[i]);
-            hi = Math.max(hi, rests[i]);
+        if (!Double.isFinite(edge.at(now))) {
+            // Nothing the view does should get here; if it does, start again from what the bench said rather than
+            // slide the strip by a number that is not one, which would leave the lanes blank with no word why.
+            LOG.error("the lanes' motion put the right edge at {}; starting again from the timeline's edge",
+                    edge.at(now));
+            edge = Motion.of(last.live() ? Path.following(now) : Path.stopped(last.edgeNanos()));
         }
+        double[] rests = rests(edge, now);
+        double lo = Arrays.stream(rests).min().orElse(last.edgeNanos());
+        double hi = Arrays.stream(rests).max().orElse(last.edgeNanos());
         double widest = Math.max(span, Math.exp(state.zoom().at(now)));
-        int reach = reach(last.edgeNanos(), lo, hi, span, widest);
+        int most = mostReach(laneW);
+        double needed = lanesNeeded(last.edgeNanos(), lo, hi, span, widest);
+        int reach = reach(needed, most);
+        if ((needed > most) != glideCut) {
+            glideCut = needed > most;
+            if (glideCut) {
+                LOG.warn("a glide across {} lanes is longer than the strip can reach ({} each side); its middle frames"
+                        + " show no marks", (int) Math.ceil(needed), most);
+            }
+        }
         if (edge.last().rate() != 0.0) {
             hi = Double.MAX_VALUE;
         }
         ui.reach(reach);
-        ui.strip().picture(lanes(last, laneW, laneH, scale, inks, lo - widest, hi, reach, rests));
+        Fit fit = fit(last, laneW, laneH, scale, inks, lo - widest, hi, reach, rests);
+        ui.strip().picture(fit.picture());
+        tell(fit, malformed(last));
         state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, reach, edge, state.zoom());
+    }
+
+    /**
+     * Log and show what the picture could not draw as it should: coarser than a pixel, or events that end before they
+     * begin. Logged when it starts, not on every picture, and shown in the status line's drawing slot for as long as
+     * it lasts.
+     */
+    private void tell(Fit fit, int malformed) {
+        if ((fit.cell() > 1) != coarsened) {
+            coarsened = fit.cell() > 1;
+            if (coarsened) {
+                LOG.warn("the lanes needed {} marks, more than the {} a window can draw; drawn in cells of {} px",
+                        fit.wanted(), MARK_BUDGET, fit.cell());
+            } else {
+                LOG.info("the lanes are drawn a pixel a mark again");
+            }
+        }
+        if ((malformed > 0) != (this.malformed > 0)) {
+            if (malformed > 0) {
+                LOG.warn("{} events end before they begin; they are not drawn", malformed);
+            } else {
+                LOG.info("no event ends before it begins any more");
+            }
+        }
+        this.malformed = malformed;
+        ui.drawing(drawingNote(fit.cell(), malformed));
+    }
+
+    /** What the status line's drawing slot says, empty when the lanes are drawn as they should be. Pure, for a test. */
+    static String drawingNote(int cell, int malformed) {
+        String coarse = cell > 1 ? "Lanes drawn in " + cell + " px cells: more events than the window can draw" : "";
+        String bad = malformed == 1 ? "1 event not drawn: it ends before it begins"
+                : malformed > 1 ? malformed + " events not drawn: they end before they begin" : "";
+        return coarse.isEmpty() || bad.isEmpty() ? coarse + bad : coarse + ".  " + bad;
+    }
+
+    /**
+     * Where the right edge is now and where each of the motion's handovers lands: the moments the strip's picture must
+     * cover. One that is not a number is left out and logged, and if none is left, the timeline's edge stands for them.
+     */
+    private double[] rests(Motion edge, long now) {
+        double[] rests = new double[1 + edge.handovers().size()];
+        int kept = 0;
+        for (int i = 0; i < rests.length; i++) {
+            double at;
+            if (i == 0) {
+                at = edge.at(now);
+            } else {
+                Handover h = edge.handovers().get(i - 1);
+                at = h.to().at(h.endNanos());
+            }
+            if (Double.isFinite(at)) {
+                rests[kept++] = at;
+            } else {
+                LOG.error("a handover of the lanes' motion lands at {}; left out of the picture's reach", at);
+            }
+        }
+        return kept == 0 ? new double[] {last.edgeNanos()} : Arrays.copyOf(rests, kept);
+    }
+
+    /** The most marks the strip's picture may hold before it is drawn coarser: well inside a window's vertex buffer. */
+    static final int MARK_BUDGET = 12_000;
+
+    /** The widest the strip may be, in pixels, whatever the lane's width: its columns are counted a pixel each. */
+    static final int MAX_STRIP_PX = 1 << 18;
+
+    /** The most lanes the strip may reach past a lane {@code laneW} wide, each side: {@link #SLIDE_LANES} at least. */
+    static int mostReach(float laneW) {
+        int byPixels = (int) ((MAX_STRIP_PX / Math.max(laneW, 1f) - 1) / 2);
+        return Math.clamp(byPixels, SLIDE_LANES, MAX_REACH);
     }
 
     /**
      * How many lanes the strip must reach past the lane each side for a picture placing {@code edgeNanos} at the lane's
      * right edge to cover every right edge from {@code loNanos} to {@code hiNanos}, lanes spanning {@code spanNanos} and
-     * as much as {@code widestNanos} while a zoom goes on: {@link #SLIDE_LANES} at least, as the present moving on
-     * needs, and at most {@link #MAX_REACH}. Pure, for a test.
+     * as much as {@code widestNanos} while a zoom goes on, with one more for the present moving on. Pure, for a test.
      */
-    static int reach(double edgeNanos, double loNanos, double hiNanos, double spanNanos, double widestNanos) {
+    static double lanesNeeded(double edgeNanos, double loNanos, double hiNanos, double spanNanos, double widestNanos) {
         double far = Math.max(edgeNanos - loNanos, hiNanos - edgeNanos);
-        int lanes = (int) Math.ceil((far + widestNanos) / spanNanos) + 1;
-        return Math.clamp(lanes, SLIDE_LANES, MAX_REACH);
+        double lanes = (far + widestNanos) / spanNanos + 1;
+        return Double.isFinite(lanes) ? lanes : SLIDE_LANES;
+    }
+
+    /** {@code needed} lanes, as a reach: {@link #SLIDE_LANES} at least and {@code most} at most. Pure, for a test. */
+    static int reach(double needed, int most) {
+        return (int) Math.clamp(Math.ceil(needed), SLIDE_LANES, Math.max(most, SLIDE_LANES));
+    }
+
+    /** As {@link #reach(double, int)}, at most {@link #MAX_REACH}. Pure, for a test. */
+    static int reach(double edgeNanos, double loNanos, double hiNanos, double spanNanos, double widestNanos) {
+        return reach(lanesNeeded(edgeNanos, loNanos, hiNanos, spanNanos, widestNanos), MAX_REACH);
+    }
+
+    /**
+     * The strip's picture, as {@link #lanes(Timeline, float, float, float, Inks, double, double, int, double...)}
+     * draws it, unless that holds more than {@link #MARK_BUDGET} marks, which would overflow the window's vertex
+     * buffer and cost the window its title bar and status line for as long as it lasted: then drawn again in cells
+     * twice as wide each time until it fits.
+     *
+     * @param picture what to draw
+     * @param cell    the widest cell it was drawn in, in pixels: 1 unless it had to be drawn coarser
+     * @param wanted  how many marks it would have held at a pixel a cell
+     */
+    record Fit(Picture picture, int cell, int wanted) {
+    }
+
+    /** See {@link Fit}. Pure, for a test. */
+    static Fit fit(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos,
+                   int slideLanes, double... restsNanos) {
+        Picture p = lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, restsNanos);
+        int wanted = p.marks().size();
+        int columns = (int) Math.ceil(w * (1 + 2 * slideLanes));
+        int cell = 1;
+        while (p.marks().size() > MARK_BUDGET && cell < columns) {
+            cell *= 2;
+            p = lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, Cells.uniform(cell), restsNanos);
+        }
+        return new Fit(p, cell, wanted);
+    }
+
+    /** How many of {@code t}'s events end before they begin, which no lane draws. Pure, for a test. */
+    static int malformed(Timeline t) {
+        int n = 0;
+        for (Lane l : t.lanes()) {
+            for (Mark m : l.marks()) {
+                if (m.toNanos() < m.fromNanos()) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     /**
@@ -525,6 +664,12 @@ final class View {
      */
     static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos,
                          int slideLanes, double... restsNanos) {
+        return lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, null, restsNanos);
+    }
+
+    /** As above, in {@code cells} if they are given, or else in cells fine about {@code restsNanos}. */
+    private static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos,
+                                 double toNanos, int slideLanes, Cells given, double... restsNanos) {
         Sketch s = new Sketch().tag("lanes");
         float edge = w * (1 + slideLanes);
         float band = h / Model.LANES.size();
@@ -536,7 +681,7 @@ final class View {
         for (int i = 0; i < rests.length; i++) {
             rests[i] = edge + (float) ((restsNanos[i] - t.edgeNanos()) * pxPerNano);
         }
-        Cells cells = Cells.about(columns, w, rests);
+        Cells cells = given != null ? given : Cells.about(columns, w, rests);
         Columns ends = new Columns(columns);
         Columns moments = new Columns(columns);
         for (Lane l : t.lanes()) {
@@ -550,8 +695,8 @@ final class View {
             float runH = 0f;
             Color runC = null;
             for (Mark m : l.marks()) {
-                if (m.toNanos() < fromNanos || m.fromNanos() > toNanos) {
-                    continue;
+                if (m.toNanos() < fromNanos || m.fromNanos() > toNanos || m.toNanos() < m.fromNanos()) {
+                    continue;   // out of range, or ending before it begins, which {@link #malformed} counts
                 }
                 Color c = inks.of(m.kind());
                 float x0 = edge + (m.fromNanos() - t.edgeNanos()) * pxPerNano;
@@ -731,6 +876,11 @@ final class View {
         static final int COARSE_CELLS = 4_000;
 
         static final Cells FINE = new Cells(1, new int[0]);
+
+        /** Cells {@code px} wide throughout, which {@link #fit} falls back to when a picture holds too much. */
+        static Cells uniform(int px) {
+            return new Cells(Math.max(1, px), new int[0]);
+        }
 
         private final int coarse;
         /** The fine windows, as pixel ranges {@code [from, to)} in order, two ints each. */

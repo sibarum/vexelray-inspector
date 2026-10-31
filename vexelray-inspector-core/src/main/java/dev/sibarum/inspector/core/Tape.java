@@ -86,7 +86,7 @@ public record Tape(List<Second> seconds) {
             rows.add(r);
         }
         out.add(new Second(from, start, rows));
-        long cut = newestNanos - retainNanos;
+        long cut = Bench.since(newestNanos, retainNanos);
         while (out.size() > 1 && out.get(1).fromNanos() <= cut) {
             out.removeFirst();
         }

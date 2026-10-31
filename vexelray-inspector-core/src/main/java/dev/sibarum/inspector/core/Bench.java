@@ -5,6 +5,7 @@ import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
+import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
@@ -27,6 +28,7 @@ import sibarum.atchung.Ledger;
 import sibarum.atchung.Out;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -48,17 +50,23 @@ import java.util.Optional;
  * The {@link Readouts} are where the model as of the cursor is shown, sent beside every timeline. So are the
  * {@link Details}: what the run's clock said at the cursor, and the event it is on.
  *
- * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Step}
- * moves it by time, from that resting moment if following, {@link GoTo} onto a clicked event, {@link Seek} to a
- * clicked moment with no event near, and {@link StepEvent}
- * onto the next or previous event of the lane the view has focused, which it is then on and the status line
- * describes. It goes no further back than the tape holds. Rows go on arriving
- * and being kept while paused, and are shown only if they are before the cursor (a late batch), so a paused timeline
- * is still. A run that goes away keeps its tape, to step through, until another is attached.
+ * <p><b>The island.</b> The live tape lets go of what is older than {@link #RETAIN} as rows arrive, whether or not the
+ * cursor is stopped there, so a stopped cursor would lose what it shows. Stopping it freezes the tape and the kept
+ * events as they stand into an {@link Island}, which nothing trims, and the cursor cannot leave it: every move is
+ * clamped to it, and its newest end says how to get back. Recording goes on beside it, on the live tape, so following
+ * again ({@link Follow}, or {@link Pause} while stopped) finds the present as it is and lets the island go. A late row
+ * stamped inside the island is still added to it, as it was before there were islands.
+ *
+ * <p><b>The cursor.</b> {@link Pause} stops it where the view's lane comes to rest, or follows again; {@link Follow}
+ * only follows; {@link Step} moves it by time, from that resting moment if following, {@link GoTo} onto a clicked
+ * event, {@link Seek} to a clicked moment with no event near, and {@link StepEvent} onto the next or previous event of
+ * the lane the view has focused, which it is then on and the status line describes. Rows go on arriving and being kept
+ * while paused, and are shown only if they are before the cursor (a late batch), so a paused timeline is still. A run
+ * that goes away keeps its tape, to step through, until another is attached.
  */
 @Component
-@Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Step.class, StepEvent.class,
-        GoTo.class, Seek.class})
+@Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Pause.class, Follow.class, Step.class,
+        StepEvent.class, GoTo.class, Seek.class})
 @Publishes({FindRuns.class, Attach.class, Timeline.class, Readouts.class, Details.class})
 public final class Bench {
 
@@ -71,11 +79,62 @@ public final class Bench {
     /** How far back the tape keeps rows: as far as the cursor can go. How long memory allows is R1's to measure. */
     static final long RETAIN = 60_000_000_000L;
 
+    /** A reach that lets nothing go: what an island keeps. */
+    static final long FOREVER = Long.MAX_VALUE;
+
     /** How many of each message the bench's inbox holds: rows arrive a batch per 10 ms. */
     static final int CAPACITY = 1024;
 
     /** What the status line says while nothing can be inspected. */
     static final String NONE = "No application to inspect. Start one with --automation=0 -Dprobe=all -Dprobe.format=csv";
+
+    /** The moment {@code reachNanos} before {@code newestNanos}, or the earliest there is for {@link #FOREVER}. */
+    static long since(long newestNanos, long reachNanos) {
+        return reachNanos == FOREVER ? Long.MIN_VALUE : newestNanos - reachNanos;
+    }
+
+    /**
+     * What a stopped cursor is kept on: the tape and the kept events as they stood when it stopped, with the late rows
+     * stamped inside it added since. Nothing is let go of it, and the cursor stays between its ends.
+     *
+     * @param tape     the rows, with their checkpoints
+     * @param kept     every event the lanes show
+     * @param endNanos its newest end: the newest row when it was frozen, or where the cursor stopped if that was later
+     */
+    public record Island(Tape tape, Model kept, long endNanos) {
+
+        /** None: following. */
+        static final Island NONE = new Island(Tape.EMPTY, Model.EMPTY, 0L);
+
+        /** {@code s}'s live tape and kept events frozen, its end at the newest row or {@code atNanos}, the later. */
+        static Island of(State s, long atNanos) {
+            return new Island(s.tape(), s.kept(), Math.max(s.now().newestNanos(), atNanos));
+        }
+
+        /** Its oldest end: as far back as the cursor can go. */
+        long oldestNanos() {
+            return tape.oldestNanos();
+        }
+
+        /** {@code atNanos}, kept between its ends. */
+        long clamp(long atNanos) {
+            return Math.clamp(atNanos, oldestNanos(), Math.max(endNanos, oldestNanos()));
+        }
+
+        /** This island with the rows of {@code batch} stamped inside it added; the same island if there are none. */
+        Island late(List<Row> batch) {
+            List<Row> inside = new ArrayList<>();
+            for (Row r : batch) {
+                if (r.atNanos() <= endNanos) {
+                    inside.add(r);
+                }
+            }
+            if (inside.isEmpty()) {
+                return this;
+            }
+            return new Island(tape.add(inside, endNanos, FOREVER), kept.fold(inside, endNanos, FOREVER), endNanos);
+        }
+    }
 
     /**
      * Everything the bench knows, in one value.
@@ -90,28 +149,29 @@ public final class Bench {
      * @param first    the moment of the run's first row read, which the status line counts from
      * @param paused   whether the cursor is stopped; following the present when not
      * @param cursor   where it is stopped, on the machine's clock
+     * @param island   what it is stopped on; {@link Island#NONE} while following
      * @param on       the event the cursor is on, after a step by events or a click
      * @param gone     which run went away last, and why, kept to say beside "no application" until another is attached
      */
     public record State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape,
-                        long first, boolean paused, long cursor, Optional<Event> on, String gone) {
+                        long first, boolean paused, long cursor, Island island, Optional<Event> on, String gone) {
 
         static State initial() {
             return new State("", "", "Looking for an application to inspect", false, Model.EMPTY, Model.EMPTY,
-                    Tape.EMPTY, 0L, false, 0L, Optional.empty(), "");
+                    Tape.EMPTY, 0L, false, 0L, Island.NONE, Optional.empty(), "");
         }
 
         /** The timeline: every event kept, the cursor at the right edge while paused, the newest row while following. */
         Timeline timeline() {
             if (paused) {
-                return new Timeline(run, status, false, cursor, kept.lanes(), on);
+                return new Timeline(run, status, false, cursor, island.kept().lanes(), on);
             }
             return new Timeline(run, status, arriving, now.newestNanos(), kept.lanes(), Optional.empty());
         }
 
-        /** The readouts as of the cursor: the model the tape recomputes for it, or the live one while following. */
+        /** The readouts as of the cursor: the model its island recomputes for it, or the live one while following. */
         Readouts readouts() {
-            return (paused ? tape.asOf(cursor) : now).readouts(run);
+            return (paused ? island.tape().asOf(cursor) : now).readouts(run);
         }
 
         /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
@@ -121,21 +181,28 @@ public final class Bench {
                     paused ? on : Optional.empty());
         }
 
+        /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
+        Island held(long atNanos) {
+            return paused ? island : Island.of(this, atNanos);
+        }
+
         State withStatus(String status) {
-            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, on, gone);
+            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, gone);
         }
 
         State following(String status) {
-            return new State(run, title, status, arriving, now, kept, tape, first, false, 0L, Optional.empty(), gone);
+            return new State(run, title, status, arriving, now, kept, tape, first, false, 0L, Island.NONE,
+                    Optional.empty(), gone);
         }
 
-        State pausedAt(long at, String status) {
-            return new State(run, title, status, arriving, now, kept, tape, first, true, at, Optional.empty(), gone);
+        State pausedAt(Island island, long at, String status) {
+            return new State(run, title, status, arriving, now, kept, tape, first, true, at, island, Optional.empty(),
+                    gone);
         }
 
-        State pausedOn(Event event, String status) {
+        State pausedOn(Island island, Event event, String status) {
             return new State(run, title, status, arriving, now, kept, tape, first, true, event.mark().toNanos(),
-                    Optional.of(event), gone);
+                    island, Optional.of(event), gone);
         }
     }
 
@@ -148,6 +215,7 @@ public final class Bench {
                 .on(Messages.ROWS_TOPIC, b.step("rows", Bench::rows))
                 .on(Messages.DETACHED_TOPIC, b.step("detached", Bench::detached))
                 .on(Messages.PAUSE_TOPIC, b.step("pause", Bench::pause))
+                .on(Messages.FOLLOW_TOPIC, b.step("follow", Bench::follow))
                 .on(Messages.STEP_TOPIC, b.step("step", Bench::step))
                 .on(Messages.STEP_EVENT_TOPIC, b.step("step event", Bench::stepEvent))
                 .on(Messages.GO_TO_TOPIC, b.step("go to", Bench::goTo))
@@ -186,12 +254,13 @@ public final class Bench {
         Run newest = found.runs().getLast();
         out.send(Messages.ATTACH_TOPIC, new Attach(newest.name(), newest.stream()));
         return say(new State(newest.name(), newest.title(), "Attaching to " + named(newest.title(), newest.name()),
-                false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L, false, 0L, Optional.empty(), ""), out);
+                false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L, false, 0L, Island.NONE, Optional.empty(), ""), out);
     }
 
     /**
-     * A batch of the run's rows: folded onto the live model and kept. Shown at once while following; while paused, only
-     * if a row of it is before the cursor, since the rest are past the lane's right edge.
+     * A batch of the run's rows: folded onto the live model and kept. Shown at once while following; while paused,
+     * added to the island if stamped inside it, and shown only if a row of it is before the cursor, since the rest are
+     * past the lane's right edge.
      */
     static State rows(State s, Rows batch, Out out) {
         if (!batch.run().equals(s.run())) {
@@ -203,7 +272,7 @@ public final class Bench {
         long first = s.tape().isEmpty() && !batch.rows().isEmpty() ? batch.rows().getFirst().atNanos() : s.first();
         if (s.paused()) {
             State next = new State(s.run(), s.title(), s.status(), true, now, kept, tape, first, true, s.cursor(),
-                    s.on(), "");
+                    s.island().late(batch.rows()), s.on(), "");
             for (Row r : batch.rows()) {
                 if (r.atNanos() <= s.cursor()) {
                     return say(next, out);
@@ -213,8 +282,8 @@ public final class Bench {
         }
         String status = (batch.lostTo() > 0 ? "Lost rows " + batch.lostFrom() + ".." + batch.lostTo() + " of "
                 : "Inspecting ") + named(s.title(), s.run());
-        return say(new State(s.run(), s.title(), status, true, now, kept, tape, first, false, 0L, Optional.empty(),
-                ""), out);
+        return say(new State(s.run(), s.title(), status, true, now, kept, tape, first, false, 0L, Island.NONE,
+                Optional.empty(), ""), out);
     }
 
     /** The run's link has ended: say why, keep its tape to step through, and let the timer's next beat find another. */
@@ -224,7 +293,7 @@ public final class Bench {
         }
         String gone = named(s.title(), s.run()) + ": " + d.why();
         return say(new State("", "", gone, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
-                s.on(), gone), out);
+                s.island(), s.on(), gone), out);
     }
 
     /** Space: following, stop where the view's lane comes to rest; paused, follow the present again. */
@@ -235,84 +304,96 @@ public final class Bench {
         if (s.paused()) {
             return say(s.following(following(s)), out);
         }
-        return say(paused(s, Math.max(p.restNanos(), s.tape().oldestNanos())), out);
+        Island island = s.held(p.restNanos());
+        return say(paused(s, island, island.clamp(p.restNanos()), false), out);
+    }
+
+    /** End, or the button: follow the present again, letting the island go. Following already, nothing. */
+    static State follow(State s, Follow f, Out out) {
+        if (!s.paused()) {
+            return s;
+        }
+        return say(s.following(following(s)), out);
     }
 
     /**
-     * An arrow: move the cursor, from where it is stopped, or from where the view's lane would rest if following; never
-     * further back than the tape holds, nor forward past the newest row or where it started, whichever is later.
+     * Shift and an arrow: move the cursor by time, from where it is stopped, or from where the view's lane would rest
+     * if following; never off its island.
      */
     static State step(State s, Step by, Out out) {
         if (s.tape().isEmpty()) {
             return s;
         }
         long from = s.paused() ? s.cursor() : by.fromNanos();
-        long at = Math.clamp(from + by.byNanos(), s.tape().oldestNanos(),
-                Math.max(s.now().newestNanos(), Math.max(from, s.tape().oldestNanos())));
-        return say(paused(s, at), out);
+        Island island = s.held(from);
+        long want = from + by.byNanos();
+        return say(paused(s, island, island.clamp(want), want > island.endNanos()), out);
     }
 
     /**
      * An arrow: move the cursor onto the next or previous event of the lane the view has focused, {@code by} times,
      * and say which. Back from a moment the cursor is not on an event of that lane (following, stepped there by time,
-     * or on another lane's), the first step is onto its event ending at or before it. Only events the tape still
-     * holds; at either end it stays where it is.
+     * or on another lane's), the first step is onto its event ending at or before it. Only events on its island; at
+     * either end it stays where it is.
      */
     static State stepEvent(State s, StepEvent e, Out out) {
         if (s.tape().isEmpty() || !Model.LANES.contains(e.lane())) {
             return s;
         }
-        List<Mark> marks = s.kept().lane(e.lane()).marks();
         long at = s.paused() ? s.cursor() : e.fromNanos();
+        Island island = s.held(at);
+        List<Mark> marks = island.kept().lane(e.lane()).marks();
         boolean onOne = s.paused() && s.on().isPresent() && s.on().get().lane().equals(e.lane());
         Mark to = null;
         for (int i = 0; i < Math.abs(e.by()); i++) {
-            Mark next = e.by() < 0 ? before(s, marks, at, onOne || to != null) : after(marks, at);
+            Mark next = e.by() < 0 ? before(island, marks, at, onOne || to != null) : after(island, marks, at);
             if (next == null) {
                 break;
             }
             to = next;
             at = next.toNanos();
         }
-        return to == null ? s : say(on(s, new Event(e.lane(), to)), out);
+        return to == null ? s : say(on(s, island, new Event(e.lane(), to)), out);
     }
 
-    /** A click on an event: the cursor onto it, if it is one the tape still holds. */
+    /** A click on an event: the cursor onto it, if it is one on the island. */
     static State goTo(State s, GoTo g, Out out) {
         Event e = g.event();
-        if (!Model.LANES.contains(e.lane()) || e.mark().toNanos() < s.tape().oldestNanos()
-                || !s.kept().lane(e.lane()).marks().contains(e.mark())) {
+        Island island = s.held(e.mark().toNanos());
+        if (!Model.LANES.contains(e.lane()) || island.clamp(e.mark().toNanos()) != e.mark().toNanos()
+                || !island.kept().lane(e.lane()).marks().contains(e.mark())) {
             return s;
         }
-        return say(on(s, e), out);
+        return say(on(s, island, e), out);
     }
 
-    /** A click where no event is near: the cursor at that moment, within what the tape holds. */
+    /** A click where no event is near: the cursor at that moment, kept on the island. */
     static State seek(State s, Seek k, Out out) {
         if (s.tape().isEmpty()) {
             return s;
         }
-        return say(paused(s, Math.clamp(k.atNanos(), s.tape().oldestNanos(),
-                Math.max(s.now().newestNanos(), s.tape().oldestNanos()))), out);
+        Island island = s.held(Long.MIN_VALUE);
+        return say(paused(s, island, island.clamp(k.atNanos()), k.atNanos() > island.endNanos()), out);
     }
 
-    /** The event ending latest before {@code at} (or at it, unless {@code strictly}) that the tape still holds. */
-    private static Mark before(State s, List<Mark> marks, long at, boolean strictly) {
+    /** The event ending latest before {@code at} (or at it, unless {@code strictly}) on the island. */
+    private static Mark before(Island island, List<Mark> marks, long at, boolean strictly) {
         Mark best = null;
         for (Mark p : marks) {
             boolean earlier = strictly ? p.toNanos() < at : p.toNanos() <= at;
-            if (earlier && p.toNanos() >= s.tape().oldestNanos() && (best == null || p.toNanos() > best.toNanos())) {
+            if (earlier && p.toNanos() >= island.oldestNanos() && (best == null || p.toNanos() > best.toNanos())) {
                 best = p;
             }
         }
         return best;
     }
 
-    /** The event ending soonest after {@code at}. */
-    private static Mark after(List<Mark> marks, long at) {
+    /** The event ending soonest after {@code at} on the island. */
+    private static Mark after(Island island, List<Mark> marks, long at) {
         Mark best = null;
         for (Mark p : marks) {
-            if (p.toNanos() > at && (best == null || p.toNanos() < best.toNanos())) {
+            if (p.toNanos() > at && p.toNanos() <= island.endNanos()
+                    && (best == null || p.toNanos() < best.toNanos())) {
                 best = p;
             }
         }
@@ -321,7 +402,10 @@ public final class Bench {
 
     // ------------------------------------------------------------------ what the status line says
 
-    private static State on(State s, Event e) {
+    /** What the status line adds when a move stops at the island's newest end: nothing further, and how to get back. */
+    static final String AT_THE_END = ", the newest moment kept when paused. End follows the present again";
+
+    private static State on(State s, Island island, Event e) {
         Mark m = e.mark();
         String kind = Character.toUpperCase(m.kind().charAt(0)) + m.kind().substring(1)
                 + (m.what().isEmpty() ? "" : " " + Model.typeName(m.what()));
@@ -330,14 +414,15 @@ public final class Bench {
                 : String.format(Locale.ROOT, "%s of %.2f ms, ending at %.3f s", kind,
                         (m.toNanos() - m.fromNanos()) / 1e6, (m.toNanos() - s.first()) / 1e9);
         String status = s.run().isEmpty() ? s.gone() + ". " + what : what + " of " + named(s.title(), s.run());
-        return s.pausedOn(e, status);
+        return s.pausedOn(island, e, status);
     }
 
-    private static State paused(State s, long at) {
+    /** Stopped at {@code at}; {@code pastTheEnd} when it was asked to go beyond the island's newest end. */
+    private static State paused(State s, Island island, long at, boolean pastTheEnd) {
         String where = String.format(Locale.ROOT, "Paused at %.2f s", (at - s.first()) / 1e9)
                 + (s.run().isEmpty() ? "" : " of " + named(s.title(), s.run()))
-                + (at == s.tape().oldestNanos() ? ", the oldest moment kept" : "");
-        return s.pausedAt(at, s.run().isEmpty() ? s.gone() + ". " + where : where);
+                + (at == island.oldestNanos() ? ", the oldest moment kept" : pastTheEnd ? AT_THE_END : "");
+        return s.pausedAt(island, at, s.run().isEmpty() ? s.gone() + ". " + where : where);
     }
 
     private static String following(State s) {

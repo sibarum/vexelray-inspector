@@ -4,11 +4,13 @@ import dev.sibarum.inspector.Glide.Handover;
 import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
 import dev.sibarum.inspector.Keys.EventKey;
+import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
+import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
@@ -30,6 +32,7 @@ import dev.vexelray.gui.core.input.Shortcut;
 import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
+import dev.vexelray.gui.widget.Button;
 import dev.vexelray.canvas.Color;
 import sibarum.atchung.Sender;
 import sibarum.tactroller.api.Key;
@@ -74,7 +77,7 @@ import java.util.Optional;
  *
  * <h2>Keys</h2>
  *
- * <p>Space pauses and follows again, the arrows step the cursor onto the next or previous event of the focused lane,
+ * <p>Space pauses and follows again, End (and the button beside the readouts) only follows again, the arrows step the cursor onto the next or previous event of the focused lane,
  * Shift with them steps a tenth of the lane, and {@code =} and {@code -} zoom about the right edge: a second motion, of
  * the time the lane spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch})
  * until the next picture is built at the new scale. A click on a lane focuses it, and puts the cursor on the event
@@ -162,6 +165,7 @@ final class View {
     private final Ui ui;
     private final Inks inks;
     private final Sender<Pause> pause;
+    private final Sender<Follow> follow;
     private final Sender<Step> step;
     private final Sender<StepEvent> stepEvent;
     private final Sender<GoTo> goTo;
@@ -184,12 +188,13 @@ final class View {
     private long pressedAt = -1L;
     private long pressWindow = -1L;
 
-    View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<EventKey> eventKey, Sender<StepKey> stepKey,
-         Sender<ZoomKey> zoomKey, Sender<Pause> pause, Sender<StepEvent> stepEvent, Sender<Step> step,
-         Sender<GoTo> goTo, Sender<Seek> seek) {
+    View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey, Sender<EventKey> eventKey,
+         Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<Pause> pause, Sender<Follow> follow,
+         Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
+        this.follow = follow;
         this.step = step;
         this.stepEvent = stepEvent;
         this.goTo = goTo;
@@ -209,6 +214,7 @@ final class View {
         });
         gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x(), click.y()));
         gui.shortcut(Shortcut.of(Key.SPACE), pauseKey, new PauseKey());
+        gui.shortcut(Shortcut.of(Key.END), followKey, new FollowKey());
         gui.shortcut(Shortcut.of(Key.LEFT), eventKey, new EventKey(-1));
         gui.shortcut(Shortcut.of(Key.RIGHT), eventKey, new EventKey(1));
         gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-1));
@@ -226,6 +232,26 @@ final class View {
         pressedAt = now;
         pressWindow = Glide.window(0.0);
         pause.send(new Pause((long) state.edge().rest(now, pressWindow)));
+    }
+
+    /** End: ask the bench to follow the present again. */
+    @Subscribe
+    public void followKey(FollowKey key) {
+        followed();
+    }
+
+    /** The button beside the readouts: as End. */
+    @Subscribe
+    public void pressed(Button.Pressed p) {
+        if (p.button().equals(ui.followAddress())) {
+            followed();
+        }
+    }
+
+    private void followed() {
+        pressedAt = System.nanoTime();
+        pressWindow = -1L;
+        follow.send(new Follow());
     }
 
     /** Shift and an arrow: ask the bench to step the cursor a tenth of the lane, from where the lane would rest. */
@@ -383,6 +409,7 @@ final class View {
         state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), edge,
                 state.zoom().settled(now));
         ui.status(t.status());
+        ui.canFollow(!t.live());
         show();
     }
 

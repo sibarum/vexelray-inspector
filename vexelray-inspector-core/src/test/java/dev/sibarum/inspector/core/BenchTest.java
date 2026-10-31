@@ -5,6 +5,7 @@ import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
+import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
@@ -246,8 +247,8 @@ class BenchTest {
         passes(3, 900 * MS, 1_400 * MS);
         assertEquals(List.of(), took(Timeline.class), "paused: rows past the cursor change nothing shown");
         passes(5, 650 * MS);
-        assertEquals(List.of(span(100 * MS), span(600 * MS), span(900 * MS), span(1_400 * MS), span(650 * MS)),
-                passes(timeline()), "a late row before the cursor is shown");
+        assertEquals(List.of(span(100 * MS), span(600 * MS), span(650 * MS)), passes(timeline()),
+                "a late row before the cursor is shown; those after the pause are not on its island");
         tell(Messages.PAUSE_TOPIC, new Pause(0L));
         t = timeline();
         assertTrue(t.live(), "Space again follows the present");
@@ -285,6 +286,79 @@ class BenchTest {
         t = timeline();
         assertEquals(2_600 * MS, t.edgeNanos(), "the newest row, and still paused");
         assertFalse(t.live());
+    }
+
+    /** Five minutes of passes after {@code fromNanos}, ten a second, a batch a second: far past what the tape keeps. */
+    private void fiveMinutesAfter(long fromNanos) {
+        long seq = 1_000;
+        for (int second = 1; second <= 300; second++) {
+            long[] ends = new long[10];
+            for (int i = 0; i < ends.length; i++) {
+                ends[i] = fromNanos + second * 1_000 * MS + i * 100 * MS;
+            }
+            passes(seq, ends);
+            seq += ends.length;
+        }
+    }
+
+    @Test
+    void aStoppedCursorKeepsWhatItShowsWhileTheLiveTapeMovesOn() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        tell(Messages.PAUSE_TOPIC, new Pause(680 * MS));
+        tell(Messages.STEP_TOPIC, new Step(-100 * MS, 0L));
+        Readouts readBefore = readouts();
+        Timeline before = timeline();
+        fiveMinutesAfter(680 * MS);
+        assertEquals(List.of(), took(Timeline.class), "rows after the cursor change nothing shown");
+        tell(Messages.STEP_TOPIC, new Step(0L, 0L));
+        assertEquals(readBefore, readouts(), "the past is recomputed as it was");
+        Timeline after = timeline();
+        assertEquals(before.edgeNanos(), after.edgeNanos());
+        assertEquals(before.lanes(), after.lanes(), "five minutes later, the lanes are as they were, nothing let go");
+        assertEquals(List.of(span(100 * MS), span(600 * MS)), passes(after), "and nothing of the present on them");
+    }
+
+    @Test
+    void theCursorCannotLeaveItsIsland() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        tell(Messages.PAUSE_TOPIC, new Pause(680 * MS));
+        fiveMinutesAfter(680 * MS);
+        sent.clear();
+        tell(Messages.STEP_TOPIC, new Step(60_000 * MS, 0L));
+        Timeline t = timeline();
+        assertEquals(680 * MS, t.edgeNanos(), "forward no further than where it stopped");
+        assertFalse(t.live(), "still paused: only End follows the present");
+        assertEquals("Paused at 0.58 s of Calculator (calculator-11)" + Bench.AT_THE_END, t.status());
+        tell(Messages.SEEK_TOPIC, new Messages.Seek(200_000 * MS));
+        assertEquals(680 * MS, timeline().edgeNanos(), "a click past the end lands on it");
+        tell(Messages.STEP_TOPIC, new Step(-600_000 * MS, 0L));
+        t = timeline();
+        assertEquals(100 * MS, t.edgeNanos(), "back no further than the island holds, though the live tape is later");
+        assertEquals("Paused at 0.00 s of Calculator (calculator-11), the oldest moment kept", t.status());
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, 5, 0L));
+        assertEquals(on(span(600 * MS)), timeline().on(), "an arrow forward stops at the island's newest pass");
+    }
+
+    @Test
+    void followingAgainLeavesTheIslandForThePresent() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        tell(Messages.PAUSE_TOPIC, new Pause(680 * MS));
+        fiveMinutesAfter(680 * MS);
+        sent.clear();
+        tell(Messages.FOLLOW_TOPIC, new Follow());
+        Timeline t = timeline();
+        assertTrue(t.live());
+        long newest = 680 * MS + 300_900 * MS;
+        assertEquals(newest, t.edgeNanos(), "the present, recorded all the while");
+        assertEquals(span(newest), passes(t).getLast());
+        assertTrue(passes(t).getFirst().toNanos() >= newest - Bench.RETAIN, "and only the live minute");
+        tell(Messages.FOLLOW_TOPIC, new Follow());
+        assertEquals(List.of(), took(Timeline.class), "following already: End does nothing");
+        tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, newest));
+        assertEquals(newest - 1_000 * MS, timeline().edgeNanos(), "and stopping again freezes a new island");
     }
 
     @Test

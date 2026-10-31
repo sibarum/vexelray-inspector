@@ -143,7 +143,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             }
             next.get(lane).add(m);
         }
-        long from = newest - reachNanos;
+        long from = Bench.since(newest, reachNanos);
         List<Lane> out = new ArrayList<>(lanes.size());
         for (int i = 0; i < lanes.size(); i++) {
             List<Mark> marks = next.get(i);

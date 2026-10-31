@@ -408,6 +408,17 @@ Each step ends with something to watch or something an agent can ask, and lands 
   own beside the readouts; `Row` carries the wall clock and `Mark` the thread and the message type. Seen with
   `ottermate`: a click on the Messages lane said `Messages.Rows` from `vexel-source-link-rows`, and one on a pass its
   thread and "not a message".
+  **A stopped cursor is kept on an island, ruled by the author 2026-10-31:** the tape trimmed to the last minute of
+  the present whether or not the cursor was stopped, so a minute after a pause the cursor's second was let go and the
+  lanes went blank. Stopping now freezes the tape and the kept events as they stand (`Bench.Island`), which nothing
+  trims; recording goes on beside it on the live tape. The cursor cannot leave the island: every step, seek and
+  click is clamped to it, and a move stopped at its newest end says so and that End follows the present again. End,
+  or the button before the readouts (a new `Follow` message, since Space toggles), follows the present and lets the
+  island go. Seen with `ottermate` against a traced Inspector: paused, a shot 75 s later was byte-identical, and so
+  was one after stepping back and forth; a Shift step past the end stopped there and said so; the button and End both
+  followed again. Found: the catch-up after so long a pause overflows the window's vertex buffer (TODO), and a focused
+  button kept Space from pausing (FN-11). Rejected: stopping the recording while paused, which leaves a hole where the person was looking; and an
+  island that moves with the cursor across a gap, which needs a gap to step across.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

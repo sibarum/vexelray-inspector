@@ -4,8 +4,11 @@ import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.layout.Length;
+import dev.vexelray.gui.core.layout.LayoutEnums.AlignItems;
 import dev.vexelray.gui.core.layout.LayoutEnums.Direction;
 import dev.vexelray.gui.core.style.Role;
+import dev.vexelray.gui.icons.Icon;
+import dev.vexelray.gui.widget.IconButton;
 import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
@@ -31,7 +34,8 @@ import java.util.List;
  *
  * <h2>The readouts</h2>
  *
- * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
+ * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}), with the button
+ * that follows the present again before it, pressable while the cursor is stopped ({@link #canFollow}).
  *
  * <h2>It holds no state</h2>
  *
@@ -56,6 +60,7 @@ final class Ui {
     private final Node strip;
     private final Node[] names;
     private final Node readouts;
+    private final IconButton follow;
     private final Node[] details;
 
     Ui(Gui gui, TitleBar titleBar) {
@@ -81,8 +86,14 @@ final class Ui {
         Node column = gui.column().width(NAMES).children(names);
         Node lanes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(column, lane);
 
-        readouts = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        readouts = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         gui.landmark(Landmarks.READOUTS, readouts);
+        follow = new IconButton(gui, Icon.SKIP_NEXT, "Follow the present").name(Landmarks.FOLLOW)
+                .tip("Follow the present (End)");
+        canFollow(false);
+        gui.landmark(Landmarks.FOLLOW, follow.node());
+        Node readoutRow = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
+                .children(follow.node(), readouts);
 
         details = new Node[View.DETAILS.size()];
         Node[] detailRows = new Node[details.length];
@@ -97,7 +108,7 @@ final class Ui {
         gui.landmark(Landmarks.DETAILS, detailsPanel);
 
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(lanes, detailsPanel, readouts);
+                .children(lanes, detailsPanel, readoutRow);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -128,6 +139,18 @@ final class Ui {
     /** What the readouts line says. */
     void readouts(String line) {
         readouts.text(line);
+    }
+
+    /** Whether the follow button can be pressed: while the cursor is stopped. */
+    void canFollow(boolean can) {
+        follow.enabled(can);
+        // Never focused: a focused button claims Space, even disabled, and Space pauses here; End is its key (FN-11).
+        gui.focusable(follow.node(), false);
+    }
+
+    /** The address the follow button presses with. */
+    String followAddress() {
+        return follow.address();
     }
 
     /** The strip in the lane: what the view draws its marks on, and slides. */

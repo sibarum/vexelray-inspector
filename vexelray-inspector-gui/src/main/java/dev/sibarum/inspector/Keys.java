@@ -20,6 +20,11 @@ final class Keys {
         static final Topic<PauseKey> TOPIC = Topic.edge(PauseKey.class);
     }
 
+    /** End: follow the present again. */
+    record FollowKey() {
+        static final Topic<FollowKey> TOPIC = Topic.edge(FollowKey.class);
+    }
+
     /** Shift and an arrow: step the cursor a tenth of what the lane spans, back when {@code direction} is negative. */
     record StepKey(int direction) {
         static final Topic<StepKey> TOPIC = Topic.edge(StepKey.class);

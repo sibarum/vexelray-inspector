@@ -33,6 +33,9 @@ final class Landmarks {
     /** The readouts line, over the second before the cursor. */
     static final String READOUTS = "readouts";
 
+    /** The button beside the readouts that follows the present again, as End does. */
+    static final String FOLLOW = "follow";
+
     /** The status line, and its slot saying which run is inspected or why none is. */
     static final String STATUS = "status";
     static final String STATUS_RUN = "status.run";

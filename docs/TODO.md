@@ -27,10 +27,16 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       topic) for each position; the view turns a pixel into a moment as a click does.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the
       window. Zooming about the cursor itself would keep it still; it needs the edge's motion tied to the zoom's.
+- [ ] A catch-up from far back overflows the window's vertex buffer: following again after 75 s paused, the strip is
+      built over the whole minute it glides across, the log says `window needs 200244 vertices and the buffer holds
+      194180; drawing what fits`, and for those frames the title bar, details and status are not drawn. Draw at most
+      what a pixel can show (the Messages lane's density entry above would do it), or build only the glide's ends.
 - [ ] A catch-up from far back (Space after stepping a minute back) is a long, fast glide: `Glide.WINDOW_MAX_NANOS`
       caps it at half a second. Watch it, and lengthen or slow it if it reads as a blur.
 - [ ] Zoom chords (Ctrl+= / Ctrl+- / Ctrl+0) went with the template's `Intent`; bring them back with the next view
       that takes keys.
+- [ ] The follow button is enabled whenever the timeline is not live, which includes following a run that went away,
+      where it does nothing. `Timeline` could say whether the cursor is stopped rather than leave the view to infer it.
 - [ ] Replace the palette anchors in `Look.java` with the design's, measured in Oklab. See the note in that file
       about which authored colours the construction can reproduce and which have to be declared.
 

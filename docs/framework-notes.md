@@ -125,3 +125,13 @@ A run started outside `--launch` is closed by clicking where the title bar draws
 (`click 1017,16`): the caption buttons are not nodes, so `find close` finds nothing and a script has to know pixel
 positions. A `close` verb, or landmarks on the caption buttons, would make it a name.
 
+
+## FN-11 · A disabled button keeps the focus, and with it Space 🔬
+
+An `IconButton` (and `Button`) claims Enter and Space while it is focused, and a click focuses it. Disabling it takes
+it out of the focus order but leaves the focus where it is, so a button disabled by its own press (the Inspector's
+follow button, which is pressable only while the cursor is stopped) goes on swallowing Space, which the Inspector
+binds to pause. Seen with `ottermate`: after a click on the button, Space did nothing and the tree showed the
+disabled button `focused ring`. Worked around by never letting the button take the focus (`Ui.canFollow`); End is its
+key. The widget could hand the focus on when it is disabled while focused, and a disabled button should not claim
+keys at all.

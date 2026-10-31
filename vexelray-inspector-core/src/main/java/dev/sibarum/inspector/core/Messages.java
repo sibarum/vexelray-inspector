@@ -113,6 +113,15 @@ public final class Messages {
     }
 
     /**
+     * End, or the button beside the readouts: follow the present again, leaving the island the cursor was kept on.
+     * Following already, nothing. Not {@link Pause}, which toggles: a button pressed while following must not stop it.
+     */
+    public static final Topic<Follow> FOLLOW_TOPIC = Topic.edge(Follow.class);
+
+    public record Follow() {
+    }
+
+    /**
      * An arrow: move the cursor by {@code byNanos}, back when negative. Stopped, from the cursor; following, from
      * {@code fromNanos}, where the view's lane would come to rest. An edge, not a state topic: a step is relative, so
      * two quick presses must be two steps, not the newer one.
@@ -134,8 +143,8 @@ public final class Messages {
     }
 
     /**
-     * A click where there is no event near: put the cursor at {@code atNanos}, pausing if following; no further back
-     * than the tape holds, nor forward past the newest row. The absolute cursor (design.md section 8): a state topic,
+     * A click where there is no event near: put the cursor at {@code atNanos}, pausing if following; never off the
+     * island the bench keeps while paused. The absolute cursor (design.md section 8): a state topic,
      * so a drag through a storm of moments costs the bench one a tick, the newest winning.
      */
     public static final Topic<Seek> SEEK_TOPIC = Topic.state(Seek.class);

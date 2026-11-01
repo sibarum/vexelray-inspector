@@ -69,10 +69,18 @@ public final class Messages {
     public record Attach(String run, String stream) {
     }
 
-    /** A run's link has ended: why, in words for the status line. */
+    /**
+     * A run's link has ended: why, in words for the status line, and, when it ended because the two sides could not
+     * read each other, what the banner warns of; empty otherwise.
+     */
     public static final Topic<Detached> DETACHED_TOPIC = Topic.edge(Detached.class);
 
-    public record Detached(String run, String why) {
+    public record Detached(String run, String why, String warning) {
+
+        /** A link that ended with nothing to warn of. */
+        public Detached(String run, String why) {
+            this(run, why, "");
+        }
     }
 
     /**
@@ -283,13 +291,21 @@ public final class Messages {
      * @param edgeNanos the newest row while following; the cursor while stopped, which the view shows as a line and keeps
  *                  in view, its lanes at rest wherever it chooses (design.md 9.8)
      * @param on        the event the cursor is on, after a step by events or a click; the cursor is then at its end
+     * @param warning   what makes what is shown less than whole, in words, for a banner in plain sight: a run of
+     *                  another link version; empty when nothing does
      */
     public static final Topic<Timeline> TIMELINE_TOPIC = Topic.state(Timeline.class);
 
     public record Timeline(String run, String status, boolean live, long edgeNanos, List<Lane> lanes,
-                           Optional<Event> on) {
+                           Optional<Event> on, String warning) {
         public Timeline {
             lanes = List.copyOf(lanes);
+        }
+
+        /** A timeline with nothing to warn of. */
+        public Timeline(String run, String status, boolean live, long edgeNanos, List<Lane> lanes,
+                        Optional<Event> on) {
+            this(run, status, live, edgeNanos, lanes, on, "");
         }
     }
 

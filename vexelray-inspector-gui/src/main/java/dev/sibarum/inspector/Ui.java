@@ -8,6 +8,7 @@ import dev.vexelray.gui.core.layout.LayoutEnums.AlignItems;
 import dev.vexelray.gui.core.layout.LayoutEnums.Direction;
 import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.icons.Icon;
+import dev.vexelray.gui.icons.IconView;
 import dev.vexelray.gui.widget.IconButton;
 import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
@@ -26,6 +27,11 @@ import java.util.List;
  * inside it (a container's clip is anchored, so a child slides within it). The name of the lane the arrows step
  * through is in the text's colour, the others dimmed ({@link #focus}), and the view outlines its band with an
  * overlay on the lanes' box, which the strip's slide does not move.
+ *
+ * <h2>The warning</h2>
+ *
+ * <p>Over the lanes, a banner with the caution mark, shown only while what the lanes show may be less than whole: a
+ * run of another link version, which may not send all the Inspector reads ({@link #warning}).
  *
  * <h2>The details</h2>
  *
@@ -64,6 +70,8 @@ final class Ui {
     private final IconButton follow;
     private final Node[] details;
     private final Node[] detailRows;
+    private final Node warning;
+    private final Node warningText;
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
@@ -114,8 +122,17 @@ final class Ui {
         Node detailsPanel = gui.column().width(Length.FILL).padding(Type.TIGHT).children(detailRows);
         gui.landmark(Landmarks.DETAILS, detailsPanel);
 
+        warningText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
+        gui.landmark(Landmarks.WARNING_TEXT, warningText);
+        warning = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER).padding(Type.TIGHT)
+                .background(gui.theme().color(Role.PANEL)).border(Length.dp(1), gui.theme().color(Role.CAUTION))
+                .children(IconView.of(gui, Icon.CAUTION).size(Length.rem(1.25f)).tint(Role.CAUTION).node(),
+                        warningText);
+        warning.visible(false);
+        gui.landmark(Landmarks.WARNING, warning);
+
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(lanes, detailsPanel, readoutRow);
+                .children(warning, lanes, detailsPanel, readoutRow);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -209,6 +226,18 @@ final class Ui {
         if (!note.equals(drawing)) {
             drawing = note;
             status.text(Landmarks.STATUS_DRAWING, note);
+        }
+    }
+
+    /** What the warning banner last said. */
+    private String warned = "";
+
+    /** What the banner over the lanes warns of, in plain sight; empty hides it. */
+    void warning(String text) {
+        if (!text.equals(warned)) {
+            warned = text;
+            warningText.text(text);
+            warning.visible(!text.isEmpty());
         }
     }
 

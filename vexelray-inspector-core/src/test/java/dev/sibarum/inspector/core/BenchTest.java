@@ -99,7 +99,7 @@ class BenchTest {
         Timeline t = took(Timeline.class).getLast();
         return new Timeline(t.run(), t.status(), t.live(), t.edgeNanos(), t.lanes().stream()
                 .map(l -> new Lane(l.name(), l.marks().stream().map(BenchTest::bare).toList())).toList(),
-                t.on().map(BenchTest::bare));
+                t.on().map(BenchTest::bare), t.warning());
     }
 
     /** The last readouts sent, keeping the rest of what was sent. */
@@ -774,6 +774,44 @@ class BenchTest {
                 .toList(), "ticks and messages are on the bus lane, draws and waits on the GPU's");
         assertTrue(Model.EMPTY.fold(List.of(), Long.MAX_VALUE).lanes().stream().allMatch(Lane::recorded),
                 "a run that has not said what it records is not said to be missing anything");
+    }
+
+    @Test
+    void aRunOfAnotherLinkVersionIsShownUnderAWarning() {
+        int ours = dev.vexelray.gui.inspector.link.InspectorLink.VERSION;
+        assertEquals("", LinkRows.versionWarning(Optional.of(ours)), "the same version sends everything read here");
+        assertTrue(LinkRows.versionWarning(Optional.empty()).endsWith("rebuild the application against this stack."),
+                "an application older than the version itself");
+        assertTrue(LinkRows.versionWarning(Optional.of(ours - 1)).endsWith("rebuild the application against this stack."));
+        assertTrue(LinkRows.versionWarning(Optional.of(ours + 1)).endsWith("upgrade this Inspector."));
+
+        String warning = LinkRows.versionWarning(Optional.empty());
+        Rows r = LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(0, -1, List.of(
+                new dev.vexelray.gui.inspector.link.Row(10, 50L, 0L, 1L, "main", "frame", "frame", "1ms", ""))),
+                List.of(), null, warning);
+        assertEquals(new Row(-1, 1_050L, "", Model.APP_LANE, Model.WARNING, warning), r.rows().getFirst());
+        Model m = Model.EMPTY.fold(r.rows(), Long.MAX_VALUE);
+        assertEquals(warning, m.warning());
+        assertEquals(warning, m.fold(List.of(), Long.MAX_VALUE).warning(), "kept for as long as the run is");
+        assertEquals("", Model.EMPTY.warning());
+        assertEquals("", m.fold(LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(0, -1,
+                List.of()), List.of(), null, "").rows(), Long.MAX_VALUE).warning(), "a stream that opens clears it");
+    }
+
+    @Test
+    void aLinkThatCannotBeReadIsWarnedOfAndStaysWarnedOfWhileAttachingAgain() {
+        String unreadable = LinkRows.unreadable(new RuntimeException("its link failed",
+                new sibarum.intrabuf.IntrabufException("SNAPSHOT_DRIFT: fingerprints differ")));
+        assertTrue(unreadable.contains("different versions of the stack"));
+        assertEquals("", LinkRows.unreadable(new RuntimeException("connection reset")), "only a schema it cannot read");
+
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "its link failed: SNAPSHOT_DRIFT", unreadable));
+        assertEquals(unreadable, timeline().warning());
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        Timeline again = timeline();
+        assertTrue(again.status().startsWith("Attaching to"));
+        assertEquals(unreadable, again.warning(), "no flicker while it tries again");
     }
 
     @Test

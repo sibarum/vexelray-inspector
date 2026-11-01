@@ -87,10 +87,13 @@ import java.util.Map;
  * @param ahead       the fields rows have filled of passes not folded yet, by pass number: what woke one, a draw held
  * @param probed      the lanes the run's probe records, by key, as its link said; empty when it has not said, and
  *                    then every lane is taken as recorded ({@link Lane#recorded})
+ * @param warning     what the run's link said that makes what is shown less than whole, in words: an application of
+ *                    another link version ({@link LinkRows#versionWarning}); empty when nothing has
  * @param paths       the hops each cause took, by cause, while any of them is inside the reach
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
-                    Map<Long, List<Field>> ahead, List<String> probed, Map<String, List<Hop>> paths) {
+                    Map<Long, List<Field>> ahead, List<String> probed, String warning,
+                    Map<String, List<Hop>> paths) {
 
     /**
      * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
@@ -169,7 +172,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** Before any row. */
     static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of(), List.of(), Map.of());
+            Map.of(), Map.of(), List.of(), "", Map.of());
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
@@ -177,6 +180,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     static final String COMMAND = "agent.command";
     /** The row {@link LinkRows} adds for the lanes the run's probe records: its detail, their keys a space apart. */
     static final String RECORDED = "probe.lanes";
+    /** The row {@link LinkRows} adds when the run's link is of another version: its detail, the warning in words. */
+    static final String WARNING = "link.warning";
 
     /** The probe lane each of {@link #LANES} is read from, in that order; see the class comment. */
     private static final List<String> PROBE_LANES = List.of("input", "frame", "bus", "bus", "gpu", "gpu");
@@ -198,6 +203,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         ahead = Map.copyOf(ahead);
         probed = List.copyOf(probed);
         paths = Map.copyOf(paths);
+    }
+
+    /** This model warning of {@code warning} instead; empty to warn of nothing. */
+    Model withWarning(String warning) {
+        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning, paths);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -226,6 +236,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         Map<String, String> named = names;
         Map<Long, List<Field>> told = ahead;
         List<String> probe = probed;
+        String warned = warning;
         HashMap<String, List<Hop>> walked = null;
         List<List<Mark>> next = new ArrayList<>(lanes.size());
         boolean[] changed = new boolean[lanes.size()];
@@ -248,6 +259,10 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             if (r.lane().equals(APP_LANE)) {
                 if (r.kind().equals(RECORDED)) {
                     probe = r.detail().isBlank() ? List.of() : List.of(r.detail().trim().split(" +"));
+                    continue;
+                }
+                if (r.kind().equals(WARNING)) {
+                    warned = r.detail();
                     continue;
                 }
                 named = learn(named, r);
@@ -318,7 +333,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             kept.values().removeIf(p -> p.getLast().atNanos() < from);
             trodden = Map.copyOf(kept);
         }
-        return new Model(newest, out, lostNow, offset, named, told, probe, trodden);
+        return new Model(newest, out, lostNow, offset, named, told, probe, warned, trodden);
     }
 
     /** What the GUI's changes are said as, a hop of their own that counts them; see {@link Hop#said}. */

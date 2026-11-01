@@ -438,9 +438,9 @@ class ViewTest {
                 new Lane(Model.MAIN, List.of()), new Lane(Model.LOGIC, List.of(), false),
                 new Lane(Model.GPU, List.of(), false)), Optional.empty());
         assertEquals(List.of(Model.LOGIC, Model.GPU), View.unrecorded(t));
-        assertEquals("Not recorded by this run: Logic and GPU. Start it with -Dprobe=all, or PROBE=all",
+        assertEquals("Not recorded by this run: Logic and GPU. Start it with --automation=0, which records every lane",
                 View.lanesNote(View.unrecorded(t)));
-        assertEquals("Not recorded by this run: Logic, Messages and GPU. Start it with -Dprobe=all, or PROBE=all",
+        assertEquals("Not recorded by this run: Logic, Messages and GPU. Start it with --automation=0, which records every lane",
                 View.lanesNote(List.of(Model.LOGIC, Model.MESSAGES, Model.GPU)));
         assertEquals("", View.lanesNote(List.of()), "all recorded: nothing to say");
     }

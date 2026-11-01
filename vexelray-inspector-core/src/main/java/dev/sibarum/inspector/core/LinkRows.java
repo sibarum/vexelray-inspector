@@ -9,10 +9,14 @@ import dev.vexelray.gui.inspector.link.LinkClient;
 import dev.vexelray.gui.inspector.link.RowBatch;
 import dev.vexelray.gui.inspector.link.StreamOpen;
 import dev.vexelray.gui.inspector.link.StreamOpened;
+import dev.vexelray.gui.inspector.link.InspectorLink;
 import sibarum.atchung.Sender;
+import sibarum.intrabuf.IntrabufException;
+import sibarum.probe.Log;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -31,22 +35,31 @@ import java.util.concurrent.LinkedBlockingQueue;
  * <p><b>Lost rows are a row.</b> A batch says which rows its link lost before it; that range is added to the batch as
  * one more row, {@link Model#LOST}, at the batch's first moment, so it is folded and kept on the tape like the rest and
  * the readouts count it as of any moment.
+ *
+ * <p><b>A run of another link version is shown, under a warning.</b> A run of this Inspector's own link version sends
+ * everything it reads: a run with its link open records every probe lane, traced. One of another version may not, so
+ * {@link #versionWarning} says so in words, logged and added as one more row, {@link Model#WARNING}, which the view
+ * shows as a banner for as long as the run is attached.
  */
 @Source
 public final class LinkRows {
+
+    private static final Log LOG = Log.of("vexelray-inspector.link");
 
     /**
      * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from; {@code state} and {@code layout},
      * whose ledger steps and GUI changes are hops of a cause's path; and {@code app}, whose rows name
      * what set an event off (its cause's source, an automation command). The bench reads what it knows, so
-     * asking for more only costs the link. The run must record them: an application started with
-     * {@code -Dprobe=all} does, while automation alone records only {@code input}, {@code frame}, {@code layout} and
-     * {@code app}, so its ticks and its GPU are not there to show.
+     * asking for more only costs the link. A run with its link open records them all, whatever its probe settings say
+     * (atchung's {@code LogConfig.inspected}).
      */
     static final List<String> LANES = List.of("input", "frame", "bus", "gpu", "state", "layout", Model.APP_LANE);
 
     /** The end of the link, queued after its last batch. */
     private static final RowBatch CLOSED = new RowBatch(0, 0, List.of());
+
+    /** A batch of no rows that lost none, which carries what the link said when it opened. */
+    private static final RowBatch NOTHING = new RowBatch(0, -1, List.of());
 
     private final Sender<Rows> rows;
 
@@ -70,24 +83,49 @@ public final class LinkRows {
             }
             if (opened.originNanos().isEmpty()) {
                 return new Detached(request.run(), "it is older than its link's clock origin, so its rows cannot be"
-                        + " placed in time: rebuild it against this stack");
+                        + " placed in time: rebuild it against this stack", versionWarning(opened.version()));
             }
             long origin = opened.originNanos().get();
             // The run's sources were named in rows written before the stream began, and what its probe records in
-            // none: the link says both, and the first batch carries them as rows, so they are folded like the rest.
+            // none: the link says both, and they are sent as rows at once, so they are folded like the rest.
             List<String> said = opened.sources() == null ? List.of() : opened.sources();
             List<String> recorded = opened.recorded();
+            String warning = versionWarning(opened.version());
+            if (!warning.isEmpty()) {
+                LOG.warn("{}: {}", request.run(), warning);
+            }
+            // Said at once, with no rows, rather than with the first batch: an idle run sends none for as long as it
+            // stays idle, and the banner and the dimmed lanes are what to know before anything else.
+            rows.send(rows(request.run(), origin, NOTHING, said, recorded, warning));
             for (RowBatch b = arrived.take(); b != CLOSED; b = arrived.take()) {
-                rows.send(rows(request.run(), origin, b, said, recorded));
-                said = List.of();
-                recorded = null;
+                rows.send(rows(request.run(), origin, b));
             }
             return new Detached(request.run(), "it went away");
         } catch (InterruptedException stopped) {
             return new Detached(request.run(), "stopped");
         } catch (RuntimeException e) {
-            return new Detached(request.run(), "its link failed: " + e.getMessage());
+            String unreadable = unreadable(e);
+            if (!unreadable.isEmpty()) {
+                LOG.warn("{}: {} ({})", request.run(), unreadable, e.getMessage());
+            }
+            return new Detached(request.run(), "its link failed: " + e.getMessage(), unreadable);
         }
+    }
+
+    /**
+     * What to warn of a link that failed because one side could not read what the other sent, in words; empty when it
+     * failed for any other reason. Its schema differs, which in a snapshot build is any change to it at all
+     * ({@code SNAPSHOT_DRIFT}): the two were built from different versions of the stack.
+     */
+    static String unreadable(Throwable failure) {
+        for (Throwable t = failure; t != null; t = t.getCause()) {
+            if (t instanceof IntrabufException) {
+                return "This application's link and this Inspector's were built from different versions of the stack,"
+                        + " and this Inspector cannot read it: nothing it sends is shown. Rebuild whichever is older"
+                        + " against this stack.";
+            }
+        }
+        return "";
     }
 
     /**
@@ -111,8 +149,21 @@ public final class LinkRows {
      * records as one more row first ({@link Model#RECORDED}).
      */
     static Rows rows(String run, long origin, RowBatch b, List<String> sources, List<String> recorded) {
-        List<Row> out = new ArrayList<>(b.rows().size() + 2 + sources.size());
+        return rows(run, origin, b, sources, recorded, null);
+    }
+
+    /**
+     * As {@link #rows(String, long, RowBatch, List, List)}, and, unless {@code warning} is null, it as one more row
+     * first ({@link Model#WARNING}): empty says there is nothing to warn of, which takes down a banner a failed attach
+     * left up.
+     */
+    static Rows rows(String run, long origin, RowBatch b, List<String> sources, List<String> recorded,
+                     String warning) {
+        List<Row> out = new ArrayList<>(b.rows().size() + 3 + sources.size());
         long first = b.rows().isEmpty() ? System.nanoTime() : origin + b.rows().getFirst().tMonoNs();
+        if (warning != null) {
+            out.add(new Row(-1, first, "", Model.APP_LANE, Model.WARNING, warning));
+        }
         if (recorded != null) {
             out.add(new Row(-1, first, "", Model.APP_LANE, Model.RECORDED, String.join(" ", recorded)));
         }
@@ -129,5 +180,22 @@ public final class LinkRows {
                     r.detail(), r.cause() == null ? "" : r.cause()));
         }
         return new Rows(run, b.lostFrom(), b.lostTo(), out);
+    }
+
+    /**
+     * What to warn of a run whose link is of version {@code theirs}, in words; empty when it is this Inspector's own.
+     * Empty {@code theirs} is a run older than the version itself.
+     */
+    static String versionWarning(Optional<Integer> theirs) {
+        int ours = InspectorLink.VERSION;
+        if (theirs.isPresent() && theirs.get() == ours) {
+            return "";
+        }
+        String which = theirs.isEmpty() ? "an older version of the link than this Inspector's (" + ours + ")"
+                : "link version " + theirs.get() + ", and this Inspector is version " + ours;
+        String upgrade = theirs.isPresent() && theirs.get() > ours ? "upgrade this Inspector"
+                : "rebuild the application against this stack";
+        return "This application speaks " + which + ", so some of what it sends may be missing or misread here: "
+                + upgrade + ".";
     }
 }

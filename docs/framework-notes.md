@@ -113,6 +113,15 @@ meaning unset; the link's `StreamOpened` says which lanes the run records (`reco
 does not record has its name dimmed and the status line names it with how to start one that does (`status.lanes`).
 Still a trap for any other pom that forks the JVM: a `-D` the forked command line does not name is silently dropped.
 
+**Replaced by one setting 2026-10-31**, ruled by the author: four more traps were found under this one. The plug's
+*Restart in debug mode* took the pom's blank `-Dprobe=` for a chosen probe and armed nothing, so Pix restarted with
+automation's four lanes. Its own lanes left out `gpu` and `state` anyway. `-Dprobe=all` without `-Dprobe.format=csv`
+traced nothing, and only traced rows reach the link. And `VEXELRAY_AUTOMATION` opened the sockets in a run whose probe
+was off. Now the diagnostics socket asked for at launch is the whole setting: atchung's `LogConfig.inspected` makes
+such a run record every lane, traced, and no probe setting narrows it (the restart passes nothing about the probe, and
+the shell reads the environment as the Driver does). The link says its `InspectorLink.VERSION` in `StreamOpened`
+(minor 4), and a run of another version is shown under a caution banner rather than trusted.
+
 ## FN-10 · A message's row names no sender, no receiver and no transport 🔬
 
 A message published on the bus writes one row on the `bus` lane whose kind is its type and whose thread is the one

@@ -432,6 +432,7 @@ final class View {
         state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.reach(), edge,
                 state.zoom().settled(now));
         ui.status(t.status());
+        ui.warning(t.warning());
         ui.canFollow(!t.live());
         List<String> unrecorded = unrecorded(t);
         ui.names(focus, unrecorded);
@@ -454,7 +455,7 @@ final class View {
         }
         String names = unrecorded.size() == 1 ? unrecorded.getFirst()
                 : String.join(", ", unrecorded.subList(0, unrecorded.size() - 1)) + " and " + unrecorded.getLast();
-        return "Not recorded by this run: " + names + ". Start it with -Dprobe=all, or PROBE=all";
+        return "Not recorded by this run: " + names + ". Start it with --automation=0, which records every lane";
     }
 
     /**

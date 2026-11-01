@@ -36,6 +36,13 @@ final class Landmarks {
     /** The button beside the readouts that follows the present again, as End does. */
     static final String FOLLOW = "follow";
 
+    /**
+     * The banner over the lanes saying what makes them less than whole (a run of another link version), and its text;
+     * hidden while nothing does.
+     */
+    static final String WARNING = "warning";
+    static final String WARNING_TEXT = "warning.text";
+
     /** The status line, and its slot saying which run is inspected or why none is. */
     static final String STATUS = "status";
     static final String STATUS_RUN = "status.run";

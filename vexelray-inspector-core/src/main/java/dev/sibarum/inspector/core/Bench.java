@@ -86,7 +86,7 @@ public final class Bench {
     static final int CAPACITY = 1024;
 
     /** What the status line says while nothing can be inspected. */
-    static final String NONE = "No application to inspect. Start one with --automation=0 -Dprobe=all -Dprobe.format=csv";
+    static final String NONE = "No application to inspect. Start one with --automation=0";
 
     /** The moment {@code reachNanos} before {@code newestNanos}, or the earliest there is for {@link #FOREVER}. */
     static long since(long newestNanos, long reachNanos) {
@@ -164,9 +164,10 @@ public final class Bench {
         /** The timeline: every event kept, the cursor at the right edge while paused, the newest row while following. */
         Timeline timeline() {
             if (paused) {
-                return new Timeline(run, status, false, cursor, island.kept().lanes(), on);
+                return new Timeline(run, status, false, cursor, island.kept().lanes(), on, kept.warning());
             }
-            return new Timeline(run, status, arriving, now.newestNanos(), kept.lanes(), Optional.empty());
+            return new Timeline(run, status, arriving, now.newestNanos(), kept.lanes(), Optional.empty(),
+                    kept.warning());
         }
 
         /** The readouts as of the cursor: the model its island recomputes for it, or the live one while following. */
@@ -256,8 +257,11 @@ public final class Bench {
         }
         Run newest = found.runs().getLast();
         out.send(Messages.ATTACH_TOPIC, new Attach(newest.name(), newest.stream()));
+        // The banner stays up while attaching again, so a run its link cannot read does not flicker it every beat; a
+        // stream that opens says at once whether there is anything to warn of.
         return say(new State(newest.name(), newest.title(), "Attaching to " + named(newest.title(), newest.name()),
-                false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L, false, 0L, Island.NONE, Optional.empty(), ""), out);
+                false, Model.EMPTY, Model.EMPTY.withWarning(s.kept().warning()), Tape.EMPTY, 0L, false, 0L,
+                Island.NONE, Optional.empty(), ""), out);
     }
 
     /**
@@ -295,7 +299,8 @@ public final class Bench {
             return s;
         }
         String gone = named(s.title(), s.run()) + ": " + d.why();
-        return say(new State("", "", gone, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
+        Model kept = d.warning().isEmpty() ? s.kept() : s.kept().withWarning(d.warning());
+        return say(new State("", "", gone, false, s.now(), kept, s.tape(), s.first(), s.paused(), s.cursor(),
                 s.island(), s.on(), gone), out);
     }
 

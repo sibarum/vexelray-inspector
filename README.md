@@ -17,10 +17,15 @@ mvn compile exec:exec
 `exec:exec` rather than `exec:java`, so native access can be enabled for Panama FFM. The window comes up where you
 last left it, at 1180x720 the first time.
 
-It inspects another VexelRay application, which has to be running with its link open and its probe recording: start
-that one with `--automation=0 -Dprobe=all -Dprobe.format=csv` (for one built from this template,
-`mvn compile exec:exec -Dautomation=0 -Dprobe=all -Dprobe.format=csv`, which the pom passes on by name). Until one
-is, the status line says so, and the Inspector looks again every two seconds.
+It inspects another VexelRay application, which has to be running with its link open. **That is the one setting**:
+start it with `--automation=0` (for one built from this template, `mvn compile exec:exec -Dautomation=0`), or choose
+*Restart in debug mode* from its title bar's plug. A run that opens the diagnostics socket at launch records every lane
+the Inspector reads, traced, whatever its `-Dprobe` settings say. Until one is running, the status line says so, and
+the Inspector looks again every two seconds.
+
+**Same link version, nothing missing.** The application says its link's version when the stream opens
+(`InspectorLink.VERSION`). When it is not this Inspector's, a banner with the caution mark stands over the lanes for as
+long as it is attached, saying what may be missing and whether to rebuild the application or upgrade the Inspector.
 
 ```
 mvn compile exec:exec -Dapp.args=120                      # 120 frames and quit
@@ -100,9 +105,8 @@ thread, and for a message its type. From, To and Transport say what they can: th
 receivers and how the message travelled are not recorded yet (framework-notes FN-10).
 
 The readouts count the second before the cursor: draws, draws held by reason, ticks and their median and 95th
-percentile, and the rows the link lost. Only a run started with `-Dprobe=all` records ticks and the GPU; a lane its run
-does not record has its name dimmed and the status line names it, with how to start one that does (framework-notes
-FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they
+percentile, and the rows the link lost. A lane the run does not record, which only a run of another link version can
+leave out, has its name dimmed and the status line names it (framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they
 stop where they were, and the status line says what happened.
 
 | Key | Does |

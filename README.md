@@ -3,8 +3,9 @@
 DevTools for VexelRay applications: plain panels on a timeline that can be rewound ([docs/design.md](docs/design.md)).
 
 A VexelRay desktop application, generated from the `vexel-desktop` template and being rebuilt for VexelRay 0.2. R1 is
-under way: today it attaches to the newest application running with its link open and draws its clocks' lanes
-on a live timeline, the present at the right edge. Everything else in the design is still to come.
+under way: it attaches to an application running with its link open (the newest, or one chosen), launches one, or
+plays a recording back, and draws its clocks' lanes on a timeline that can be paused and rewound, the present at the
+right edge. Everything past R1 in the design is still to come.
 
 ## Run it
 
@@ -22,6 +23,22 @@ start it with `--automation=0` (for one built from this template, `mvn compile e
 *Restart in debug mode* from its title bar's plug. A run that opens the diagnostics socket at launch records every lane
 the Inspector reads, traced, whatever its `-Dprobe` settings say. Until one is running, the status line says so, and
 the Inspector looks again every two seconds.
+
+**Which one.** By itself it attaches to the newest, and when that one goes away, to the next newest. The run panel over
+the lanes says what is inspected and from where, and its picker lists every application running with its link: one
+chosen there is kept, and when it goes away its lanes stay to step through until another is chosen. Detach stops
+inspecting and keeps the lanes. Three settings choose at launch instead:
+
+```
+--attach=<name|pid:n>          # that run, waited for until it is running (a name as `ottermate list` shows it)
+--launch="<command>"           # start the command with its automation on, and inspect it; it ends with the Inspector
+--replay=<csv>                 # play a probe recording (-Dprobe.format=csv) back at its recorded pace
+```
+
+`--launch` takes the whole command as one value, quoted, since no option takes the rest of the line
+([FN-13](docs/framework-notes.md)); on Windows a Maven command is `mvn.cmd`. Through `mvn exec:exec` the settings go
+in `-Dapp.args`, which suits `--attach` and `--replay`; a command with spaces is easier given to the Inspector started
+with `java` directly.
 
 **Same link version, nothing missing.** The application says its link's version when the stream opens
 (`InspectorLink.VERSION`). When it is not this Inspector's, a banner with the caution mark stands over the lanes for as
@@ -152,8 +169,10 @@ message is in one file. Read these in this order.
 | `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. |
 | `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
 | `LinkRows.java` | the source that reads one run's rows over its link for as long as it is attached, setting each row on the machine's clock as it crosses. |
+| `RecordingRows.java` | the source that plays a probe recording back at its recorded pace, its rows sent as a run's, on the machine's clock as of when it started. |
+| `Child.java` | the source that starts `--launch`'s command with its automation on, logs its output, chooses it once its discovery file appears, and ends it when stopped. |
 | `Durations.java` | a probe row's duration (`51.68ms`) read back into nanoseconds: a pure function a step may call. |
-| `Core.java` | the list of this module's component, job and source. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
+| `Core.java` | the list of this module's component, job and sources. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
 
 **`vexelray-inspector-gui`, the view and the framework integration.**
 

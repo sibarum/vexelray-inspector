@@ -501,6 +501,23 @@ Each step ends with something to watch or something an agent can ask, and lands 
   to it and Space still paused after; Detach said so, kept the lanes and emptied the picker; `--attach=pid:<older>`
   attached to the older at launch. Found on the way: `List.contains(null)` throws on an immutable list, so the view
   fell over on the first run panel with nothing attached (held by `ViewTest` now).
+  **Slice 5, launch and replay, done 2026-11-02, as proposed to and ruled by the author that day:**
+  `--replay=<csv>` plays a probe recording back through `RecordingRows`, a source keyed by the recording's run
+  (`replay:<file>`) and stopped by the same `Detach` as the link: its rows move onto the machine's clock as of the
+  playback's start and cross as the link's `Rows`, batched every 10 ms at most, so the bench folds, keeps, pauses and
+  rewinds a recording exactly as a running application, and its end is a `Detached` ("the recording ended") that keeps
+  the tape. Columns are found by the header, as `csvview` finds them. `--launch="<command>"` starts the command through
+  `Child`, one source rather than design section 8's launch job, stop job and output source (ruled): it sets
+  `VEXELRAY_AUTOMATION=0`, logs the command's output, sends `Choose` once a discovery file names the process or a
+  descendant (a `mvn` wrapper's JVM is a grandchild), and ends the process tree when stopped, which the framework does
+  to every source at shutdown. Its end is `ChildExited`, said in the status line while nothing is attached. The command
+  is one value because no option takes the rest of the line (FN-13). Seen with `ottermate`: a 13.7 s, 262,758-row
+  recording of an Inspector played in about as long, its lanes and readouts as live (57 draws a second, 95 ticks) and
+  its clock time the recording's own, then stayed to step through; `--launch="mvn.cmd -o -q exec:exec -pl
+  vexelray-inspector-gui"`, with the Inspector started by `java`, said Launching, attached to the JVM four seconds
+  later as `launched`, and when the Inspector's window was closed (not killed, which `ottermate` does to its tree) the
+  wrapper and the JVM ended with it. A recording has no pass numbers (the CSV has no `frame` column), so its passes are
+  unnumbered.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

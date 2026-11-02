@@ -1,6 +1,7 @@
 package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
+import dev.sibarum.inspector.core.Messages.ChildExited;
 import dev.sibarum.inspector.core.Messages.Choose;
 import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
@@ -11,6 +12,7 @@ import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
@@ -20,6 +22,7 @@ import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Runs;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.Replay;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
@@ -70,6 +73,11 @@ class BenchTest {
 
     /** A bench of its own on a bus of its own, as launched with {@code --attach=<attach>}. */
     private void build(String attach) {
+        build(attach, "", "");
+    }
+
+    /** A bench of its own, as launched with {@code --attach}, {@code --replay} and {@code --launch}. */
+    private void build(String attach, String replay, String launch) {
         if (timer != null) {
             timer.close();
         }
@@ -77,10 +85,11 @@ class BenchTest {
         bus = Atchung.create();
         tick = bus.tick(null);
         timer = new Timer(bus);
-        new Bench(tick.inbox("bench"), timer, attach);
+        new Bench(tick.inbox("bench"), timer, attach, replay, launch);
         Inbox heard = tick.inbox("heard");
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
-                Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC)) {
+                Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC,
+                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -249,6 +258,49 @@ class BenchTest {
         build("calculator-11");
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
         assertEquals(List.of(new Attach(ONE.name(), ONE.stream())), took(Attach.class));
+    }
+
+    @Test
+    void aRecordingNamedIsPlayedWhenTheFirstWindowOpensAndIsKeptAsAChosenRun() {
+        build("", "C:/runs/run.csv", "");
+        tell(WindowOpened.TOPIC, new WindowOpened("main"));
+        assertEquals(List.of(new Replay("replay:run.csv", "C:/runs/run.csv")), took(Replay.class));
+        tell(WindowOpened.TOPIC, new WindowOpened("main"));
+        assertEquals(List.of(), took(Replay.class), "sent once");
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        assertTrue(sent.stream().noneMatch(Attach.class::isInstance), "a recording is not left for a running app");
+        tell(Messages.ROWS_TOPIC, new Rows("replay:run.csv", 0, 0, List.of(pass(1, 100 * MS, "4ms"))));
+        RunPanel p = took(RunPanel.class).getLast();
+        assertEquals(new RunPanel("replay:run.csv", "run.csv", 0, Bench.REPLAYED,
+                "no logic tick off the main thread: --logic=main, or idle", List.of(ONE), true), p);
+        tell(Messages.DETACHED_TOPIC, new Detached("replay:run.csv", "the recording ended"));
+        Timeline t = timeline();
+        assertEquals("run.csv (replay:run.csv): the recording ended", t.status());
+        assertEquals(1, passes(t).size(), "its tape stays to step through");
+    }
+
+    @Test
+    void aCommandNamedIsStartedAndItsRunChosenOnceItCanBeInspected() {
+        build("", "", "mvn.cmd exec:exec");
+        tell(WindowOpened.TOPIC, new WindowOpened("main"));
+        assertEquals(List.of(new LaunchChild("mvn.cmd exec:exec")), took(LaunchChild.class));
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        assertTrue(sent.stream().noneMatch(Attach.class::isInstance), "not the newest: the one it launched");
+        assertEquals("Launching mvn.cmd exec:exec", timeline().status());
+        tell(Messages.CHOOSE_TOPIC, new Choose(TWO, Bench.LAUNCHED));
+        assertEquals(List.of(new Attach(TWO.name(), TWO.stream())), took(Attach.class));
+        tell(Messages.ROWS_TOPIC, new Rows(TWO.name(), 0, 0, List.of(pass(1, 100 * MS, "4ms"))));
+        assertEquals(Bench.LAUNCHED, took(RunPanel.class).getLast().from());
+    }
+
+    @Test
+    void aCommandThatEndsBeforeItCanBeInspectedSaysWhy() {
+        build("", "", "mvn.cmd exec:exec");
+        tell(WindowOpened.TOPIC, new WindowOpened("main"));
+        tell(Messages.CHILD_EXITED_TOPIC, new ChildExited("mvn.cmd exec:exec", "it exited with 1: BUILD FAILURE"));
+        assertEquals("mvn.cmd exec:exec: it exited with 1: BUILD FAILURE", timeline().status());
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        assertTrue(sent.stream().noneMatch(Attach.class::isInstance), "it was chosen: nothing else is attached");
     }
 
     @Test

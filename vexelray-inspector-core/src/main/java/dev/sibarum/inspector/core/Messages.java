@@ -14,7 +14,8 @@ import java.util.Optional;
  * known of the run being inspected, and changes it only by running its own declared steps. The view, in the
  * {@code -gui} module, shows; it owns the widgets, and declares the chords that send the person's keys to the bench
  * ({@link Pause}, {@link Step}). {@link ListRuns}, a job, reads the discovery folder on the job lane;
- * {@link LinkRows}, a source, reads a run's rows over its link on a thread of its own for as long as it is attached.
+ * {@link LinkRows}, a source, reads a run's rows over its link on a thread of its own for as long as it is attached;
+ * {@link RecordingRows} plays a recording's back, and {@link Child} runs a launched command, likewise.
  * Each sends a record on a topic and the others hear it on their own lane, so no state is shared and nothing needs a
  * lock.
  *

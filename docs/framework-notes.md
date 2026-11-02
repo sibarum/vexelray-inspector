@@ -171,3 +171,15 @@ atchung-probe's `Cause.sources()` lists every source registered; vexelray-gui-re
 (`Rows.cause`); the link's `Row` carries it as the CSV writes it (`cause`, minor 1) and `StreamOpened` hands over the
 source table (`sources`, minor 2), both readable from an older writer as null. Still not recorded, and the next
 things a troubleshooter asks: a message's receivers (FN-10), and which keys a pass's input edges were.
+
+## FN-13 · No option takes the rest of the command line 🔬
+
+The Inspector's `--launch <command>` was to take everything after it as the command to start, as `ottermate --launch`
+does, so `inspector --launch mvn.cmd -o exec:exec -Dautomation=0` would work as typed. The framework's `Launch.parse`
+has no such option: every `-x` or `--x` after it is parsed as the Inspector's own and refused as unknown, and the
+words left over go to `rest` with no say in where they came from. Worked around with one setting holding the whole
+command, `--launch="<command>"`, which `Child.words` splits on spaces outside double quotes. It costs the quoting: from
+`mvn exec:exec` the value has to survive `${app.args}` inside the pom's `commandlineArgs` as well, so it was only tried
+by starting the Inspector with `java` directly. The framework could let an application declare one key whose value is
+the rest of the line (`@Setting(value = "launch", rest = true)`), parsed before the refusal of unknown options, and
+`ottermate` could use the same rule.

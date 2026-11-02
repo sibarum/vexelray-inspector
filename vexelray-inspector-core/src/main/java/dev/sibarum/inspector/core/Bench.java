@@ -1,6 +1,7 @@
 package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
+import dev.sibarum.inspector.core.Messages.ChildExited;
 import dev.sibarum.inspector.core.Messages.Choose;
 import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
@@ -9,10 +10,12 @@ import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
+import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.Replay;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
@@ -72,10 +75,10 @@ import java.util.Optional;
  * that goes away keeps its tape, to step through, until another is attached.
  */
 @Component
-@Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, Choose.class, Leave.class, Pause.class,
-        Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class})
-@Publishes({FindRuns.class, Attach.class, Detach.class, Timeline.class, Readouts.class, Details.class,
-        RunPanel.class})
+@Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
+        Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class})
+@Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
+        Details.class, RunPanel.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -153,6 +156,9 @@ public final class Bench {
     /** A recording played back ({@code --replay}). */
     public static final String REPLAYED = "replayed";
 
+    /** What a recording's run is called: this, then its file's name. */
+    static final String REPLAY = "replay:";
+
     /**
      * How the run was reached and what else there is: the run panel's half of the state.
      *
@@ -162,27 +168,43 @@ public final class Bench {
      *                detached: then the bench attaches to nothing by itself, and a run that goes away stays on screen
      * @param choices the runs that could be inspected, as the last listing found them
      * @param wish    what {@code --attach} named and has not been found yet: a run's name, or {@code pid:<n>}
+     * @param replay  the recording {@code --replay} named, played when the first window opens; empty when none
+     * @param launch  the command {@code --launch} named, started when the first window opens, until it can be inspected
+     *                or has ended; empty when none
+     * @param begun   whether the first window has opened, so what the command line named has been sent
      */
-    public record Pick(long pid, String from, boolean chosen, List<Run> choices, String wish) {
+    public record Pick(long pid, String from, boolean chosen, List<Run> choices, String wish, String replay,
+                       String launch, boolean begun) {
 
         public Pick {
             choices = List.copyOf(choices);
         }
 
-        static Pick initial(String attach) {
-            return new Pick(0L, "", !attach.isBlank(), List.of(), attach.strip());
+        static Pick initial(String attach, String replay, String launch) {
+            return new Pick(0L, "", !attach.isBlank() || !replay.isBlank() || !launch.isBlank(), List.of(),
+                    attach.strip(), replay.strip(), launch.strip(), false);
         }
 
         Pick of(Run run, String from, boolean chosen) {
-            return new Pick(run.pid(), from, chosen, choices, "");
+            return new Pick(run.pid(), from, chosen, choices, "", replay, "", begun);
         }
 
         Pick choices(List<Run> found) {
-            return found.equals(choices) ? this : new Pick(pid, from, chosen, found, wish);
+            return found.equals(choices) ? this : new Pick(pid, from, chosen, found, wish, replay, launch, begun);
         }
 
         Pick choose() {
-            return chosen ? this : new Pick(pid, from, true, choices, wish);
+            return chosen ? this : new Pick(pid, from, true, choices, wish, replay, launch, begun);
+        }
+
+        /** This, with what the command line asked to play or start sent: it is sent once. */
+        Pick begin() {
+            return begun ? this : new Pick(pid, from, chosen, choices, wish, replay, launch, true);
+        }
+
+        /** This, with the launched command ended. */
+        Pick ended() {
+            return launch.isEmpty() ? this : new Pick(pid, from, chosen, choices, wish, replay, "", begun);
         }
 
         /** The run of {@code runs} that {@link #wish} names, if any. */
@@ -235,10 +257,11 @@ public final class Bench {
                         long first, boolean paused, long cursor, Island island, Optional<Event> on, String gone,
                         Pick pick) {
 
-        static State initial(String attach) {
-            return new State("", "", attach.isBlank() ? "Looking for an application to inspect"
-                    : "Looking for " + attach + " to inspect", false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L,
-                    false, 0L, Island.NONE, Optional.empty(), "", Pick.initial(attach));
+        static State initial(String attach, String replay, String launch) {
+            String status = !replay.isBlank() ? "Opening " + replay : !launch.isBlank() ? "Launching " + launch
+                    : attach.isBlank() ? "Looking for an application to inspect" : "Looking for " + attach + " to inspect";
+            return new State("", "", status, false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L, false, 0L, Island.NONE,
+                    Optional.empty(), "", Pick.initial(attach, replay, launch));
         }
 
         /** The run panel: the run, how it was reached, where its logic runs, and the runs that could be chosen. */
@@ -308,13 +331,17 @@ public final class Bench {
     /**
      * @param attach {@code --attach=<name|pid:n>}: the run to inspect, waited for until it is running; empty to attach
      *               to the newest one there is
+     * @param replay {@code --replay=<csv>}: a probe recording to play back instead; empty for none
+     * @param launch {@code --launch="<command>"}: a command to start and inspect instead; empty for none
      */
-    public Bench(Inbox inbox, Timer timer, @Setting("attach") String attach) {
-        Ledger.Builder<State> b = Ledger.of(State.initial(attach));
+    public Bench(Inbox inbox, Timer timer, @Setting("attach") String attach, @Setting("replay") String replay,
+                 @Setting("launch") String launch) {
+        Ledger.Builder<State> b = Ledger.of(State.initial(attach, replay, launch));
         b.on(WindowOpened.TOPIC, b.step("begin", Bench::begin))
                 .on(Messages.RUNS_TOPIC, b.step("runs", Bench::runs))
                 .on(Messages.ROWS_TOPIC, b.step("rows", Bench::rows))
                 .on(Messages.DETACHED_TOPIC, b.step("detached", Bench::detached))
+                .on(Messages.CHILD_EXITED_TOPIC, b.step("child exited", Bench::childExited))
                 .on(Messages.CHOOSE_TOPIC, b.step("choose", Bench::choose))
                 .on(Messages.LEAVE_TOPIC, b.step("leave", Bench::leave))
                 .on(Messages.PAUSE_TOPIC, b.step("pause", Bench::pause))
@@ -334,11 +361,44 @@ public final class Bench {
 
     // ------------------------------------------------------------------ the steps
 
-    /** The main window exists: look for a run at once, rather than at the timer's first beat. */
+    /**
+     * The main window exists: look for a run at once, rather than at the timer's first beat, and play or start what the
+     * command line named.
+     */
     static State begin(State s, WindowOpened opened, Out out) {
         out.send(Messages.FIND_RUNS_TOPIC, new FindRuns());
+        Pick pick = s.pick();
+        if (pick.begun()) {
+            return s;
+        }
+        pick = pick.begin();
+        if (!pick.replay().isEmpty()) {
+            String file = java.nio.file.Path.of(pick.replay()).getFileName().toString();
+            String run = REPLAY + file;
+            out.send(Messages.REPLAY_TOPIC, new Replay(run, pick.replay()));
+            Run recording = new Run(run, file, 0L, "");
+            return say(new State(run, file, "Replaying " + file, false, Model.EMPTY, Model.EMPTY, Tape.EMPTY, 0L,
+                    false, 0L, Island.NONE, Optional.empty(), "", pick.of(recording, REPLAYED, true)), out);
+        }
+        if (!pick.launch().isEmpty()) {
+            out.send(Messages.LAUNCH_CHILD_TOPIC, new LaunchChild(pick.launch()));
+            return say(s.withPick(pick), out);
+        }
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
-        return panel(s, out);
+        return panel(s.withPick(pick), out);
+    }
+
+    /**
+     * A launched command has ended. Its run, if attached, goes away by its own link's word; this says why the command
+     * ended while nothing else is shown.
+     */
+    static State childExited(State s, ChildExited c, Out out) {
+        String ended = c.command() + ": " + c.why();
+        if (!s.run().isEmpty()) {
+            return s.withPick(s.pick().ended());
+        }
+        return say(new State("", "", ended, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
+                s.island(), s.on(), ended, s.pick().ended()), out);
     }
 
     /**
@@ -374,6 +434,9 @@ public final class Bench {
         }
         if (!pick.wish().isEmpty()) {
             return "Waiting for " + pick.wish() + " to start";
+        }
+        if (!pick.launch().isEmpty()) {
+            return "Launching " + pick.launch();
         }
         return found.runs().isEmpty() ? NONE : "Choose an application to inspect";
     }

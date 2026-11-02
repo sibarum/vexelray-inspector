@@ -461,6 +461,12 @@ public final class Messages {
                 default -> false;
             };
         }
+
+        /** Whether row {@code r} is on the path: in its cause, or a draw that showed it. */
+        public boolean has(Row r) {
+            return !cause.isEmpty()
+                    && (cause.equals(r.cause()) || Model.isDraw(r) && Model.shownBy(r).contains(cause));
+        }
     }
 
     /**
@@ -468,6 +474,26 @@ public final class Messages {
      * inbox's component, as the flows' receivers are named; empty for a write.
      */
     public record Crossed(String topic, String to) {
+    }
+
+    /**
+     * The rows panel: the raw rows around the cursor, in order of time and then of sequence, the cursor's row among them
+     * (design.md section 3). Paused, the cursor's row is the newest at or before the cursor, which on an event is the
+     * row that ended it, with rows either side; following, it is the newest row, with those before it. A state topic,
+     * as the details are.
+     *
+     * @param run      the run attached, or empty when none is
+     * @param selected where the cursor's row is in {@code rows}; -1 when there is none
+     */
+    public static final Topic<RowsAround> ROWS_AROUND_TOPIC = Topic.state(RowsAround.class);
+
+    public record RowsAround(String run, List<Row> rows, int selected) {
+
+        public static final RowsAround NONE = new RowsAround("", List.of(), -1);
+
+        public RowsAround {
+            rows = List.copyOf(rows);
+        }
     }
 
     /**

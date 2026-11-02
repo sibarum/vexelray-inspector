@@ -18,6 +18,7 @@ import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.RowsAround;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.RunPanel;
@@ -92,7 +93,7 @@ class BenchTest {
         Inbox heard = tick.inbox("heard");
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
                 Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC,
-                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC)) {
+                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC, Messages.ROWS_AROUND_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -1114,5 +1115,33 @@ class BenchTest {
         assertEquals("", before.lane(Model.MAIN).marks().getLast().field(Model.DREW));
         assertEquals(201, beside.lane(Model.MAIN).marks().size());
         assertEquals(200, after.lane(Model.MAIN).marks().size(), "a fold beside another sees none of its events");
+    }
+
+    // ------------------------------------------------------------------ the rows panel
+
+    /** The last rows around the cursor sent, keeping the rest of what was sent. */
+    private RowsAround rowsAround() {
+        return sent.stream().filter(RowsAround.class::isInstance).map(RowsAround.class::cast).toList().getLast();
+    }
+
+    @Test
+    void theRowsPanelHasTheNewestRowsWhileFollowingAndTheRowsAroundTheCursorWhenStopped() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>();
+        for (int i = 1; i <= 30; i++) {
+            rows.add(pass(i, i * 10 * MS, "1ms"));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        RowsAround live = rowsAround();
+        assertEquals(rows.subList(30 - Bench.AROUND, 30), live.rows(), "following: the newest, oldest first");
+        assertEquals(Bench.AROUND - 1, live.selected(), "the newest selected");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 155 * MS));
+        RowsAround on = rowsAround();
+        assertEquals(rows.subList(9, 9 + Bench.AROUND), on.rows(), "on the pass ending at 150 ms: five either side");
+        assertEquals(rows.get(14), on.rows().get(on.selected()), "the row that ended it selected");
+        tell(Messages.SEEK_TOPIC, new Messages.Seek(15 * MS));
+        RowsAround early = rowsAround();
+        assertEquals(rows.subList(0, Bench.AROUND), early.rows(), "near the oldest: the rest after it");
+        assertEquals(0, early.selected(), "the newest at or before the cursor");
     }
 }

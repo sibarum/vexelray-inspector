@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import dev.vexelray.gui.core.style.Role;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
@@ -179,6 +180,25 @@ class ViewTest {
         shell.bus().publish(Messages.FLOWS_TOPIC, new Messages.Flows("run", "a recording declares no bus graph",
                 List.of(), List.of(more)));
         eventually("its count moved", () -> "7".equals(cellOf(wiring.ui(), "dev.example.A", 4)));
+    }
+
+    @Test
+    void theRowsPanelSaysEachRowFromTheCursorsAndColoursTheCursorsAndThePathsInPlace() throws InterruptedException {
+        Messages.Row press = new Messages.Row(7, 1_000_000L, 0L, 3L, "main", "input", "press", "LEFT", "c1.i01.1");
+        Messages.Row tick = new Messages.Row(8, 1_400_000L, 0L, 3L, "vexel-logic", "bus", "tick", "0.2ms", "");
+        Messages.Row draw = new Messages.Row(9, 2_500_000L, 0L, 4L, "main", "draw", "draw.ran", "#12 c1.i01.1", "");
+        Messages.RowsAround r = new Messages.RowsAround("run", List.of(press, tick, draw), 1);
+        assertEquals(List.of(List.of("-0.400 ms", "main", "input", "press", "LEFT", "c1.i01.1"),
+                List.of("the cursor's", "vexel-logic", "bus", "tick", "0.2ms", ""),
+                List.of("+1.100 ms", "main", "draw", "draw.ran", "#12 c1.i01.1", "")), View.rowCells(r));
+        Messages.Traced path = new Messages.Traced("run", "c1.i01.1", List.of(), List.of(), List.of(), List.of());
+        assertEquals(List.of(Ui.PATH, Role.ACCENT, Ui.PATH), View.rowInks(r, path),
+                "the press in its cause, the draw that showed it, the cursor's own in the accent");
+        assertEquals(List.of(Role.INK, Role.ACCENT, Role.INK), View.rowInks(r, Messages.Traced.NONE));
+        shell.bus().publish(Messages.ROWS_AROUND_TOPIC, r);
+        eventually("the rows shown", () -> wiring.ui().rowCells(2).equals(View.rowCells(r).get(2)));
+        assertEquals(Role.ACCENT, wiring.ui().rowInk(1));
+        assertEquals(List.of(), wiring.ui().rowCells(3), "a place past them blank");
     }
 
     private static String cellOf(Ui ui, String topic, int column) {

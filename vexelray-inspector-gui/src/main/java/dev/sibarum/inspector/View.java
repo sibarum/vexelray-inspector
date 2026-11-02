@@ -23,6 +23,8 @@ import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.RowsAround;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Seek;
@@ -1096,6 +1098,7 @@ final class View {
         }
         traced = t;
         ui.crossed(crossedTopics(t));
+        ui.rows(rowCells(rowsAround), rowInks(rowsAround, traced));
         ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
         show();
     }
@@ -1172,6 +1175,46 @@ final class View {
     @Subscribe
     public void readouts(Readouts r) {
         ui.readouts(readout(r));
+    }
+
+    // ------------------------------------------------------------------ the rows panel
+
+    /** The rows panel's columns, in order. */
+    static final List<String> ROW_COLUMNS = List.of("From cursor", "Thread", "Lane", "Kind", "Detail", "Cause");
+
+    /** The rows around the cursor the bench last said, for a new path to colour again. */
+    private RowsAround rowsAround = RowsAround.NONE;
+
+    /** The bench's rows around the cursor, into the rows panel. */
+    @Subscribe
+    public void rowsAround(RowsAround r) {
+        rowsAround = r;
+        ui.rows(rowCells(r), rowInks(r, traced));
+    }
+
+    /**
+     * What the rows panel says, a row a place, a cell for each of {@link #ROW_COLUMNS}: how long before or after the
+     * cursor's row it was written, its thread, lane and kind, what it said, and its cause. Pure, for a test.
+     */
+    static List<List<String>> rowCells(RowsAround r) {
+        long at = r.selected() < 0 ? 0L : r.rows().get(r.selected()).atNanos();
+        List<List<String>> cells = new ArrayList<>(r.rows().size());
+        for (int i = 0; i < r.rows().size(); i++) {
+            Row row = r.rows().get(i);
+            String when = i == r.selected() ? "the cursor's"
+                    : r.selected() < 0 ? "" : String.format(Locale.ROOT, "%+.3f ms", (row.atNanos() - at) / 1e6);
+            cells.add(List.of(when, row.thread(), row.lane(), row.kind(), row.detail(), row.cause()));
+        }
+        return cells;
+    }
+
+    /** Each row's ink: the cursor's in the accent, those on {@code t}'s path in its colour. Pure, for a test. */
+    static List<Role> rowInks(RowsAround r, Traced t) {
+        List<Role> inks = new ArrayList<>(r.rows().size());
+        for (int i = 0; i < r.rows().size(); i++) {
+            inks.add(i == r.selected() ? Role.ACCENT : t.has(r.rows().get(i)) ? Ui.PATH : Role.INK);
+        }
+        return inks;
     }
 
     /** The flows table's columns, in order. */

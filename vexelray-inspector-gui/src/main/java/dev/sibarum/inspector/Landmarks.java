@@ -27,6 +27,9 @@ final class Landmarks {
 
     /** The flows table, a row a topic, and the line over it that says why there is no graph when there is none. */
     static final String FLOWS = "flows";
+
+    /** The rows panel: the raw rows around the cursor, the cursor's row in the accent. */
+    static final String ROWS = "rows";
     static final String FLOWS_WHY = "flows.why";
 
     /** The graph panel: the declared parts and the arrows between them, drawn. */

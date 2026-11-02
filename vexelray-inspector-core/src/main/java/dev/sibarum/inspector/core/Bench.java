@@ -18,6 +18,7 @@ import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Replay;
 import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.RowsAround;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.RunPanel;
@@ -80,7 +81,7 @@ import java.util.Optional;
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
-        Details.class, RunPanel.class, Flows.class, Traced.class})
+        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -97,6 +98,9 @@ public final class Bench {
 
     /** How many of each message the bench's inbox holds: rows arrive a batch per 10 ms. */
     static final int CAPACITY = 1024;
+
+    /** How many rows the rows panel shows: as many as fit beside the details. */
+    public static final int AROUND = 11;
 
     /** What the status line says while nothing can be inspected. */
     static final String NONE = "No application to inspect. Start one with --automation=0";
@@ -331,6 +335,16 @@ public final class Bench {
         /** What every panel marks of the path of the event the cursor is on, from {@code hops}; none while following. */
         Traced traced(List<Model.Hop> hops) {
             return paused && on.isPresent() ? Model.traced(run, on.get().mark(), hops) : Traced.NONE;
+        }
+
+        /**
+         * The rows panel: the rows around the cursor, the newest at or before it selected; following, the newest rows.
+         */
+        RowsAround rowsAround() {
+            if (tape.isEmpty() && island.tape().isEmpty()) {
+                return new RowsAround(run, List.of(), -1);
+            }
+            return paused ? island.tape().around(run, cursor, AROUND) : tape.newest(run, AROUND);
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -708,6 +722,7 @@ public final class Bench {
         List<Model.Hop> hops = s.hops();
         out.send(Messages.DETAILS_TOPIC, s.details(hops));
         out.send(Messages.TRACED_TOPIC, s.traced(hops));
+        out.send(Messages.ROWS_AROUND_TOPIC, s.rowsAround());
         return panel(s, out);
     }
 

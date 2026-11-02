@@ -1,8 +1,11 @@
 package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.RowsAround;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -178,6 +181,81 @@ public record Tape(List<Second> seconds) {
     Model asOf(long atNanos) {
         Second at = secondAt(atNanos);
         return at == null ? Model.EMPTY : at.start().fold(at.rows(), atNanos);
+    }
+
+    /** The order the rows panel shows rows in: by time, then by sequence. */
+    static final Comparator<Row> ORDER = Comparator.comparingLong(Row::atNanos).thenComparingLong(Row::seq);
+
+    /** How many of the newest rows {@link #newest} looks among: arrival order is time order but for a late thread's. */
+    static final int TAIL = 256;
+
+    /**
+     * The {@code count} rows around {@code atNanos} in {@link #ORDER}, the newest at or before it selected, with half
+     * the rest after it where there are that many, for {@code run}'s rows panel. A row is kept in the second it is
+     * stamped in or a later one, where it arrived, so the rows near a moment are read from its second and the ones
+     * either side: a row later than that by a second is not found.
+     */
+    RowsAround around(String run, long atNanos, int count) {
+        List<Row> before = new ArrayList<>(count + 1);
+        List<Row> after = new ArrayList<>(count + 1);
+        int at = 0;
+        while (at + 1 < seconds.size() && seconds.get(at + 1).fromNanos() <= atNanos) {
+            at++;
+        }
+        for (int i = Math.max(0, at - 1); i <= Math.min(seconds.size() - 1, at + 1); i++) {
+            for (Row r : seconds.get(i).rows()) {
+                if (r.atNanos() <= atNanos) {
+                    keep(before, r, count, true);
+                } else {
+                    keep(after, r, count, false);
+                }
+            }
+        }
+        return window(run, before, after, count);
+    }
+
+    /** The {@code count} newest rows, the newest selected, read from the last {@link #TAIL} to arrive. */
+    RowsAround newest(String run, int count) {
+        List<Row> before = new ArrayList<>(count + 1);
+        int left = TAIL;
+        for (int i = seconds.size() - 1; i >= 0 && left > 0; i--) {
+            List<Row> rows = seconds.get(i).rows();
+            for (int j = rows.size() - 1; j >= 0 && left > 0; j--, left--) {
+                keep(before, rows.get(j), count, true);
+            }
+        }
+        return window(run, before, List.of(), count);
+    }
+
+    /** {@code before}'s newest selected, and as many of {@code after} as fill half of {@code count}, or what is left. */
+    private static RowsAround window(String run, List<Row> before, List<Row> after, int count) {
+        int late = Math.min(after.size(), count / 2);
+        int early = Math.min(before.size(), count - late);
+        late = Math.min(after.size(), count - early);
+        List<Row> rows = new ArrayList<>(early + late);
+        rows.addAll(before.subList(before.size() - early, before.size()));
+        rows.addAll(after.subList(0, late));
+        return new RowsAround(run, rows, early - 1);
+    }
+
+    /**
+     * Put {@code r} into {@code kept}, which is in {@link #ORDER} and keeps at most {@code count}: the newest of them,
+     * or the oldest.
+     */
+    private static void keep(List<Row> kept, Row r, int count, boolean newest) {
+        if (kept.size() == count && (newest ? ORDER.compare(r, kept.getFirst()) <= 0
+                : ORDER.compare(r, kept.getLast()) >= 0)) {
+            return;
+        }
+        int i = Collections.binarySearch(kept, r, ORDER);
+        kept.add(i < 0 ? -i - 1 : i, r);
+        if (kept.size() > count) {
+            if (newest) {
+                kept.removeFirst();
+            } else {
+                kept.removeLast();
+            }
+        }
     }
 
     /** The second {@code atNanos} is in, the newest that begins by then; null when the tape begins after it. */

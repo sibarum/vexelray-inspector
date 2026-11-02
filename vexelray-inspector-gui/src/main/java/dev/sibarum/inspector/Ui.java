@@ -1,5 +1,6 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Bench;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Gui;
@@ -55,6 +56,12 @@ import java.util.Objects;
  * while that event has it. Its height is kept, {@link #DETAILS_REM}, and what does not fit scrolls inside it: a
  * click's path is thirty hops, and the graph and flows under it must stay in view beside the lanes that mark it.
  *
+ * <h2>The rows panel</h2>
+ *
+ * <p>Beside the details, as tall: the raw rows around the cursor, a place a row, the cursor's in the accent and those
+ * on the path of the event it is on in the path's colour ({@link #rows}). The places stay and their text changes, so a
+ * step rebuilds nothing.
+ *
  * <h2>The readouts</h2>
  *
  * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
@@ -86,6 +93,13 @@ final class Ui {
     /** A row of the flows table, in rem. */
     private static final float FLOW_ROW_REM = 1.5f;
 
+    /** A row of the rows panel, in rem: eleven fit beside the details with its header. */
+    private static final float ROW_REM = 1.25f;
+
+    /** The rows panel's column widths, in {@link View#ROW_COLUMNS}' order: the detail takes what is left. */
+    private static final List<Length> ROW_WIDTHS = List.of(Length.rem(7.5f), Length.rem(8f), Length.rem(5f),
+            Length.rem(8f), Length.grow(1f), Length.rem(9f));
+
     /** The flows table's column widths, in {@link View#FLOW_COLUMNS}' order: the names share what is left. */
     private static final List<Length> FLOW_WIDTHS = List.of(Length.grow(2f), Length.rem(5.5f), Length.grow(2f),
             Length.grow(3f), Length.rem(6.5f), Length.rem(6.5f), Length.rem(7f));
@@ -109,6 +123,12 @@ final class Ui {
     private final Table<String> flows;
     private final Node flowsWhy;
     private final Node graph;
+    private final Table<Integer> rows;
+    /** What each of the rows panel's places says, a cell a column, and in what ink, as {@link #rows} last set them. */
+    private List<List<String>> rowTexts = List.of();
+    private List<Role> rowInks = List.of();
+    /** Each realized cell's text, by place and column, to change in place as the cursor moves. */
+    private final Map<Integer, Node[]> rowNodes = new HashMap<>();
     /** The topics the path of the event the cursor is on crossed, whose names the flows table marks. */
     private java.util.Set<String> crossed = java.util.Set.of();
     /** The topics the flows table holds, in the order last given. */
@@ -169,9 +189,28 @@ final class Ui {
             gui.landmark(Landmarks.detail(View.DETAILS.get(i)), details[i]);
             detailRows[i] = gui.row().width(Length.FILL).gap(Type.TIGHT).children(label, details[i]);
         }
-        Node detailsPanel = gui.column().width(Length.FILL).height(Length.rem(DETAILS_REM)).padding(Type.TIGHT)
+        Node detailsPanel = gui.column().width(Length.grow(1f)).height(Length.FILL).padding(Type.TIGHT)
                 .clip(true).scroll(false, true).children(detailRows);
         gui.landmark(Landmarks.DETAILS, detailsPanel);
+
+        List<Table.Column<Integer>> rowColumns = new ArrayList<>();
+        for (int i = 0; i < View.ROW_COLUMNS.size(); i++) {
+            int at = i;
+            rowColumns.add(Table.Column.of(View.ROW_COLUMNS.get(i), ROW_WIDTHS.get(i), (nodes, place) -> {
+                Node text = nodes.text(place < rowTexts.size() ? rowTexts.get(place).get(at) : "")
+                        .textSize(Type.SMALL).textColor(gui.theme().color(inkOf(place)));
+                rowNodes.computeIfAbsent(place, p -> new Node[View.ROW_COLUMNS.size()])[at] = text;
+                return text;
+            }));
+        }
+        rows = new Table<>(gui, ROW_REM, rowColumns).name(Landmarks.ROWS);
+        rows.headers(Type.UI, Type.SMALL, Role.DIM);
+        rows.node().width(Length.grow(2f)).height(Length.FILL);
+        rows.items(java.util.stream.IntStream.range(0, Bench.AROUND).boxed().toList());
+        gui.landmark(Landmarks.ROWS, rows.node());
+        // The rows beside the details: the cursor's moment as the rows said it, and as the event it is on.
+        Node cursorPanels = gui.row().width(Length.FILL).height(Length.rem(DETAILS_REM)).gap(Type.TIGHT)
+                .children(detailsPanel, rows.node());
 
         warningText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
         gui.landmark(Landmarks.WARNING_TEXT, warningText);
@@ -223,7 +262,7 @@ final class Ui {
                 .children(graph, flowsPanel);
 
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(runPanel, warning, lanes, detailsPanel, readoutRow, panels);
+                .children(runPanel, warning, lanes, cursorPanels, readoutRow, panels);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -344,6 +383,56 @@ final class Ui {
     /** What a topic's cells say in the flows panel, for a test: empty when it has no row. */
     List<String> flowCells(String topic) {
         return flowCells.getOrDefault(topic, List.of());
+    }
+
+    /**
+     * What the rows panel says: a place a row, each cell's text as {@code texts} gives it and its ink as {@code inks}
+     * does; a place past them is blank. In place, since the places never change and their rows do with every step.
+     */
+    void rows(List<List<String>> texts, List<Role> inks) {
+        List<List<String>> was = rowTexts;
+        List<Role> wasInks = rowInks;
+        rowTexts = List.copyOf(texts);
+        rowInks = List.copyOf(inks);
+        for (Map.Entry<Integer, Node[]> e : rowNodes.entrySet()) {
+            int place = e.getKey();
+            boolean recolour = !inkOf(place, wasInks).equals(inkOf(place));
+            for (int i = 0; i < e.getValue().length; i++) {
+                Node shown = e.getValue()[i];
+                if (shown == null) {
+                    continue;
+                }
+                String now = cell(rowTexts, place, i);
+                if (!now.equals(cell(was, place, i))) {
+                    shown.text(now);
+                }
+                if (recolour) {
+                    shown.textColor(gui.theme().color(inkOf(place)));
+                }
+            }
+        }
+    }
+
+    /** What the rows panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */
+    List<String> rowCells(int place) {
+        return place < rowTexts.size() ? rowTexts.get(place) : List.of();
+    }
+
+    /** The ink the rows panel's {@code place} is in, for a test. */
+    Role rowInk(int place) {
+        return inkOf(place);
+    }
+
+    private Role inkOf(int place) {
+        return inkOf(place, rowInks);
+    }
+
+    private static Role inkOf(int place, List<Role> inks) {
+        return place < inks.size() ? inks.get(place) : Role.INK;
+    }
+
+    private static String cell(List<List<String>> texts, int place, int column) {
+        return place < texts.size() ? texts.get(place).get(column) : "";
     }
 
     /** What the readouts line says. */

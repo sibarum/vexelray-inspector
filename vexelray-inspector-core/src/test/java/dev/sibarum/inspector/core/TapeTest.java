@@ -45,4 +45,21 @@ class TapeTest {
         assertEquals(List.of(click, draw), tape.rowsOf("76673.i01.4"),
                 "the click's second, and the next one, where the draw that showed it is");
     }
+
+    @Test
+    void theRowsAroundAMomentAreInOrderOfTimeThoughALateOneArrivedInTheNextSecond() {
+        Row a = row(1, 10 * S, "");
+        Row b = row(2, 10 * S + 5, "");
+        Row c = row(3, 11 * S + 1, "");
+        Row late = row(9, 10 * S + 7, "");   // another thread's, arriving after the second had turned
+        Row d = row(4, 11 * S + 2, "");
+        Tape tape = Tape.EMPTY.add(List.of(a, b), b.atNanos(), Bench.RETAIN)
+                .add(List.of(c, late, d), d.atNanos(), Bench.RETAIN);
+        assertEquals(2, tape.seconds().size());
+        Messages.RowsAround around = tape.around("run", 10 * S + 7, 5);
+        assertEquals(List.of(a, b, late, c, d), around.rows(), "in order of time, the late one where it was stamped");
+        assertEquals(2, around.selected(), "the newest at or before the moment");
+        assertEquals(List.of(b, late, c, d), tape.newest("run", 4).rows(), "the newest, from where they arrived");
+        assertEquals(-1, Tape.EMPTY.around("run", 0L, 4).selected(), "none");
+    }
 }

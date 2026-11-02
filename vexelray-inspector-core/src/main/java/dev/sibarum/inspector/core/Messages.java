@@ -521,6 +521,51 @@ public final class Messages {
     }
 
     /**
+     * The ledger as of the cursor, for the threads panel (design.md section 5): an account a clock, each of the turn of
+     * that clock the cursor is in, cut into working, waiting, resting and unaccounted by the rows. A state topic, as
+     * the details are.
+     *
+     * @param run      the run attached, or empty when none is
+     * @param accounts one a clock, in {@link ClockLedger#CLOCKS}' order
+     */
+    public static final Topic<LedgerAt> LEDGER_TOPIC = Topic.state(LedgerAt.class);
+
+    public record LedgerAt(String run, List<Account> accounts) {
+
+        public static final LedgerAt NONE = new LedgerAt("", List.of());
+
+        public LedgerAt {
+            accounts = List.copyOf(accounts);
+        }
+    }
+
+    /**
+     * One clock's turn, cut by its thread's rows: a span counts once, as the innermost, so a wait inside a pass is
+     * waiting and not working. A figure the rows cannot fill is -1, never 0, which would read as none.
+     *
+     * @param clock       which clock, one of {@link ClockLedger#CLOCKS}
+     * @param turn        which turn, in words ({@code pass #298}); empty when no turn was found
+     * @param fromNanos   when the turn began, on the machine's clock
+     * @param toNanos     when the next began
+     * @param working     inside the clock's own span and no wait in it
+     * @param waiting     inside a wait on someone else: the GPU
+     * @param resting     parked with nothing to do, as an idle span says, or between draws for drawing
+     * @param unaccounted between rows, with nothing to say which
+     * @param recording   of the working, recording a draw's commands ({@code emit canvas}); -1 when it does none
+     * @param wakes       how many times it was woken; -1 when its rows do not say
+     * @param latency     from the first wake while it rested to the next turn's start; -1 when there was none
+     * @param note        what is not whole about it, in words; empty when nothing is
+     */
+    public record Account(String clock, String turn, long fromNanos, long toNanos, long working, long waiting,
+                          long resting, long unaccounted, long recording, int wakes, long latency, String note) {
+
+        /** {@code clock}, with no turn found, and why. */
+        public static Account none(String clock, String note) {
+            return new Account(clock, "", 0L, 0L, -1L, -1L, -1L, -1L, -1L, -1, -1L, note);
+        }
+    }
+
+    /**
      * The declared graph, lit by the traffic, as of the cursor: every part the run declares, and every topic with who
      * sends it, who hears it and how many messages crossed, for the graph and flows panels (design.md section 4). A
      * state topic, as the timeline is.

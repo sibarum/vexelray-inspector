@@ -253,6 +253,29 @@ public record Tape(List<Second> seconds) {
         return best;
     }
 
+    /**
+     * The rows stamped within {@code spanNanos} of {@code atNanos}, either side, in the order they were folded: read
+     * from the seconds that may hold them, the one after the last too, since a late row is kept where it arrived.
+     */
+    List<Row> near(long atNanos, long spanNanos) {
+        List<Row> out = new ArrayList<>();
+        long from = atNanos - spanNanos;
+        long to = atNanos + spanNanos;
+        for (int i = 0; i < seconds.size(); i++) {
+            Second s = seconds.get(i);
+            boolean ended = i + 1 < seconds.size() && seconds.get(i + 1).fromNanos() <= from;
+            if (ended || s.fromNanos() > to + SECOND) {
+                continue;
+            }
+            for (Row r : s.rows()) {
+                if (r.atNanos() >= from && r.atNanos() <= to) {
+                    out.add(r);
+                }
+            }
+        }
+        return out;
+    }
+
     /** The {@code count} newest rows, the newest selected, read from the last {@link #TAIL} to arrive. */
     RowsAround newest(String run, int count) {
         List<Row> before = new ArrayList<>(count + 1);

@@ -31,6 +31,9 @@ final class Landmarks {
     /** The rows panel: the raw rows around the cursor, the cursor's row in the accent. */
     static final String ROWS = "rows";
     static final String ROWS_BODY = "rows.body";
+
+    /** The threads panel: a line a clock, the turn of it the cursor is in, cut into the four states. */
+    static final String THREADS = "threads";
     static final String FLOWS_WHY = "flows.why";
 
     /** The graph panel: the declared parts and the arrows between them, drawn. */

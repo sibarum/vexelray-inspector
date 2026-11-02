@@ -18,6 +18,7 @@ import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.LedgerAt;
 import dev.sibarum.inspector.core.Messages.RowsAround;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
@@ -93,7 +94,8 @@ class BenchTest {
         Inbox heard = tick.inbox("heard");
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
                 Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC,
-                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC, Messages.ROWS_AROUND_TOPIC)) {
+                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC, Messages.ROWS_AROUND_TOPIC,
+                Messages.LEDGER_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -1115,6 +1117,31 @@ class BenchTest {
         assertEquals("", before.lane(Model.MAIN).marks().getLast().field(Model.DREW));
         assertEquals(201, beside.lane(Model.MAIN).marks().size());
         assertEquals(200, after.lane(Model.MAIN).marks().size(), "a fold beside another sees none of its events");
+    }
+
+    // ------------------------------------------------------------------ the threads panel
+
+    /** The last ledger sent. */
+    private LedgerAt ledger() {
+        return sent.stream().filter(LedgerAt.class::isInstance).map(LedgerAt.class::cast).toList().getLast();
+    }
+
+    @Test
+    void theLedgerIsOfTheNewestWholePassWhileFollowingAndOfTheCursorsWhenStopped() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            rows.add(new Row(i, i * 10 * MS, 0L, i, "main", "frame", "frame", "2ms", ""));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        LedgerAt live = ledger();
+        assertEquals(ClockLedger.CLOCKS, live.accounts().stream().map(Messages.Account::clock).toList());
+        Messages.Account newest = live.accounts().getFirst();
+        assertEquals("pass #4", newest.turn(), "following: the newest whole pass, since the newest has not ended");
+        assertEquals(2 * MS, newest.working());
+        assertEquals(8 * MS, newest.unaccounted(), "no rows said what the loop did between");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 25 * MS));
+        assertEquals("pass #2", ledger().accounts().getFirst().turn(), "stopped: the cursor's pass");
     }
 
     // ------------------------------------------------------------------ the rows panel

@@ -1,6 +1,7 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.core.Bench;
+import dev.sibarum.inspector.core.ClockLedger;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Gui;
@@ -62,6 +63,12 @@ import java.util.Objects;
  * on the path of the event it is on in the path's colour ({@link #rows}). The places stay and their text changes, so a
  * step rebuilds nothing.
  *
+ * <h2>The threads panel</h2>
+ *
+ * <p>Under the details and the rows, the full width: a place a clock, the turn of it the cursor is in, cut into
+ * working, waiting, resting and unaccounted, with recording's share and the wakes ({@link #threads}). Changed in
+ * place, as the rows panel is.
+ *
  * <h2>The readouts</h2>
  *
  * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
@@ -100,6 +107,11 @@ final class Ui {
     private static final List<Length> ROW_WIDTHS = List.of(Length.rem(7.5f), Length.rem(8f), Length.rem(5f),
             Length.rem(8f), Length.grow(1f), Length.rem(9f));
 
+    /** The threads panel's column widths, in {@link View#THREAD_COLUMNS}' order: the note takes what is left. */
+    private static final List<Length> THREAD_WIDTHS = List.of(Length.rem(7f), Length.rem(6.5f), Length.rem(5.5f),
+            Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(5f),
+            Length.rem(7.5f), Length.grow(1f));
+
     /** The flows table's column widths, in {@link View#FLOW_COLUMNS}' order: the names share what is left. */
     private static final List<Length> FLOW_WIDTHS = List.of(Length.grow(2f), Length.rem(5.5f), Length.grow(2f),
             Length.grow(3f), Length.rem(6.5f), Length.rem(6.5f), Length.rem(7f));
@@ -129,6 +141,11 @@ final class Ui {
     private List<Role> rowInks = List.of();
     /** Each realized cell's text, by place and column, to change in place as the cursor moves. */
     private final Map<Integer, Node[]> rowNodes = new HashMap<>();
+    private final Table<Integer> threads;
+    /** What each of the threads panel's places says, a cell a column, as {@link #threads} last set them. */
+    private List<List<String>> threadTexts = List.of();
+    /** Each realized cell's text, by place and column, to change in place as the cursor moves. */
+    private final Map<Integer, Node[]> threadNodes = new HashMap<>();
     /** The topics the path of the event the cursor is on crossed, whose names the flows table marks. */
     private java.util.Set<String> crossed = java.util.Set.of();
     /** The topics the flows table holds, in the order last given. */
@@ -215,6 +232,24 @@ final class Ui {
         Node cursorPanels = gui.row().width(Length.FILL).height(Length.rem(DETAILS_REM)).gap(Type.TIGHT)
                 .children(detailsPanel, rows.node());
 
+        List<Table.Column<Integer>> threadColumns = new ArrayList<>();
+        for (int i = 0; i < View.THREAD_COLUMNS.size(); i++) {
+            int at = i;
+            threadColumns.add(Table.Column.of(View.THREAD_COLUMNS.get(i), THREAD_WIDTHS.get(i), (nodes, place) -> {
+                Node text = nodes.text(cell(threadTexts, place, at)).textSize(Type.SMALL)
+                        .textColor(gui.theme().color(at == View.THREAD_COLUMNS.size() - 1 ? Role.DIM : Role.INK));
+                threadNodes.computeIfAbsent(place, p -> new Node[View.THREAD_COLUMNS.size()])[at] = text;
+                return text;
+            }));
+        }
+        threads = new Table<>(gui, ROW_REM, threadColumns).name(Landmarks.THREADS);
+        // Never focused, as the rows panel is not (FN-11).
+        gui.focusable(threads.rows().node(), false);
+        threads.headers(Type.UI, Type.SMALL, Role.DIM);
+        threads.node().width(Length.FILL).height(Length.rem(ROW_REM * (ClockLedger.CLOCKS.size() + 1) + 0.75f));
+        threads.items(java.util.stream.IntStream.range(0, ClockLedger.CLOCKS.size()).boxed().toList());
+        gui.landmark(Landmarks.THREADS, threads.node());
+
         warningText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
         gui.landmark(Landmarks.WARNING_TEXT, warningText);
         warning = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER).padding(Type.TIGHT)
@@ -265,7 +300,7 @@ final class Ui {
                 .children(graph, flowsPanel);
 
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(runPanel, warning, lanes, cursorPanels, readoutRow, panels);
+                .children(runPanel, warning, lanes, cursorPanels, threads.node(), readoutRow, panels);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -419,6 +454,28 @@ final class Ui {
                 }
             }
         }
+    }
+
+    /**
+     * What the threads panel says: a place a clock, each cell's text as {@code texts} gives it; a place past them is
+     * blank. In place, as the rows panel's.
+     */
+    void threads(List<List<String>> texts) {
+        List<List<String>> was = threadTexts;
+        threadTexts = List.copyOf(texts);
+        for (Map.Entry<Integer, Node[]> e : threadNodes.entrySet()) {
+            for (int i = 0; i < e.getValue().length; i++) {
+                String now = cell(threadTexts, e.getKey(), i);
+                if (e.getValue()[i] != null && !now.equals(cell(was, e.getKey(), i))) {
+                    e.getValue()[i].text(now);
+                }
+            }
+        }
+    }
+
+    /** What the threads panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */
+    List<String> threadCells(int place) {
+        return place < threadTexts.size() ? threadTexts.get(place) : List.of();
     }
 
     /** Where the rows panel's body is on the bus: what its clicks carry. */

@@ -9,6 +9,7 @@ import dev.sibarum.inspector.Keys.RowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
+import dev.sibarum.inspector.core.Messages.Account;
 import dev.sibarum.inspector.core.Messages.Choose;
 import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.Details;
@@ -21,6 +22,7 @@ import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.GoToRow;
 import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.LedgerAt;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
@@ -1256,6 +1258,43 @@ final class View {
             inks.add(i == r.selected() ? Role.ACCENT : t.has(r.rows().get(i)) ? Ui.PATH : Role.INK);
         }
         return inks;
+    }
+
+    /** The threads panel's columns, in order. */
+    static final List<String> THREAD_COLUMNS = List.of("Clock", "Turn", "Length", "Working", "Waiting", "Resting",
+            "Unaccounted", "Recording", "Wakes", "Wake to run", "Note");
+
+    @Subscribe
+    public void ledger(LedgerAt l) {
+        ui.threads(threadCells(l));
+    }
+
+    /**
+     * What the threads panel says, a line a clock, a cell for each of {@link #THREAD_COLUMNS}: the turn and how long
+     * it was, each state's time and its share of the turn, recording's, the wakes and how long the first took to run,
+     * and what is not whole. A figure the rows cannot fill is blank. Pure, for a test.
+     */
+    static List<List<String>> threadCells(LedgerAt l) {
+        List<List<String>> cells = new ArrayList<>(l.accounts().size());
+        for (Account a : l.accounts()) {
+            long length = a.toNanos() - a.fromNanos();
+            cells.add(List.of(a.clock(), a.turn(), a.turn().isEmpty() ? "" : millis(length),
+                    share(a.working(), length), share(a.waiting(), length), share(a.resting(), length),
+                    share(a.unaccounted(), length), share(a.recording(), length),
+                    a.wakes() < 0 ? "" : Integer.toString(a.wakes()), a.latency() < 0 ? "" : millis(a.latency()),
+                    a.note()));
+        }
+        return cells;
+    }
+
+    private static String millis(long nanos) {
+        return String.format(Locale.ROOT, "%.2f ms", nanos / 1e6);
+    }
+
+    /** {@code nanos} and its share of {@code length}: blank when the rows cannot say it. */
+    private static String share(long nanos, long length) {
+        return nanos < 0 || length <= 0 ? ""
+                : String.format(Locale.ROOT, "%.2f ms %3d%%", nanos / 1e6, Math.round(100.0 * nanos / length));
     }
 
     /** The flows table's columns, in order. */

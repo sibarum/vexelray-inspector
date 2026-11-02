@@ -202,6 +202,22 @@ class ViewTest {
     }
 
     @Test
+    void theThreadsPanelSaysEachClocksTurnItsStatesAndTheirSharesAndLeavesBlankWhatIsNotKnown()
+            throws InterruptedException {
+        long ms = 1_000_000L;
+        Messages.LedgerAt l = new Messages.LedgerAt("run", List.of(
+                new Messages.Account(Model.MAIN, "pass #7", 0L, 10 * ms, 3 * ms, ms / 2, 5 * ms, 3 * ms / 2, ms, 1,
+                        3 * ms / 2, ""),
+                Messages.Account.none(Model.DRAWING, "no whole draw within a second of the cursor")));
+        assertEquals(List.of(List.of(Model.MAIN, "pass #7", "10.00 ms", "3.00 ms  30%", "0.50 ms   5%",
+                        "5.00 ms  50%", "1.50 ms  15%", "1.00 ms  10%", "1", "1.50 ms", ""),
+                List.of(Model.DRAWING, "", "", "", "", "", "", "", "", "",
+                        "no whole draw within a second of the cursor")), View.threadCells(l));
+        shell.bus().publish(Messages.LEDGER_TOPIC, l);
+        eventually("the ledger shown", () -> wiring.ui().threadCells(0).equals(View.threadCells(l).get(0)));
+    }
+
+    @Test
     void onARowTheDetailsSayTheRowAndItsThread() {
         Messages.Row r = new Messages.Row(42, 1_000L, 0L, 3L, "vexel-logic", "bus", "tick.ran", "#5 1 rounds 2 delivered",
                 "c1.i01.1");

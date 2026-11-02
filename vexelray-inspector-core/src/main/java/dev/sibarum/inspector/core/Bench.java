@@ -19,6 +19,7 @@ import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Replay;
 import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.LedgerAt;
 import dev.sibarum.inspector.core.Messages.RowsAround;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
@@ -83,7 +84,7 @@ import java.util.Optional;
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
-        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class})
+        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -356,6 +357,16 @@ public final class Bench {
                 return new RowsAround(run, List.of(), -1);
             }
             return paused ? island.tape().around(run, row.orElse(Tape.key(cursor)), AROUND) : tape.newest(run, AROUND);
+        }
+
+        /** The ledger of each clock's turn the cursor is in; following, of the newest whole turns. */
+        LedgerAt ledger() {
+            Tape at = paused ? island.tape() : tape;
+            if (at.isEmpty()) {
+                return new LedgerAt(run, List.of());
+            }
+            long moment = paused ? cursor : now.newestNanos();
+            return ClockLedger.at(run, at.near(moment, ClockLedger.SPAN), moment);
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -776,7 +787,7 @@ public final class Bench {
         return (s.arriving() ? "Inspecting " : "Attaching to ") + named(s.title(), s.run());
     }
 
-    /** Tell the view the timeline, the readouts, the details, the path and the flows, all as of the cursor. */
+    /** Tell the view the timeline, readouts, details, path, flows, rows and ledger, all as of the cursor. */
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
         Model at = s.atCursor();
@@ -786,6 +797,7 @@ public final class Bench {
         out.send(Messages.DETAILS_TOPIC, s.details(hops));
         out.send(Messages.TRACED_TOPIC, s.traced(hops));
         out.send(Messages.ROWS_AROUND_TOPIC, s.rowsAround());
+        out.send(Messages.LEDGER_TOPIC, s.ledger());
         return panel(s, out);
     }
 

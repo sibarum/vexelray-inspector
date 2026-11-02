@@ -588,10 +588,12 @@ class ViewTest {
 
     @Test
     void theReadoutsAreOneLineOfNumbers() {
-        assertEquals("Draws 57/s, held 3 for the ceiling and 0 for the GPU   Ticks 120/s, p50 0.45 ms, p95 1.20 ms"
+        assertEquals("Draws 57/s, held 3 for the ceiling and 0 for the GPU, recording p50 0.50 ms, p95 0.62 ms"
+                        + "   Ticks 120/s, p50 0.45 ms, p95 1.20 ms"
                         + "   Rows lost 0",
-                View.readout(new Readouts("r", 57, 3, 0, 120, 450_000, 1_200_000, 0)));
-        assertEquals("", View.readout(new Readouts("", 0, 0, 0, 0, 0, 0, 0)), "nothing attached and nothing read");
+                View.readout(new Readouts("r", 57, 3, 0, 500_000, 620_000, 120, 450_000, 1_200_000, 0)));
+        assertEquals("", View.readout(new Readouts("", 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+                "nothing attached and nothing read");
     }
 
     @Test

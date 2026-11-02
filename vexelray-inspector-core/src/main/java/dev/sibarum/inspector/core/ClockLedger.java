@@ -16,7 +16,8 @@ import java.util.List;
  * <h2>A turn</h2>
  *
  * <p>From one of the clock's own spans' start to the next one's: a pass's {@code frame} zone for the main thread, a
- * draw's {@code present frame} zone for drawing. A zone writes its row when it ends, with how long it took, so it runs
+ * draw's {@code present frame} zone for drawing, a {@code tick} zone on the logic lane's own thread for the logic. A
+ * zone writes its row when it ends, with how long it took, so it runs
  * back from the row by that long. When the moment's turn has not ended in the rows read, the turn before it is the
  * one accounted, and says so.
  *
@@ -31,6 +32,10 @@ import java.util.List;
  *   <li><b>Unaccounted</b>: the rest of the turn, between rows. Shown, never shared out among the other three.</li>
  * </ul>
  *
+ * <p>The logic lane's thread parks between ticks with no row (framework-notes FN-17), so all of a tick's turn but
+ * the tick is unaccounted; under {@code --logic=main} its ticks cannot be told from the widgets' (FN-8), and its line
+ * says so. A job writes no rows at all (FN-15), and says so rather than show a turn of nothing.
+ *
  * <p>Of the working, <b>recording</b> is the {@code emit canvas} zone, the draw's commands recorded on the CPU: fork 8
  * left it on the thread, to be measured before any render-thread talk, and this is that measurement.
  *
@@ -40,7 +45,13 @@ import java.util.List;
 public final class ClockLedger {
 
     /** The clocks the ledger accounts for, in the order the panel shows them. */
-    public static final List<String> CLOCKS = List.of(Model.MAIN, Model.DRAWING);
+    public static final List<String> CLOCKS = List.of(Model.MAIN, Model.LOGIC, Model.DRAWING, ClockLedger.JOBS);
+
+    /** The job lane's clock, which has no lane on the timeline. */
+    public static final String JOBS = "Jobs";
+
+    /** A tick's deadline: still atchung's 8 ms placeholder (ROADMAP phase 4). */
+    static final long TICK_DEADLINE = 8_000_000L;
 
     /** How far either side of the moment its rows are read: a turn longer than this is not found. */
     static final long SPAN = 1_000_000_000L;
@@ -53,6 +64,7 @@ public final class ClockLedger {
     static final String WAKE = "wake";
     static final String DRAW_ZONE = "present frame";
     static final String RECORDING = "emit canvas";
+    static final String TICK_ZONE = "tick";
 
     private ClockLedger() {
     }
@@ -61,9 +73,54 @@ public final class ClockLedger {
     private record Span(long from, long to, Row row) {
     }
 
-    /** The ledger of {@code run} as of {@code atNanos}, from {@code rows}, those stamped near it in any order. */
-    static LedgerAt at(String run, List<Row> rows, long atNanos) {
-        return new LedgerAt(run, List.of(main(rows, atNanos), drawing(rows, atNanos)));
+    /**
+     * The ledger of {@code run} as of {@code atNanos}, from {@code rows}, those stamped near it in any order; its
+     * logic ticks are those on {@code logicThread}, empty when no row has shown one off the main thread.
+     */
+    static LedgerAt at(String run, List<Row> rows, long atNanos, String logicThread) {
+        return new LedgerAt(run, List.of(main(rows, atNanos), logic(rows, atNanos, logicThread),
+                drawing(rows, atNanos), Account.none(JOBS, "a job writes no rows (FN-15)")));
+    }
+
+    /**
+     * The logic lane's tick {@code atNanos} is in, from its start to the next one's: the tick's zone is its work, and
+     * the rest is unaccounted, since the lane's thread parks between ticks without a row (FN-17).
+     */
+    static Account logic(List<Row> rows, long atNanos, String logicThread) {
+        if (logicThread.isEmpty()) {
+            return Account.none(Model.LOGIC, "no tick off the main thread in the reach: idle, or --logic=main,"
+                    + " whose ticks cannot be told from the widgets' (FN-8)");
+        }
+        List<Span> ticks = spans(rows, "bus", TICK_ZONE, logicThread);
+        int i = turn(ticks, atNanos);
+        if (i < 0) {
+            return Account.none(Model.LOGIC, "no whole tick within a second of the cursor: idle");
+        }
+        Span tick = ticks.get(i);
+        long from = tick.from();
+        long to = ticks.get(i + 1).from();
+        String number = "";
+        for (Row r : rows) {
+            if (r.kind().equals(Model.TICK_RAN) && r.thread().equals(logicThread) && r.atNanos() >= tick.to()
+                    && r.atNanos() < to) {
+                number = Model.numberOf(r);
+                break;
+            }
+        }
+        long working = overlap(tick, from, to);
+        String note = note(ticks, i, atNanos, "tick");
+        String parks = "its park writes no row (FN-17)";
+        String over = tick.to() - tick.from() > TICK_DEADLINE ? "; over its 8 ms deadline" : "";
+        return new Account(Model.LOGIC, Model.TICK + (number.isEmpty() ? "" : " " + number), from, to, working, -1L,
+                -1L, unaccounted(from, to, working, 0L, 0L), -1L, -1, -1L,
+                (note.isEmpty() ? parks : note + "; " + parks) + over);
+    }
+
+    /** How long each draw's commands took to record over the second before {@code atNanos}, shortest first. */
+    static long[] recordings(List<Row> rows, long atNanos) {
+        return rows.stream().filter(r -> r.lane().equals("draw") && r.kind().equals(RECORDING)
+                        && r.atNanos() > atNanos - Model.READOUT_NANOS && r.atNanos() <= atNanos)
+                .mapToLong(r -> Durations.nanos(r.detail())).filter(n -> n >= 0).sorted().toArray();
     }
 
     /** The main thread's pass {@code atNanos} is in, from its start to the next one's. */
@@ -174,7 +231,7 @@ public final class ClockLedger {
     /** What to say of the turn: that it is the one before the moment's, when that one had not ended. */
     private static String note(List<Span> spans, int i, long atNanos, String what) {
         return i + 1 < spans.size() && spans.get(i + 1).from() <= atNanos
-                ? "the " + what + " before the cursor's, which had not ended in the rows read" : "";
+                ? "the " + what + " before: the cursor's had not ended" : "";
     }
 
     /** How much of {@code from..to} the spans of a kind among {@code kinds} (any, when null) cover. */

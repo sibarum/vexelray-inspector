@@ -68,9 +68,36 @@ class ClockLedgerTest {
         Account main = ClockLedger.main(rows, B + 30_000 * US);
         assertEquals("pass #8", main.turn());
         assertEquals(B + 20_000 * US, main.toNanos());
-        assertEquals("the pass before the cursor's, which had not ended in the rows read", main.note());
+        assertEquals("the pass before: the cursor's had not ended", main.note());
         assertEquals(Account.none(Model.MAIN, "no whole pass within a second of the cursor"),
                 ClockLedger.main(rows, B - 1), "before the first pass");
+    }
+
+    @Test
+    void aTickIsItsWorkAndTheParkBetweenTicksIsUnaccountedSinceNoRowSaysItAndOneOverItsDeadlineSaysSo() {
+        row(1000, 1, "vexel-logic", "bus", "tick", "1ms");
+        row(1010, 1, "vexel-logic", "bus", "tick.ran", "#5 2 rounds 3 delivered");
+        row(14000, 2, "vexel-logic", "bus", "tick", "9ms");
+        row(14010, 2, "vexel-logic", "bus", "tick.ran", "#6 1 rounds 1 delivered");
+        row(15000, 2, "main", "bus", "tick", "100us");
+        row(20500, 3, "vexel-logic", "bus", "tick", "500us");
+        assertEquals(new Account(Model.LOGIC, "tick #5", B, B + 5_000 * US, 1_000 * US, -1L, -1L, 4_000 * US, -1L, -1,
+                -1L, "its park writes no row (FN-17)"), ClockLedger.logic(rows, B + 2_000 * US, "vexel-logic"),
+                "the widgets' tick on main is not the logic's");
+        Account over = ClockLedger.logic(rows, B + 6_000 * US, "vexel-logic");
+        assertEquals("tick #6", over.turn());
+        assertEquals("its park writes no row (FN-17); over its 8 ms deadline", over.note());
+        assertEquals("", ClockLedger.logic(rows, B + 2_000 * US, "").turn(), "no logic thread known");
+    }
+
+    @Test
+    void theLedgerHasEveryClockAndJobsSayTheyWriteNoRowsAndRecordingIsReadForTheReadouts() {
+        twoPassesAndTheirDraws();
+        Messages.LedgerAt l = ClockLedger.at("run", rows, B + 5000 * US, "");
+        assertEquals(ClockLedger.CLOCKS, l.accounts().stream().map(Account::clock).toList());
+        assertEquals(Account.none(ClockLedger.JOBS, "a job writes no rows (FN-15)"), l.accounts().getLast());
+        assertEquals(List.of(1_000 * US), java.util.Arrays.stream(ClockLedger.recordings(rows, B + 5000 * US)).boxed()
+                .toList(), "the one draw recorded in the second before");
     }
 
     @Test

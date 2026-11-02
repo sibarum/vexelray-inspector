@@ -227,15 +227,24 @@ public final class Bench {
         }
     }
 
+    /** The thread {@code kept}'s logic ticks ran on, as far as its rows tell; empty when none ran off main. */
+    static String logicThread(Model kept) {
+        for (Mark m : kept.lane(Model.LOGIC).marks()) {
+            if (!m.thread().isEmpty()) {
+                return m.thread();
+            }
+        }
+        return "";
+    }
+
     /**
      * Where {@code kept}'s logic ticks ran, as far as its rows tell, in words; empty before any row. A tick on the main
      * thread cannot be told from the widgets' (framework-notes FN-8), so a lane with none says what that leaves open.
      */
     static String logicOf(Model kept, boolean noRows) {
-        for (Mark m : kept.lane(Model.LOGIC).marks()) {
-            if (!m.thread().isEmpty()) {
-                return "logic on its own lane, " + m.thread();
-            }
+        String thread = logicThread(kept);
+        if (!thread.isEmpty()) {
+            return "logic on its own lane, " + thread;
         }
         if (noRows) {
             return "";
@@ -360,13 +369,19 @@ public final class Bench {
         }
 
         /** The ledger of each clock's turn the cursor is in; following, of the newest whole turns. */
-        LedgerAt ledger() {
-            Tape at = paused ? island.tape() : tape;
-            if (at.isEmpty()) {
-                return new LedgerAt(run, List.of());
-            }
-            long moment = paused ? cursor : now.newestNanos();
-            return ClockLedger.at(run, at.near(moment, ClockLedger.SPAN), moment);
+        LedgerAt ledger(List<Row> near) {
+            return tape.isEmpty() && island.tape().isEmpty() ? new LedgerAt(run, List.of())
+                    : ClockLedger.at(run, near, moment(), logicThread(kept));
+        }
+
+        /** The cursor's moment, the newest row's while following. */
+        long moment() {
+            return paused ? cursor : now.newestNanos();
+        }
+
+        /** The rows stamped within {@link ClockLedger#SPAN} of the cursor's moment, for the ledger and the readouts. */
+        List<Row> near() {
+            return (paused ? island.tape() : tape).near(moment(), ClockLedger.SPAN);
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -791,13 +806,14 @@ public final class Bench {
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
         Model at = s.atCursor();
-        out.send(Messages.READOUTS_TOPIC, at.readouts(s.run()));
+        List<Row> near = s.near();
+        out.send(Messages.READOUTS_TOPIC, at.readouts(s.run(), ClockLedger.recordings(near, at.newestNanos())));
         out.send(Messages.FLOWS_TOPIC, s.flows(at));
         List<Model.Hop> hops = s.hops();
         out.send(Messages.DETAILS_TOPIC, s.details(hops));
         out.send(Messages.TRACED_TOPIC, s.traced(hops));
         out.send(Messages.ROWS_AROUND_TOPIC, s.rowsAround());
-        out.send(Messages.LEDGER_TOPIC, s.ledger());
+        out.send(Messages.LEDGER_TOPIC, s.ledger(near));
         return panel(s, out);
     }
 

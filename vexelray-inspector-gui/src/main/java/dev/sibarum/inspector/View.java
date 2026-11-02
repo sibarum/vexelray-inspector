@@ -1352,9 +1352,10 @@ final class View {
         if (r.run().isEmpty() && r.draws() == 0 && r.ticks() == 0) {
             return "";
         }
-        return String.format(Locale.ROOT, "Draws %d/s, held %d for the ceiling and %d for the GPU   Ticks %d/s, "
-                        + "p50 %.2f ms, p95 %.2f ms   Rows lost %d", r.draws(), r.heldForCeiling(), r.heldForGpu(),
-                r.ticks(), r.tickP50Nanos() / 1e6, r.tickP95Nanos() / 1e6, r.rowsLost());
+        return String.format(Locale.ROOT, "Draws %d/s, held %d for the ceiling and %d for the GPU, recording p50 %.2f"
+                        + " ms, p95 %.2f ms   Ticks %d/s, p50 %.2f ms, p95 %.2f ms   Rows lost %d", r.draws(),
+                r.heldForCeiling(), r.heldForGpu(), r.recordingP50Nanos() / 1e6, r.recordingP95Nanos() / 1e6, r.ticks(),
+                r.tickP50Nanos() / 1e6, r.tickP95Nanos() / 1e6, r.rowsLost());
     }
 
     /**

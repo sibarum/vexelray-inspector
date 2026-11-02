@@ -1153,8 +1153,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
     }
 
-    /** The readouts over the second before this model's moment. */
-    Readouts readouts(String run) {
+    /**
+     * The readouts over the second before this model's moment, with {@code recordings}, how long each draw's commands
+     * took to record then, shortest first ({@link ClockLedger#recordings}).
+     */
+    Readouts readouts(String run, long[] recordings) {
         long from = newestNanos - READOUT_NANOS;
         int draws = 0;
         int ceiling = 0;
@@ -1170,8 +1173,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         long[] ticks = lane(LOGIC).marks().stream().filter(m -> m.toNanos() > from)
                 .mapToLong(m -> m.toNanos() - m.fromNanos()).toArray();
         Arrays.sort(ticks);
-        return new Readouts(run, draws, ceiling, gpu, ticks.length, percentile(ticks, 0.50), percentile(ticks, 0.95),
-                lost);
+        return new Readouts(run, draws, ceiling, gpu, percentile(recordings, 0.50), percentile(recordings, 0.95),
+                ticks.length, percentile(ticks, 0.50), percentile(ticks, 0.95), lost);
     }
 
     /** The {@code p} percentile of {@code sorted}, nearest rank; 0 when empty. */

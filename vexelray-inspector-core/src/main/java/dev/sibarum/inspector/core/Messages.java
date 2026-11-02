@@ -389,6 +389,8 @@ public final class Messages {
      * @param draws          draws in the second
      * @param heldForCeiling draws held for the ceiling in it: pacing doing its job
      * @param heldForGpu     draws held for the GPU in it: the GPU being slow
+     * @param recordingP50Nanos how long recording a draw's commands took ({@code emit canvas}), the median; 0 with none
+     * @param recordingP95Nanos the 95th percentile; 0 with none
      * @param ticks          logic ticks in it
      * @param tickP50Nanos   how long they took, the median; 0 with none
      * @param tickP95Nanos   the 95th percentile; 0 with none
@@ -396,8 +398,8 @@ public final class Messages {
      */
     public static final Topic<Readouts> READOUTS_TOPIC = Topic.state(Readouts.class);
 
-    public record Readouts(String run, int draws, int heldForCeiling, int heldForGpu, int ticks, long tickP50Nanos,
-                           long tickP95Nanos, long rowsLost) {
+    public record Readouts(String run, int draws, int heldForCeiling, int heldForGpu, long recordingP50Nanos,
+                           long recordingP95Nanos, int ticks, long tickP50Nanos, long tickP95Nanos, long rowsLost) {
     }
 
     /**

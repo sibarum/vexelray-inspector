@@ -220,3 +220,15 @@ tick a number is, the same fact as FN-8 from the other side. Worked around by re
 (`Model.setOnTick`, `Model.hopsOf`), so under `--logic=main` the Logic lane stays empty and a path's hops on `main`
 name no tick. `Atchung.tick(name, arrival)` could take a name and write it in the row (`#12 logic 2 rounds ...`);
 the framework would name its own (`logic`, `widgets`, `senders`), and FN-8 would go with it.
+
+## FN-17 · The logic lane's thread parks between ticks without a row 🔬
+
+The threads panel (R5) cuts each clock's turn into working, waiting, resting and unaccounted by its thread's rows.
+The main loop's park is a row, `wait for events` (an idle zone), so the main thread's rest is measured. The logic
+lane's coordinator parks in `Logic.runUntilStopped` (`LockSupport.parkNanos`, at most `PARK_NANOS` before it looks
+again) and writes nothing, and the unpark that ends it (`Logic.arrived`) writes nothing either. From the rows, a tick's
+turn is its `tick` zone and then a gap that could be rest, a stall or the scheduler, and the wakes and their latency
+cannot be read. Worked around by calling that gap unaccounted, never resting, with the note "its park writes no row
+(FN-17)", and by leaving the logic lane's wakes blank. The park could be `Probe.idleZone(Lane.BUS, "logic park")`
+around the `parkNanos`, as the loop's is, and `arrived` a `wake` mark naming the thread it unparked; the ledger would
+then read the logic lane's rest and wakes exactly as it reads the main thread's.

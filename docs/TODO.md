@@ -8,14 +8,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] At about 40,000 rows a second the bench fell behind (its newest row 6 s old after a minute), before the fold
-      stopped copying (a batch now 0.05 ms rather than 0.8). Watch an Inspector watching one again; if it still falls
-      behind, whether a batch should fold more than one link batch at a time.
+- [ ] The link's slowest batch grew over a 90 s watch at 31,000 to 48,000 rows a second, from 11 ms to 101 ms behind
+      its newest row (p50 0.7 ms and p95 under 7 ms throughout): find whose pause it is, the watcher's or the target's.
 - [ ] A minute of tape at 19,000 rows a second holds about 109 MB, so the 5 min reach design.md section 8 offered
       would not fit: rows kept as columns, or a coarser tape past the last minute, before the reach is made choosable.
-- [ ] An Inspector folding 19,000 rows a second drew 29 times a second instead of 55 once its tape was full,
-      101 passes a second holding a draw for the GPU (another Inspector drawing beside it): measure what a picture of the full strip costs to
-      record and to draw.
 - [ ] The Drawing lane is every window's draws together: a run with several windows (W1's notes and palette) cannot
       say which drew. A band per window, or the window as a field of the draw, once the rows say it.
 - [ ] The Messages lane's moments are drawn by how many share a pixel now, but its event highlight is still lost in a

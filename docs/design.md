@@ -541,6 +541,11 @@ Each step ends with something to watch or something an agent can ask, and lands 
   flat as the tape fills** (from 3.2 to 10 KB), a batch in p50 0.04 to 0.07 ms, p95 0.05 to 0.3 ms (from 0.41 to
   0.78 ms), the same 54,202 events kept at 70 s, and a minute of tape holding about 109 MB (from 145). A path reads in
   5 to 12 ms (92 ms over every row of the tape, 44 ms with each cause's hash compared first, before the filter).
+  **Watched live again**, an Inspector replaying the 96 s loop watched by another at 31,000 to 48,000 rows a second:
+  the watcher kept up throughout, its newest row within a few hundred ms of the clock past the tape's first minute
+  (6 s behind before), no row lost; the replaying one drew 49 to 55 times a second after its tape was full (29
+  before), so the fall in draws was the allocation's. The link's p50 was 0.6 to 0.8 ms and p95 under 7 ms, but its
+  slowest batch grew from 11 ms to 101 ms over the run, a TODO entry.
   **Inspected W1 to W3 in both modes, 2026-11-02**, each launched by `--launch` from the witness projects the
   acceptance profile generates, driven by `ottermate` on its own buttons while the Inspector watched. *W3 (long run)*,
   running: 57 draws a second under the ceiling and 139 passes a second held for it, logic ticks on `vexel-logic` at p50

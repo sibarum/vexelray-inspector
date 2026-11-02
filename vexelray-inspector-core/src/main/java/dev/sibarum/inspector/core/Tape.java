@@ -196,6 +196,12 @@ public record Tape(List<Second> seconds) {
      * either side: a row later than that by a second is not found.
      */
     RowsAround around(String run, long atNanos, int count) {
+        return around(run, key(atNanos), count);
+    }
+
+    /** As {@link #around(String, long, int)}, about {@code pivot}: a row kept, selected, or a {@link #key}. */
+    RowsAround around(String run, Row pivot, int count) {
+        long atNanos = pivot.atNanos();
         List<Row> before = new ArrayList<>(count + 1);
         List<Row> after = new ArrayList<>(count + 1);
         int at = 0;
@@ -204,7 +210,7 @@ public record Tape(List<Second> seconds) {
         }
         for (int i = Math.max(0, at - 1); i <= Math.min(seconds.size() - 1, at + 1); i++) {
             for (Row r : seconds.get(i).rows()) {
-                if (r.atNanos() <= atNanos) {
+                if (ORDER.compare(r, pivot) <= 0) {
                     keep(before, r, count, true);
                 } else {
                     keep(after, r, count, false);
@@ -212,6 +218,39 @@ public record Tape(List<Second> seconds) {
             }
         }
         return window(run, before, after, count);
+    }
+
+    /**
+     * What a moment is among rows in {@link #ORDER}: after every row stamped then, and before every row stamped later.
+     */
+    static Row key(long atNanos) {
+        return new Row(Long.MAX_VALUE, atNanos, "", "", "", "");
+    }
+
+    /**
+     * The row next after {@code from} in {@link #ORDER}, or the one before it when {@code back}; null when there is none.
+     * Read from the second {@code from} is in onward, or back from the one after it, since a late row is kept a second
+     * after it was stamped, until a second has one and the next has been read too.
+     */
+    Row next(Row from, boolean back) {
+        int at = 0;
+        while (at + 1 < seconds.size() && seconds.get(at + 1).fromNanos() <= from.atNanos()) {
+            at++;
+        }
+        Row best = null;
+        int more = -1;
+        for (int i = back ? Math.min(at + 1, seconds.size() - 1) : at; i >= 0 && i < seconds.size() && more != 0;
+                i += back ? -1 : 1) {
+            for (Row r : seconds.get(i).rows()) {
+                int c = ORDER.compare(r, from);
+                if (back ? c < 0 && (best == null || ORDER.compare(r, best) > 0)
+                        : c > 0 && (best == null || ORDER.compare(r, best) < 0)) {
+                    best = r;
+                }
+            }
+            more = best == null ? -1 : more < 0 ? 1 : more - 1;
+        }
+        return best;
     }
 
     /** The {@code count} newest rows, the newest selected, read from the last {@link #TAIL} to arrive. */

@@ -201,6 +201,19 @@ class ViewTest {
         assertEquals(List.of(), wiring.ui().rowCells(3), "a place past them blank");
     }
 
+    @Test
+    void onARowTheDetailsSayTheRowAndItsThread() {
+        Messages.Row r = new Messages.Row(42, 1_000L, 0L, 3L, "vexel-logic", "bus", "tick.ran", "#5 1 rounds 2 delivered",
+                "c1.i01.1");
+        List<String> said = View.details(new Details("run", 1_000L, 0L, -1L, Optional.empty(), Optional.of(r)),
+                ZoneId.of("UTC"));
+        assertEquals("row", said.get(View.DETAILS.indexOf(Model.TYPE)));
+        assertEquals("#42 · bus · tick.ran · #5 1 rounds 2 delivered   (c1.i01.1)", said.get(View.DETAILS.indexOf(View.ROW)));
+        assertEquals("vexel-logic", said.get(View.DETAILS.indexOf(Model.THREAD)));
+        assertEquals("", View.details(new Details("run", 1_000L, 0L, -1L, Optional.empty()), ZoneId.of("UTC"))
+                .get(View.DETAILS.indexOf(View.ROW)), "on no row, its line hidden");
+    }
+
     private static String cellOf(Ui ui, String topic, int column) {
         List<String> cells = ui.flowCells(topic);
         return cells.isEmpty() ? "" : cells.get(column);

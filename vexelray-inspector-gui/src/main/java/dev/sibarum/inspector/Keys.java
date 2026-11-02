@@ -35,6 +35,11 @@ final class Keys {
         static final Topic<ZoomKey> TOPIC = Topic.edge(ZoomKey.class);
     }
 
+    /** Up or Down: step the cursor onto the next or previous row, {@code by} of them, back when negative. */
+    record RowKey(int by) {
+        static final Topic<RowKey> TOPIC = Topic.edge(RowKey.class);
+    }
+
     /** An arrow: step the cursor onto the next or previous event, {@code by} of them, back when negative. */
     record EventKey(int by) {
         static final Topic<EventKey> TOPIC = Topic.edge(EventKey.class);

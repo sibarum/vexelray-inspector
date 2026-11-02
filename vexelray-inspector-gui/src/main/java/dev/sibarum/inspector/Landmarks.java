@@ -30,6 +30,7 @@ final class Landmarks {
 
     /** The rows panel: the raw rows around the cursor, the cursor's row in the accent. */
     static final String ROWS = "rows";
+    static final String ROWS_BODY = "rows.body";
     static final String FLOWS_WHY = "flows.why";
 
     /** The graph panel: the declared parts and the arrows between them, drawn. */

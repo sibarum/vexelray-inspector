@@ -5,6 +5,7 @@ import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
 import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.FollowKey;
+import dev.sibarum.inspector.Keys.RowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
@@ -18,6 +19,7 @@ import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
+import dev.sibarum.inspector.core.Messages.GoToRow;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
@@ -30,6 +32,7 @@ import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
+import dev.sibarum.inspector.core.Messages.StepRow;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Messages.Traced;
 import dev.sibarum.inspector.core.Model;
@@ -46,6 +49,7 @@ import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
 import dev.vexelray.gui.widget.Button;
+import dev.vexelray.gui.widget.ListView;
 import dev.vexelray.gui.widget.Select;
 import dev.vexelray.canvas.Color;
 import sibarum.atchung.Sender;
@@ -203,6 +207,8 @@ final class View {
     private final Sender<Step> step;
     private final Sender<StepEvent> stepEvent;
     private final Sender<GoTo> goTo;
+    private final Sender<StepRow> stepRow;
+    private final Sender<GoToRow> goToRow;
     private final Sender<Seek> seek;
     private final Sender<Choose> choose;
     private final Sender<Leave> leave;
@@ -230,9 +236,9 @@ final class View {
     private long pressWindow = -1L;
 
     View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey, Sender<EventKey> eventKey,
-         Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<Pause> pause, Sender<Follow> follow,
-         Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek, Sender<Choose> choose,
-         Sender<Leave> leave) {
+         Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
+         Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
+         Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -240,6 +246,8 @@ final class View {
         this.step = step;
         this.stepEvent = stepEvent;
         this.goTo = goTo;
+        this.stepRow = stepRow;
+        this.goToRow = goToRow;
         this.seek = seek;
         this.choose = choose;
         this.leave = leave;
@@ -271,6 +279,8 @@ final class View {
         gui.shortcut(Shortcut.of(Key.RIGHT), eventKey, new EventKey(1));
         gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-1));
         gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), stepKey, new StepKey(1));
+        gui.shortcut(Shortcut.of(Key.UP), rowKey, new RowKey(-1));
+        gui.shortcut(Shortcut.of(Key.DOWN), rowKey, new RowKey(1));
         gui.shortcut(Shortcut.of(Key.EQUAL), zoomKey, new ZoomKey(true));
         gui.shortcut(Shortcut.of(Key.MINUS), zoomKey, new ZoomKey(false));
     }
@@ -336,6 +346,25 @@ final class View {
         pressedAt = now;
         pressWindow = -1L;
         stepEvent.send(new StepEvent(focus, key.by(), (long) state.edge().rest(now, Glide.window(0.0))));
+    }
+
+    /** Up or Down: ask the bench to step the cursor onto the next or previous row, from where the lane would rest. */
+    @Subscribe
+    public void rowKey(RowKey key) {
+        long now = System.nanoTime();
+        pressedAt = now;
+        pressWindow = -1L;
+        stepRow.send(new StepRow(key.by(), (long) state.edge().rest(now, Glide.window(0.0))));
+    }
+
+    /** A click on a row of the rows panel: ask the bench to put the cursor on the row shown there. */
+    @Subscribe
+    public void rowClicked(ListView.Clicked c) {
+        if (c.list().equals(ui.rowsAddress()) && c.item() instanceof Integer place && place < rowsAround.rows().size()) {
+            pressedAt = System.nanoTime();
+            pressWindow = -1L;
+            goToRow.send(new GoToRow(rowsAround.rows().get(place)));
+        }
     }
 
     /** {@code =} or {@code -}: halve or double what the lane spans, about its right edge, gliding there. */
@@ -1065,11 +1094,14 @@ final class View {
     /** The details panel's clock row, the one row that is not a field of the event. */
     static final String CLOCK = "Clock time";
 
+    /** The details panel's row for the row the cursor is on, after a step by rows: not a field of an event either. */
+    static final String ROW = "Row";
+
     /**
-     * The details panel's labels, top to bottom: the clock, then the event schema's fields ({@code Model.FIELDS}), a
-     * row each, shown only while the event at the cursor has that field.
+     * The details panel's labels, top to bottom: the clock, the row the cursor is on, then the event schema's fields
+     * ({@code Model.FIELDS}), a row each, shown only while the cursor is on a row, or on an event that has that field.
      */
-    static final List<String> DETAILS = java.util.stream.Stream.concat(java.util.stream.Stream.of(CLOCK),
+    static final List<String> DETAILS = java.util.stream.Stream.concat(java.util.stream.Stream.of(CLOCK, ROW),
             Model.FIELDS.stream()).toList();
 
     /** What the type row says when the cursor is on no event. */
@@ -1098,7 +1130,7 @@ final class View {
         }
         traced = t;
         ui.crossed(crossedTopics(t));
-        ui.rows(rowCells(rowsAround), rowInks(rowsAround, traced));
+        ui.rows(rowCells(rowsAround), rowInks(rowsAround, traced), rowsAround.selected());
         ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
         show();
     }
@@ -1120,6 +1152,15 @@ final class View {
         }
         String clock = d.clockNanos() < 0 ? "not said by the run" : clock(d.clockNanos(), zone);
         values.set(0, clock + String.format(Locale.ROOT, "   %.3f s into the run", d.intoNanos() / 1e9));
+        if (d.row().isPresent()) {
+            Row r = d.row().get();
+            values.set(DETAILS.indexOf(Model.TYPE), "row");
+            values.set(DETAILS.indexOf(ROW), (r.seq() < 0 ? "added by the link" : "#" + r.seq()) + " · " + r.lane() + " · "
+                    + r.kind() + (r.detail().isEmpty() ? "" : " · " + r.detail())
+                    + (r.cause().isEmpty() ? "" : "   (" + r.cause() + ")"));
+            values.set(DETAILS.indexOf(Model.THREAD), r.thread());
+            return values;
+        }
         if (d.on().isEmpty()) {
             values.set(DETAILS.indexOf(Model.TYPE), NO_EVENT);
             return values;
@@ -1189,7 +1230,7 @@ final class View {
     @Subscribe
     public void rowsAround(RowsAround r) {
         rowsAround = r;
-        ui.rows(rowCells(r), rowInks(r, traced));
+        ui.rows(rowCells(r), rowInks(r, traced), r.selected());
     }
 
     /**

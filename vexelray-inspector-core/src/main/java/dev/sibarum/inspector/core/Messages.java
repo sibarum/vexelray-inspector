@@ -212,6 +212,23 @@ public final class Messages {
     }
 
     /**
+     * Up or Down: move the cursor {@code by} rows, back when negative, in the rows panel's order (by time, then by
+     * sequence): onto its next or previous row, which it is then on. Stopped, from the row it is on, or from the cursor's
+     * moment when it is on none, so that the first step back is onto the row the panel has selected; following, from
+     * {@code fromNanos}, where the view's lane would come to rest. An edge, as {@link Step} is.
+     */
+    public static final Topic<StepRow> STEP_ROW_TOPIC = Topic.edge(StepRow.class);
+
+    public record StepRow(int by, long fromNanos) {
+    }
+
+    /** A click on a row of the rows panel: put the cursor on it, pausing if following. Ignored off the island. */
+    public static final Topic<GoToRow> GO_TO_ROW_TOPIC = Topic.edge(GoToRow.class);
+
+    public record GoToRow(Row row) {
+    }
+
+    /**
      * A click where there is no event near: put the cursor at {@code atNanos}, pausing if following; never off the
      * island the bench keeps while paused. The absolute cursor (design.md section 8): a state topic,
      * so a drag through a storm of moments costs the bench one a tick, the newest winning.
@@ -395,6 +412,7 @@ public final class Messages {
      * @param clockNanos  what the run's wall clock said at that moment, in nanoseconds since the epoch; -1 when no row
      *                    has said
      * @param on          the event the cursor is on, if any
+     * @param row         the row the cursor is on, if any: after a step by rows or a click on one, and then on no event
      */
     public static final Topic<Details> DETAILS_TOPIC = Topic.state(Details.class);
 
@@ -419,7 +437,13 @@ public final class Messages {
         }
     }
 
-    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
+    public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on,
+                          Optional<Row> row) {
+
+        /** On no row. */
+        public Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
+            this(run, atNanos, intoNanos, clockNanos, on, Optional.empty());
+        }
     }
 
     /**

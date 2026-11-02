@@ -11,6 +11,7 @@ import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
+import dev.sibarum.inspector.core.Messages.GoToRow;
 import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
@@ -26,6 +27,7 @@ import dev.sibarum.inspector.core.Messages.Runs;
 import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
+import dev.sibarum.inspector.core.Messages.StepRow;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Messages.Traced;
 import dev.vexelray.framework.api.Component;
@@ -79,7 +81,7 @@ import java.util.Optional;
  */
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
-        Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class})
+        Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
         Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class})
 public final class Bench {
@@ -256,12 +258,20 @@ public final class Bench {
      * @param cursor   where it is stopped, on the machine's clock
      * @param island   what it is stopped on; {@link Island#NONE} while following
      * @param on       the event the cursor is on, after a step by events or a click
+     * @param row      the row the cursor is on, after a step by rows or a click on one; then it is on no event
      * @param gone     which run went away last, and why, kept to say beside "no application" until another is attached
      * @param pick     how the run was reached, whether it was chosen, and what else could be inspected
      */
     public record State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape,
-                        long first, boolean paused, long cursor, Island island, Optional<Event> on, String gone,
-                        Pick pick) {
+                        long first, boolean paused, long cursor, Island island, Optional<Event> on, Optional<Row> row,
+                        String gone, Pick pick) {
+
+        /** On no row. */
+        State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape, long first,
+              boolean paused, long cursor, Island island, Optional<Event> on, String gone, Pick pick) {
+            this(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, Optional.empty(),
+                    gone, pick);
+        }
 
         static State initial(String attach, String replay, String launch) {
             String status = !replay.isBlank() ? "Opening " + replay : !launch.isBlank() ? "Launching " + launch
@@ -278,8 +288,8 @@ public final class Bench {
         }
 
         State withPick(Pick pick) {
-            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, gone,
-                    pick);
+            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, row,
+                    gone, pick);
         }
 
         /** The timeline: every event kept, the cursor at the right edge while paused, the newest row while following. */
@@ -329,7 +339,8 @@ public final class Bench {
             long at = paused ? cursor : now.newestNanos();
             Optional<Event> event = paused ? on.map(e -> new Event(e.lane(), e.mark().with(Model.PATH,
                     island.kept().pathFrom(e.mark(), hops), false))) : Optional.empty();
-            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event);
+            return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event,
+                    paused ? row : Optional.empty());
         }
 
         /** What every panel marks of the path of the event the cursor is on, from {@code hops}; none while following. */
@@ -344,7 +355,7 @@ public final class Bench {
             if (tape.isEmpty() && island.tape().isEmpty()) {
                 return new RowsAround(run, List.of(), -1);
             }
-            return paused ? island.tape().around(run, cursor, AROUND) : tape.newest(run, AROUND);
+            return paused ? island.tape().around(run, row.orElse(Tape.key(cursor)), AROUND) : tape.newest(run, AROUND);
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -353,8 +364,8 @@ public final class Bench {
         }
 
         State withStatus(String status) {
-            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, gone,
-                    pick);
+            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, row,
+                    gone, pick);
         }
 
         State following(String status) {
@@ -370,6 +381,11 @@ public final class Bench {
         State pausedOn(Island island, Event event, String status) {
             return new State(run, title, status, arriving, now, kept, tape, first, true, event.mark().toNanos(),
                     island, Optional.of(event), gone, pick);
+        }
+
+        State pausedOnRow(Island island, Row r, String status) {
+            return new State(run, title, status, arriving, now, kept, tape, first, true, r.atNanos(), island,
+                    Optional.empty(), Optional.of(r), gone, pick);
         }
     }
 
@@ -396,6 +412,8 @@ public final class Bench {
                 .on(Messages.STEP_TOPIC, b.step("step", Bench::step))
                 .on(Messages.STEP_EVENT_TOPIC, b.step("step event", Bench::stepEvent))
                 .on(Messages.GO_TO_TOPIC, b.step("go to", Bench::goTo))
+                .on(Messages.STEP_ROW_TOPIC, b.step("step row", Bench::stepRow))
+                .on(Messages.GO_TO_ROW_TOPIC, b.step("go to row", Bench::goToRow))
                 .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek));
         ledger = b.build(inbox, "bench", CAPACITY);
         timer.every(LOOK_AGAIN, Messages.FIND_RUNS_TOPIC, new FindRuns());
@@ -445,7 +463,7 @@ public final class Bench {
             return s.withPick(s.pick().ended());
         }
         return say(new State("", "", ended, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
-                s.island(), s.on(), ended, s.pick().ended()), out);
+                s.island(), s.on(), s.row(), ended, s.pick().ended()), out);
     }
 
     /**
@@ -513,7 +531,7 @@ public final class Bench {
         out.send(Messages.DETACH_TOPIC, new Detach(s.run()));
         String gone = "Detached from " + named(s.title(), s.run());
         return say(new State("", "", gone, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
-                s.island(), s.on(), gone, s.pick().choose()), out);
+                s.island(), s.on(), s.row(), gone, s.pick().choose()), out);
     }
 
     /** Attach to {@code run}, reached {@code from}, and let the last run's tape go. */
@@ -541,7 +559,7 @@ public final class Bench {
         long first = s.tape().isEmpty() && !batch.rows().isEmpty() ? batch.rows().getFirst().atNanos() : s.first();
         if (s.paused()) {
             State next = new State(s.run(), s.title(), s.status(), true, now, kept, tape, first, true, s.cursor(),
-                    s.island().late(batch.rows()), s.on(), "", s.pick());
+                    s.island().late(batch.rows()), s.on(), s.row(), "", s.pick());
             for (Row r : batch.rows()) {
                 if (r.atNanos() <= s.cursor()) {
                     return say(next, out);
@@ -566,7 +584,7 @@ public final class Bench {
         String gone = named(s.title(), s.run()) + ": " + d.why();
         Model kept = d.warning().isEmpty() ? s.kept() : s.kept().withWarning(d.warning());
         return say(new State("", "", gone, false, s.now(), kept, s.tape(), s.first(), s.paused(), s.cursor(),
-                s.island(), s.on(), gone, s.pick()), out);
+                s.island(), s.on(), s.row(), gone, s.pick()), out);
     }
 
     /** Space: following, stop where the view's lane comes to rest; paused, follow the present again. */
@@ -646,6 +664,42 @@ public final class Bench {
         return s;
     }
 
+    /**
+     * Up or Down: move the cursor onto the next or previous row, {@code by} times, in the rows panel's order, and say
+     * which. From the row it is on, or from its moment when on none, so that the first step back is onto the row the
+     * panel selects there. Only rows on its island; at either end it stays where it is.
+     */
+    static State stepRow(State s, StepRow r, Out out) {
+        if (s.tape().isEmpty() && s.island().tape().isEmpty()) {
+            return s;
+        }
+        long at = s.paused() ? s.cursor() : r.fromNanos();
+        Island island = s.held(at);
+        Row from = s.paused() && s.row().isPresent() ? s.row().get() : Tape.key(at);
+        Row to = null;
+        for (int i = 0; i < Math.abs(r.by()); i++) {
+            Row next = island.tape().next(from, r.by() < 0);
+            if (next == null || island.clamp(next.atNanos()) != next.atNanos()) {
+                break;
+            }
+            to = next;
+            from = next;
+        }
+        return to == null ? s : say(onRow(s, island, to), out);
+    }
+
+    /** A click on a row of the rows panel: the cursor onto it, if it is on the island. */
+    static State goToRow(State s, GoToRow g, Out out) {
+        if (s.tape().isEmpty() && s.island().tape().isEmpty()) {
+            return s;
+        }
+        Island island = s.held(g.row().atNanos());
+        if (island.clamp(g.row().atNanos()) != g.row().atNanos()) {
+            return s;
+        }
+        return say(onRow(s, island, g.row()), out);
+    }
+
     /** A click where no event is near: the cursor at that moment, kept on the island. */
     static State seek(State s, Seek k, Out out) {
         if (s.tape().isEmpty()) {
@@ -696,6 +750,15 @@ public final class Bench {
                         (m.toNanos() - m.fromNanos()) / 1e6, (m.toNanos() - s.first()) / 1e9);
         String status = s.run().isEmpty() ? s.gone() + ". " + what : what + " of " + named(s.title(), s.run());
         return s.pausedOn(island, e, status);
+    }
+
+    /** On row {@code r}, which the status line says. */
+    private static State onRow(State s, Island island, Row r) {
+        String what = String.format(Locale.ROOT, "Row %s, %s on %s, at %.6f s",
+                r.seq() < 0 ? "added by the link" : "#" + r.seq(), r.kind(), r.lane().isEmpty() ? "no lane" : r.lane(),
+                (r.atNanos() - s.first()) / 1e9);
+        String status = s.run().isEmpty() ? s.gone() + ". " + what : what + " of " + named(s.title(), s.run());
+        return s.pausedOnRow(island, r, status);
     }
 
     /** Stopped at {@code at}; {@code pastTheEnd} when it was asked to go beyond the island's newest end. */

@@ -1144,4 +1144,52 @@ class BenchTest {
         assertEquals(rows.subList(0, Bench.AROUND), early.rows(), "near the oldest: the rest after it");
         assertEquals(0, early.selected(), "the newest at or before the cursor");
     }
+
+    @Test
+    void upAndDownStepTheCursorRowByRowAndTheDetailsAndRowsPanelAreOnTheRow() {
+        attached(ONE);
+        Row a = pass(1, 100 * MS, "1ms");
+        Row b = row(2, 100 * MS, "main", "frame", "frame.update", "#1");
+        Row c = row(3, 150 * MS, "vexel-logic", "bus", "tick", "0.1ms");
+        Row d = pass(4, 200 * MS, "1ms");
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(a, b, c, d)));
+        tell(Messages.STEP_ROW_TOPIC, new Messages.StepRow(-1, 160 * MS));
+        assertEquals(Optional.of(c), sentDetails().row(), "from following, back onto the newest row by then");
+        assertEquals(c, rowsAround().rows().get(rowsAround().selected()));
+        Timeline t = timeline();
+        assertFalse(t.live());
+        assertEquals(150 * MS, t.edgeNanos(), "the cursor at the row's moment");
+        assertEquals(Optional.empty(), t.on(), "on no event");
+        assertTrue(t.status().startsWith("Row #3, tick on bus, at 0.050000 s"), t.status());
+        tell(Messages.STEP_ROW_TOPIC, new Messages.StepRow(-1, 0L));
+        assertEquals(Optional.of(b), sentDetails().row(), "the row before, though stamped with the one before it");
+        tell(Messages.STEP_ROW_TOPIC, new Messages.StepRow(-1, 0L));
+        assertEquals(Optional.of(a), sentDetails().row(), "then that one, by its sequence");
+        sent.clear();
+        tell(Messages.STEP_ROW_TOPIC, new Messages.StepRow(-1, 0L));
+        assertEquals(List.of(), took(Timeline.class), "nothing before the oldest row");
+        tell(Messages.STEP_ROW_TOPIC, new Messages.StepRow(3, 0L));
+        assertEquals(Optional.of(d), sentDetails().row(), "three at once, forward");
+        tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
+        assertEquals(Optional.empty(), sentDetails().row(), "an arrow steps the lane from the row, onto an event");
+        assertEquals(on(span(200 * MS)), timeline().on());
+    }
+
+    @Test
+    void aClickOnARowPutsTheCursorOnItWithinTheIsland() {
+        attached(ONE);
+        Row a = pass(1, 100 * MS, "1ms");
+        Row b = pass(2, 200 * MS, "1ms");
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(a, b)));
+        tell(Messages.GO_TO_ROW_TOPIC, new Messages.GoToRow(a));
+        assertEquals(Optional.of(a), sentDetails().row());
+        assertEquals(100 * MS, timeline().edgeNanos(), "paused on it");
+        tell(Messages.GO_TO_ROW_TOPIC, new Messages.GoToRow(pass(9, 900 * MS, "1ms")));
+        assertEquals(List.of(), took(Timeline.class), "not one on the island");
+    }
+
+    /** The last details sent, as sent, keeping the rest of what was sent. */
+    private Details sentDetails() {
+        return sent.stream().filter(Details.class::isInstance).map(Details.class::cast).toList().getLast();
+    }
 }

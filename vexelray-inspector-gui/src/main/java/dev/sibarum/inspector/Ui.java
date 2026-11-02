@@ -204,6 +204,9 @@ final class Ui {
             }));
         }
         rows = new Table<>(gui, ROW_REM, rowColumns).name(Landmarks.ROWS);
+        rows.rows().name(Landmarks.ROWS_BODY);
+        // Never focused: a focused list claims Space and the arrows, which pause and step here (FN-11).
+        gui.focusable(rows.rows().node(), false);
         rows.headers(Type.UI, Type.SMALL, Role.DIM);
         rows.node().width(Length.grow(2f)).height(Length.FILL);
         rows.items(java.util.stream.IntStream.range(0, Bench.AROUND).boxed().toList());
@@ -389,7 +392,12 @@ final class Ui {
      * What the rows panel says: a place a row, each cell's text as {@code texts} gives it and its ink as {@code inks}
      * does; a place past them is blank. In place, since the places never change and their rows do with every step.
      */
-    void rows(List<List<String>> texts, List<Role> inks) {
+    void rows(List<List<String>> texts, List<Role> inks, int selected) {
+        // The table's own selection follows the cursor's row, so a click that selected a place does not stay there
+        // when the rows move under it.
+        if (selected >= 0) {
+            rows.selection().at(selected);
+        }
         List<List<String>> was = rowTexts;
         List<Role> wasInks = rowInks;
         rowTexts = List.copyOf(texts);
@@ -411,6 +419,11 @@ final class Ui {
                 }
             }
         }
+    }
+
+    /** Where the rows panel's body is on the bus: what its clicks carry. */
+    String rowsAddress() {
+        return rows.rows().address();
     }
 
     /** What the rows panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */

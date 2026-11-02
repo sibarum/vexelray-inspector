@@ -2,8 +2,8 @@
 
 DevTools for VexelRay applications: plain panels on a timeline that can be rewound ([docs/design.md](docs/design.md)).
 
-A VexelRay desktop application, generated from the `vexel-desktop` template and being rebuilt for VexelRay 0.2. R1 is
-under way: it attaches to an application running with its link open (the newest, or one chosen), launches one, or
+A VexelRay desktop application, generated from the `vexel-desktop` template and being rebuilt for VexelRay 0.2. R1, first light,
+is done: it attaches to an application running with its link open (the newest, or one chosen), launches one, or
 plays a recording back, and draws its clocks' lanes on a timeline that can be paused and rewound, the present at the
 right edge. Everything past R1 in the design is still to come.
 

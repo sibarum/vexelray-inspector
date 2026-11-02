@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 under way (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 done 2026-11-02, R2 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -518,6 +518,32 @@ Each step ends with something to watch or something an agent can ask, and lands 
   later as `launched`, and when the Inspector's window was closed (not killed, which `ottermate` does to its tree) the
   wrapper and the JVM ended with it. A recording has no pass numbers (the CSV has no `frame` column), so its passes are
   unnumbered.
+  **Measured 2026-11-02, closing R1.** *The bench alone* (`BenchMeasureTest`, a 13.7 s recording of an Inspector,
+  19,237 rows a second, looped for 90 s and published a 10 ms batch at a time onto a tick): a batch folds in p50
+  0.41 ms rising to 0.78 ms as the tape fills, p95 under 1 ms, max about 6.5 ms; but it **allocates 3.2 KB a row at
+  first and 10 KB once the tape is full**, about 190 MB a second, because the fold copies every kept lane on each batch;
+  a full minute of tape (1.16 million rows, 55,868 kept events) holds about 145 MB, so the 5 min reach section 8
+  offered would need about 700 MB as rows are kept today. *Live*, an Inspector replaying a 96 s loop of that recording
+  watched by another: its logic ran 366 to 457 ticks a second at p50 0.9 to 1.1 ms, p95 2.3 to 4.3 ms, and kept up;
+  once its tape was full its own draws fell from 55 to 29 a second, with 101 passes a second holding a draw for the
+  GPU. The watcher read it over the link at 37,000 to 46,000 rows a second, **a batch arriving p50 0.5 to 0.6 ms, p95
+  1.8 to 6 ms, max 15 ms behind its newest row** (`LinkRows.Lag`, logged at debug every 10 s), no row lost; but its
+  bench fell behind at that rate, its newest row 6 s old after a minute. So 20,000 rows a second holds, with the
+  allocation its cost, and twice that does not. Its working set was 2.8 GB, the heap grown by the allocation. All five
+  are TODO entries for after R1: the fold first.
+  **Inspected W1 to W3 in both modes, 2026-11-02**, each launched by `--launch` from the witness projects the
+  acceptance profile generates, driven by `ottermate` on its own buttons while the Inspector watched. *W3 (long run)*,
+  running: 57 draws a second under the ceiling and 139 passes a second held for it, logic ticks on `vexel-logic` at p50
+  0.06 ms (phase 7's 56.8 a second and "about 200 passes a second against 57 draws", seen again); under
+  `--logic=main`, 59 draws and 132 held, and no tick, since a tick on the main thread cannot be told from the widgets'
+  (FN-8), which the run panel says. *W2 (components)*: work, echo, tap and counts as bursts of ticks, messages, draws and
+  GPU waits lined up band by band, 55 draws a second through a burst; under `--logic=main`, the same without the Logic
+  lane. *W1 (windows)*: the notes window and the palette opened, the same in both modes. **Found: an injected click was
+  not on the Input lane.** Automation's `Cursor` writes `pointer.press`, `pointer.release`, `pointer.scroll` and
+  `pointer.move`, not only the key verbs the lane read, so a click looked like no input at all; now they are injected
+  input too (held by `BenchTest`), and the next run showed the clicks. Also found: the Drawing lane is every window's
+  draws together, so W1's windows cannot be told apart.
+  **R1 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s first section.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

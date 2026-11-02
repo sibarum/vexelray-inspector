@@ -98,7 +98,11 @@ public final class LinkRows {
             // Said at once, with no rows, rather than with the first batch: an idle run sends none for as long as it
             // stays idle, and the banner and the dimmed lanes are what to know before anything else.
             rows.send(rows(request.run(), origin, NOTHING, said, recorded, warning));
+            Lag lag = new Lag();
             for (RowBatch b = arrived.take(); b != CLOSED; b = arrived.take()) {
+                if (!b.rows().isEmpty()) {
+                    lag.add(request.run(), System.nanoTime() - (origin + b.rows().getLast().tMonoNs()), b.rows().size());
+                }
                 rows.send(rows(request.run(), origin, b));
             }
             return new Detached(request.run(), "it went away");
@@ -110,6 +114,39 @@ public final class LinkRows {
                 LOG.warn("{}: {} ({})", request.run(), unreadable, e.getMessage());
             }
             return new Detached(request.run(), "its link failed: " + e.getMessage(), unreadable);
+        }
+    }
+
+    /**
+     * How far behind the run its rows arrive: from a batch's newest row being written to the batch being sent on, which
+     * is the link's latency and the batching together. Logged at debug every {@link #EVERY_NANOS}, with how many rows a
+     * second arrived, so a run's log says what the link cost it (design.md section 10, R1's "measured").
+     */
+    static final class Lag {
+
+        static final long EVERY_NANOS = 10_000_000_000L;
+
+        private long[] lags = new long[2048];
+        private int n;
+        private long rows;
+        private long since = System.nanoTime();
+
+        void add(String run, long lagNanos, int batchRows) {
+            if (n == lags.length) {
+                lags = java.util.Arrays.copyOf(lags, n * 2);
+            }
+            lags[n++] = lagNanos;
+            rows += batchRows;
+            long now = System.nanoTime();
+            if (now - since >= EVERY_NANOS) {
+                java.util.Arrays.sort(lags, 0, n);
+                LOG.debug("{}: {} rows a second; a batch arrives p50 {} ms, p95 {} ms, max {} ms behind its newest row",
+                        run, rows * 1_000_000_000L / (now - since), lags[n / 2] / 1_000_000.0,
+                        lags[(int) (n * 0.95)] / 1_000_000.0, lags[n - 1] / 1_000_000.0);
+                n = 0;
+                rows = 0;
+                since = now;
+            }
         }
     }
 

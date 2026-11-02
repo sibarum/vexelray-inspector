@@ -460,7 +460,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             case "source" -> thread.startsWith("vexel-source-" + kebab(typeName(p.name())));
             case "destination" -> thread.startsWith("vexel-destination-" + kebab(typeName(p.name())))
                     || thread.startsWith("vexel-source-" + kebab(typeName(p.name())));
-            case "job" -> thread.startsWith("vexel-job-");
+            case "job" -> thread.startsWith("vexel-job");
             case "component" -> p.timer() && thread.equals("vexel-timer");
             case "view", "sender" -> thread.equals("main");
             default -> false;

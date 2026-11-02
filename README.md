@@ -181,10 +181,11 @@ message is in one file. Read these in this order.
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components, jobs and sources in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
-| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lanes' picture; asked by every frame (`@Draw`), it slides the lanes to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lanes would rest at, which only it knows, and which lane is focused. Told the `Readouts`, it writes their line. It decides nothing. |
+| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lanes' picture; asked by every frame (`@Draw`), it slides the lanes to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lanes would rest at, which only it knows, and which lane is focused. Told the `Readouts`, it writes their line; told the `Flows`, the flows table's cells and the graph's picture. It decides nothing. |
+| `Diagram.java` | the graph panel's picture: the declared parts in tiers by where they run, an arrow a pair of parts, faint until a message crosses it. Pure, so a test reads it as marks. |
 | `Glide.java` | **how the timeline moves**: smooth paths of time, and handovers between them that are smooth in every derivative and land exactly. Pure functions; its constants were set by eye, and say why. |
 | `Keys.java` | what a key chord sends the view. |
-| `Ui.java` | the window: the title bar, the timeline's lanes and the status line. Holds no state; it shows what the view hands it. |
+| `Ui.java` | the window: the title bar, the timeline's lanes, the graph and flows panels and the status line. Holds no state; it shows what the view hands it. |
 
 `Inspector.java` is the entry point and the constants, and nothing else. The application edge — input, the
 clipboard, window memory, the clock, the frame loop with its wakes and its pacing, the dialogs, the command line and

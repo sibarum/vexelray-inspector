@@ -29,6 +29,9 @@ final class Landmarks {
     static final String FLOWS = "flows";
     static final String FLOWS_WHY = "flows.why";
 
+    /** The graph panel: the declared parts and the arrows between them, drawn. */
+    static final String GRAPH = "graph";
+
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 

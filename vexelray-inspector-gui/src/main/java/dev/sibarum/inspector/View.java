@@ -244,6 +244,13 @@ final class View {
                 gui.theme().color(Role.LINE));
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
+        this.diagramInks = new Diagram.Inks(gui.theme().color(Role.LINE), gui.theme().color(Role.INK),
+                gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Role.DIM));
+        gui.hear(ui.graph(), NodeEvent.RESIZE, layout -> {
+            graphW = layout.rect().w();
+            graphH = layout.rect().h();
+            ui.graph().picture(Diagram.draw(lastFlows, graphW, graphH, diagramInks));
+        });
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneX = layout.rect().x();
             laneY = layout.rect().y();
@@ -1127,7 +1134,15 @@ final class View {
             cells.put(flow.topic(), flowCells(flow));
         }
         ui.flows(f.why(), topics, cells);
+        lastFlows = f;
+        ui.graph().picture(Diagram.draw(f, graphW, graphH, diagramInks));
     }
+
+    /** The graph panel's colours, and its size and what it last showed, for a resize to draw it again. */
+    private final Diagram.Inks diagramInks;
+    private float graphW;
+    private float graphH;
+    private Flows lastFlows = new Flows("", "", List.of(), List.of());
 
     /**
      * What a topic's row says, a cell for each of {@link #FLOW_COLUMNS}: its type's name, its kind, who sends it and

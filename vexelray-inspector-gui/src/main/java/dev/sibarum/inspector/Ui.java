@@ -100,6 +100,7 @@ final class Ui {
     private final Button detach;
     private final Table<String> flows;
     private final Node flowsWhy;
+    private final Node graph;
     /** The topics the flows table holds, in the order last given. */
     private List<String> flowTopics = List.of();
     /** What each topic's cells say, by topic: what a row realized later is built with. */
@@ -200,11 +201,17 @@ final class Ui {
         flowsWhy = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         flowsWhy.visible(false);
         gui.landmark(Landmarks.FLOWS_WHY, flowsWhy);
-        Node flowsPanel = gui.column().width(Length.FILL).height(Length.grow(1f)).gap(Type.TIGHT)
+        Node flowsPanel = gui.column().width(Length.grow(1.4f)).height(Length.FILL).gap(Type.TIGHT)
                 .children(flowsWhy, flows.node());
+        // The graph beside its flows: the same topics, drawn between the parts, the counts in the table.
+        graph = gui.box().width(Length.grow(1f)).height(Length.FILL).clip(true).scroll(false, false)
+                .background(gui.theme().color(Role.PANEL));
+        gui.landmark(Landmarks.GRAPH, graph);
+        Node panels = gui.row().width(Length.FILL).height(Length.grow(1f)).gap(Type.TIGHT)
+                .children(graph, flowsPanel);
 
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(runPanel, warning, lanes, detailsPanel, readoutRow, flowsPanel);
+                .children(runPanel, warning, lanes, detailsPanel, readoutRow, panels);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -216,6 +223,11 @@ final class Ui {
     /** The lanes' box: what the view measures to draw the strip for, a band a lane. */
     Node lane() {
         return lane;
+    }
+
+    /** The graph panel's box: what the view measures to draw the graph for, and draws it in. */
+    Node graph() {
+        return graph;
     }
 
     /** The lane the follow button stands at the right of, as {@link #names} last set it. */

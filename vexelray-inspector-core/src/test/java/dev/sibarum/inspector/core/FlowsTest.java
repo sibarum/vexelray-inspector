@@ -136,6 +136,10 @@ class FlowsTest {
                 publish(2, at, "Rows", "vexel-source-recording-rows"),
                 publish(3, at, "Rows", "vexel-source-link-rows"),
                 publish(4, at, "Rows", "vexel-job-1")), Long.MAX_VALUE);
+        Model jobs = Model.EMPTY.fold(List.of(graph(at, GRAPH), publish(1, at, "Runs", "vexel-job-3"),
+                publish(2, at, "Runs", "vexel-job-7")), Long.MAX_VALUE);
+        assertEquals(List.of(new End("dev.sibarum.inspector.core.ListRuns", "sends", 2)),
+                jobs.flows("run", "", Model.EMPTY, 0L).flows().get(3).from(), "the job lane's threads are one sender");
         assertEquals(List.of(new End("dev.sibarum.inspector.core.LinkRows", "sends", 1),
                         new End("dev.sibarum.inspector.core.RecordingRows", "sends", 2),
                         new End(End.FRAMEWORK, "sends", 1)),

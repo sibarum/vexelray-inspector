@@ -8,6 +8,18 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
+- [ ] The threads panel is numbers only: a bar per clock, split into its four states against the turn's width, with
+      the wakes as ticks on it.
+- [ ] Following, the ledger reads the newest rows again on every batch (p95 about 0.5 ms, 200 bytes a row more than
+      R4); the bench's state could keep the newest whole turns and move them on as rows arrive.
+- [ ] A turn longer than a second (an unfocused window's park, an idle logic lane) is not found (`ClockLedger.SPAN`).
+- [ ] Drawing's turn is not judged against the ceiling's slot: no row says the ceiling's rate.
+- [ ] The GPU lane does not read `wait image` (`Model.WAITS`), which Vulkan's windowed presenter waits in; the
+      ledger does.
+- [ ] A long note is clipped in the threads panel, as a long detail is in the rows panel.
+- [ ] FN-17 upstream, a row for the logic lane's park and its unpark; then read its rest and wakes as the main
+      thread's are.
+
 - [ ] The rows panel shows eleven rows whatever its height (`Bench.AROUND`); it could show as many as fit, the view
       telling the bench how many.
 - [ ] The rows panel has no filter: by lane, thread, kind or cause, so a busy main thread's rows can hide a tick's.

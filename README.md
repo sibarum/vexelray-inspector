@@ -170,7 +170,8 @@ message is in one file. Read these in this order.
 | `Messages.java` | **every message the parts send each other**, grouped by who sends it to whom, each record beside its topic. A record crosses as itself, so it holds only immutable values; a list it holds is copied in its constructor. Every time in it is on the machine's monotonic clock. |
 | `Bench.java` | **the controller**: which run is inspected, what has been read of it, and the model the panels show, as declared steps on one immutable state, held by a ledger. Each message it hears runs one step, and each step that changes what is shown publishes the `Timeline` the view draws, as of the cursor. |
 | `Model.java` | what the panels show at one moment, and `fold`, the one pure function that moves it on by some rows. A new lane or readout is a field here. |
-| `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. It also says the rows around a moment, in order of time then sequence, and the row next to one, for the rows panel and Up and Down. |
+| `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. It also says the rows around a moment, in order of time then sequence, and the row next to one, for the rows panel and Up and Down. And the rows near a moment, or since one read back from the newest, for the ledger. |
+| `ClockLedger.java` | the ledger per clock, for the threads panel: each clock's turn a moment is in, cut by its thread's rows into working, waiting, resting and unaccounted, with recording on its own. A pure function of the rows. |
 | `Appended.java` | the immutable list the lanes and the tape's seconds are kept in: a batch adds to it without copying what it holds, so a fold costs about its own rows. |
 | `Declared.java` | what a run declares about its messages: its bus graph, version 2 ([bus-graph.md](docs/bus-graph.md)), read from the row `LinkRows` adds on attaching. |
 | `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
@@ -189,7 +190,7 @@ message is in one file. Read these in this order.
 | `Diagram.java` | the graph panel's picture: the declared parts in tiers by where they run, an arrow a pair of parts, faint until a message crosses it, and the arrows a selected event's path crossed in the path's colour. Pure, so a test reads it as marks. |
 | `Glide.java` | **how the timeline moves**: smooth paths of time, and handovers between them that are smooth in every derivative and land exactly. Pure functions; its constants were set by eye, and say why. |
 | `Keys.java` | what a key chord sends the view. |
-| `Ui.java` | the window: the title bar, the timeline's lanes, the graph and flows panels and the status line. Holds no state; it shows what the view hands it. |
+| `Ui.java` | the window: the title bar, the timeline's lanes, the details, rows and threads panels, the graph and flows panels and the status line. Holds no state; it shows what the view hands it. |
 
 `Inspector.java` is the entry point and the constants, and nothing else. The application edge — input, the
 clipboard, window memory, the clock, the frame loop with its wakes and its pacing, the dialogs, the command line and

@@ -31,6 +31,52 @@ reasons and the full method.
 
 ## Milestones
 
+## R5, the ledger per clock · 2026-11-02
+
+The count: one finding (FN-17), not architectural: the logic lane's thread parks between ticks without a row. FN-8,
+FN-15 and FN-16 came up again and were met as before.
+
+### The shapes
+
+| | The promise | What happened | How it looked |
+| --- | --- | --- | --- |
+| FN-17 | Every clock's time is accounted for by its thread's rows, rest as well as work | The main loop's park is an idle zone (`wait for events`); the logic lane's (`Logic.runUntilStopped`, `parkNanos`) writes nothing, nor does the unpark | A tick's turn is a 0.07 ms zone and then 167 ms the rows cannot name: rest, a stall and the scheduler look alike, and the lane's wakes are blank |
+
+### What would stop each
+
+1. **Every park in the stack writes an idle zone, and every unpark a wake.** `Logic`'s park as
+   `Probe.idleZone(Lane.BUS, "logic park")` and `arrived` as a `wake` mark naming the thread it ends, as the main loop
+   does already; then the ledger reads the logic lane's rest and wakes exactly as the main thread's, and the same holds
+   for any lane the framework adds. A park with no row is a hole in every ledger built on the stack, not this one only.
+
+### My own mistakes
+
+- **I measured the bench at the milestone's end, not at the slice's.** Slices 1 and 2 read two seconds of rows on
+  every batch, for the ledger and then again for the recording readout, and shipped in two commits with a batch at
+  p50 1.45 ms against 0.06, 2.7 KB a row against 440; `BenchMeasureTest` found it in slice 3. *Rule:* a slice that adds
+  to what the bench says on every batch runs `BenchMeasureTest` before it is committed.
+- **I named a class after one the bench already imports.** `Ledger` is atchung's, and the bench is built on it; the
+  build said so. *Rule:* grep the file a new class will be used from for the name before choosing it.
+- **I wrote a perl substitution with braces for delimiters over Java.** A `{` in the replacement closed it early, the
+  rest of the script went into `Model.java`, and restoring the file from git took that file's other uncommitted edits
+  with it, to be made again. *Rule:* over Java, delimit with `#`, and count the substitutions made against those meant.
+- **I launched a witness by a name it no longer had.** The launch script took `w2`; the witness's folder is
+  `components`. *Rule:* list `target/w` before launching.
+- **I wrote a field that rounded what the readouts read back.** A draw's recording as `%.2f ms` took 677.4 µs to
+  680; the test's expected value caught it. *Rule:* a field the code reads back keeps the precision the number has.
+
+### What to keep exactly as it is
+
+- **The ledger is a pure function of the rows**, `ClockLedger.at(run, rows, moment, logicThread)`, so it rewinds with
+  every other panel and was tested from hand-made rows of one pass, one draw and one tick.
+- **Unknown is -1, never 0, and blank on screen.** Waiting and resting for the logic lane, wakes for drawing: a 0
+  would say the thread did not rest, which no row says.
+- **Unaccounted is shown, never shared out.** The logic lane's 100% unaccounted is the finding, FN-17, on the screen.
+- **What a draw says of itself is a field of its mark**, as its number already was: recording, read once in the fold
+  and then by the readouts, the details and anything later, rather than read again from the rows.
+- **Following reads the least it can**: only the rows it takes, back from the newest a window that widens until the
+  turns are whole, which is what brought the batch back to p50 0.07 ms.
+
 ## R4, the rows panel · 2026-11-02
 
 The count: no new findings. The rows panel and stepping by rows needed nothing from the stack. FN-11 (a control

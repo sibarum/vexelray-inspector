@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 to R4 done 2026-11-02, R5 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 to R5 done 2026-11-02, R6 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -70,7 +70,7 @@ The first panels:
 | **Readouts** | Draws a second against the ceiling and the display's refresh; ticks a second, tick time p50 and p95; draws held, by reason; rows lost |
 | **Graph** | The declared parts and topics (section 4) |
 | **Flows** | Every topic between two parts: written, delivered, rate, total |
-| **Threads** | The ledger per clock (section 5) |
+| **Threads** | The ledger per clock (section 5): each clock's turn the cursor is in, cut into working, waiting, resting and unaccounted, with recording on its own (R5) |
 | **Rows** | The raw rows around the cursor, the cursor's row selected (R4) |
 | **Run** | What is inspected and from where (attached, launched, replayed), the logic mode, the GPU, the build |
 
@@ -212,6 +212,7 @@ repository's TODO when this design is accepted.
 | vexelray-framework | An input recorder and a replay driver | R6, and ROADMAP §5 item 5 |
 | vexelray-framework, -shell | Rows from `Timer`, `Jobs`, `Logic` and `Crew` | the job tray; declared lanes |
 | vexelray-present-dxgi | A row when the ready thread waits and wakes | the timeline's GPU lane |
+| vexelray-framework | A row for the logic lane's park (an idle zone) and for the unpark that ends it (framework-notes FN-17) | the threads panel's logic rest and wakes |
 | vexelray-framework | **Sources** (ruled, 9.2): a part that keeps producing from outside for as long as it runs, with its own thread, named in the wiring, started after its listeners and stopped before them | reading the link, a recording and a launched child (R1); netcode and every other client of a stream |
 
 ## 8. How it is put together on 0.2
@@ -621,7 +622,32 @@ Each step ends with something to watch or something an agent can ask, and lands 
   row put the cursor there; Left from it stepped onto the pass before; Space after a click still followed. Under
   `--logic=main` the same steps by rows and draws, and the Logic lane empty (FN-16). **R4 done 2026-11-02.** Its
   retrospective is `docs/retrospective.md`'s R4 section.
-- **R5, the ledger per clock**, with recording measured on its own.
+- **R5, the ledger per clock**, with recording measured on its own. *Built:* the bench says `LedgerAt` with every
+  say, an `Account` a clock (`ClockLedger`): the main thread's pass, the logic lane's tick and drawing's draw the cursor
+  is in, each from its own zone's start to the next one's, cut by its thread's rows into working, waiting (the GPU's
+  waits, counted once, as the innermost span), resting (`wait for events`; for drawing, the time between draws, by
+  rule, as its note says) and unaccounted, never shared out; recording (`emit canvas`) on its own; the main thread's
+  wakes and how long the first that came while it rested took to run. A turn not ended in the rows read gives the one
+  before, and says so. The logic lane's thread parks between ticks with no row (FN-17, new), so a tick's turn is its
+  zone and then unaccounted, never rest, and one over its 8 ms placeholder says so; under `--logic=main` the line says
+  its ticks cannot be told from the widgets' (FN-8); a job writes no rows (FN-15) and its line says that. The threads
+  table stands under the details and the rows, its places changed in place, never focused. A draw carries its
+  recording as a field (`Recording`), and the readouts its p50 and p95 over the second. Paused, the ledger reads the
+  rows within a second of the cursor; following, on every batch, only the rows it takes (`ClockLedger.reads`), back
+  from the newest a window that widens from 50 ms until the main thread's and drawing's turns are whole (`Tape.since`).
+  **Measured 2026-11-02.** *The bench alone* (`BenchMeasureTest`, the 13.7 s recording looped for 70 s): slices 1 and
+  2 as first built, rereading two seconds of rows on every batch for the ledger and the readouts, put a batch at p50
+  1.45 ms and 2.7 KB a row; as built, p50 0.07 ms, p95 about 0.5 ms, max 3.5 ms, 640 bytes a row, against R4's last
+  commit measured the same way, p50 0.06 ms, p95 0.11 ms, 440 bytes. *Recording, live*, an Inspector replaying the 96 s
+  loop watched by another, which read it at 70,000 to 80,000 rows a second and kept up (its cursor's clock within a
+  second of the wall's at 50 s in): the watched one drew 46 to 50 times a second, a draw working 2.8 to 3.6 ms, of
+  which **recording took p50 1.8 to 2.3 ms, p95 2.4 to 4 ms**, about two thirds of the draw and a tenth of the main
+  thread's time; its main thread worked 99% of every pass and never rested, passes 6.5 to 10 ms back to back, each
+  woken once, so it is the view's work around the draw, not the draw, that fills the thread. On W2, launched and
+  counted three times: pass #202 16.47 ms, working 2.53, waiting on the GPU 0.04, resting 13.72, unaccounted 0.18,
+  recording 0.50; draw #48 1.74 ms of work and wait, 15.11 ms between draws; tick #2 0.07 ms and 167 ms unaccounted
+  after it; idle, 200 ms passes resting 99%. Under `--logic=main` the same, the logic line saying why it is empty.
+  **R5 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R5 section.
 - **R6, replay**: run the same inputs again and show which widget writes differ.
 - **Later**, as 0.1 planned them: time (kronometer) where a view still has motion, GPU and present, the JVM, the
   tree, diagnosis rules, history by build, the command menu.

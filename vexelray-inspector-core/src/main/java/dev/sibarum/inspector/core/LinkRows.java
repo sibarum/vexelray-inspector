@@ -7,6 +7,7 @@ import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.vexelray.framework.api.Source;
 import dev.vexelray.gui.inspector.link.LinkClient;
+import dev.vexelray.gui.inspector.link.QueryReply;
 import dev.vexelray.gui.inspector.link.RowBatch;
 import dev.vexelray.gui.inspector.link.StreamOpen;
 import dev.vexelray.gui.inspector.link.StreamOpened;
@@ -97,7 +98,8 @@ public final class LinkRows {
             }
             // Said at once, with no rows, rather than with the first batch: an idle run sends none for as long as it
             // stays idle, and the banner and the dimmed lanes are what to know before anything else.
-            rows.send(rows(request.run(), origin, NOTHING, said, recorded, warning));
+            Rows opening = rows(request.run(), origin, NOTHING, said, recorded, warning);
+            rows.send(withGraph(opening, graphOf(link)));
             Lag lag = new Lag();
             for (RowBatch b = arrived.take(); b != CLOSED; b = arrived.take()) {
                 if (!b.rows().isEmpty()) {
@@ -218,6 +220,32 @@ public final class LinkRows {
                     r.detail(), r.cause() == null ? "" : r.cause()));
         }
         return new Rows(run, b.lostFrom(), b.lostTo(), out);
+    }
+
+    /**
+     * What the run declares about its messages, asked once on attaching (the {@code bus graph} query,
+     * {@code docs/bus-graph.md}): the graph's text, header first, or why there is none, in words.
+     */
+    static String graphOf(LinkClient link) {
+        try {
+            QueryReply reply = link.query("bus graph");
+            if (!reply.ok()) {
+                return "it declared no bus graph (" + reply.text().replaceFirst("^err ", "") + ")";
+            }
+            String text = reply.text();
+            int first = text.indexOf('\n');
+            return first < 0 ? "it declared an empty bus graph" : text.substring(first + 1);
+        } catch (RuntimeException e) {
+            return "its bus graph could not be read: " + e.getMessage();
+        }
+    }
+
+    /** {@code opening} with the run's bus graph as one more row ({@link Model#GRAPH}): its text, or why there is none. */
+    static Rows withGraph(Rows opening, String graph) {
+        List<Row> out = new ArrayList<>(opening.rows());
+        long at = out.isEmpty() ? System.nanoTime() : out.getFirst().atNanos();
+        out.add(new Row(-1, at, "", Model.APP_LANE, Model.GRAPH, graph));
+        return new Rows(opening.run(), opening.lostFrom(), opening.lostTo(), out);
     }
 
     /**

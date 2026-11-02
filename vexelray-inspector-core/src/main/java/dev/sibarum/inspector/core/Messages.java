@@ -421,4 +421,75 @@ public final class Messages {
 
     public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
     }
+
+    /**
+     * The declared graph, lit by the traffic, as of the cursor: every part the run declares, and every topic with who
+     * sends it, who hears it and how many messages crossed, for the graph and flows panels (design.md section 4). A
+     * state topic, as the timeline is.
+     *
+     * <p>Counted from the rows: a component's write is a {@code send} row, a write from outside a tick (a source's, a
+     * timer's, a widget's) a row whose kind is the topic, and a delivery a {@code receive} row. A state topic written
+     * more often than it is heard in a tick shows it as written over delivered.
+     *
+     * @param run   the run attached, or empty when none is
+     * @param why   why there is no graph, in words: a recording has none, or the run declared none; empty when there
+     *              is one
+     * @param parts every part the run declares, in its graph's order
+     * @param flows every topic its graph names, by name
+     */
+    public static final Topic<Flows> FLOWS_TOPIC = Topic.state(Flows.class);
+
+    public record Flows(String run, String why, List<Part> parts, List<Flow> flows) {
+        public Flows {
+            parts = List.copyOf(parts);
+            flows = List.copyOf(flows);
+        }
+    }
+
+    /**
+     * One declared part.
+     *
+     * @param kind  {@code component}, {@code view}, {@code job}, {@code source}, {@code destination} or
+     *              {@code sender}
+     * @param name  its class's name, as the rows name it
+     * @param lane  where it runs: {@code logic}, {@code gui}, {@code job}, {@code own} (a thread per run), a declared
+     *              lane's name, or {@code -}
+     * @param timer whether it takes the framework's timer, which then sends for it
+     */
+    public record Part(String kind, String name, String lane, boolean timer) {
+    }
+
+    /**
+     * One topic, as of the cursor.
+     *
+     * @param topic     its name, the payload's canonical name
+     * @param kind      {@code state}, {@code edge}, {@code edge keyed}, or {@code ?} when the run could not say
+     * @param from      who sends it: each declared sender with what it wrote, and the framework for what no declared
+     *                  part wrote
+     * @param to        who hears it: each declared receiver with what was delivered to it, and how it hears
+     * @param written   messages written on it, from the run's first row read to the cursor
+     * @param delivered deliveries of it, to every receiver together, over the same
+     * @param perSecond written a second, over the second or two before the cursor
+     */
+    public record Flow(String topic, String kind, List<End> from, List<End> to, long written, long delivered,
+                       double perSecond) {
+        public Flow {
+            from = List.copyOf(from);
+            to = List.copyOf(to);
+        }
+    }
+
+    /**
+     * One end of a topic and how many messages crossed it.
+     *
+     * @param part  the part's name, or {@link #FRAMEWORK} for what no declared part sent
+     * @param how   {@code sends}, or how the part hears it: {@code mailbox}, {@code inbox}, {@code request},
+     *              {@code start}, {@code stop}, {@code open}, {@code write}
+     * @param count messages written by it, or delivered to it
+     */
+    public record End(String part, String how, long count) {
+
+        /** The part named for writes no declared part made: a widget's, the window's, input's, automation's. */
+        public static final String FRAMEWORK = "the framework";
+    }
 }

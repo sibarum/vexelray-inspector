@@ -8,6 +8,8 @@ import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Field;
+import dev.sibarum.inspector.core.Messages.Flow;
+import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
@@ -23,6 +25,7 @@ import dev.sibarum.inspector.core.Messages.Runs;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Replay;
+import dev.sibarum.inspector.core.Messages.Part;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
@@ -89,7 +92,7 @@ class BenchTest {
         Inbox heard = tick.inbox("heard");
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
                 Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC,
-                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC)) {
+                Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -258,6 +261,39 @@ class BenchTest {
         build("calculator-11");
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
         assertEquals(List.of(new Attach(ONE.name(), ONE.stream())), took(Attach.class));
+    }
+
+    @Test
+    void theFlowsAreSaidWithTheTimelineAsOfTheCursor() {
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        long at = 2_000 * MS;
+        String m = "dev.sibarum.inspector.core.Messages.";
+        String graph = "# vexelray bus graph 2\npart component dev.example.Bench lane=logic\n"
+                + "sends dev.example.Bench topic=" + m + "Timeline\ntopic " + m + "Timeline kind=state";
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(
+                new Row(-1, at, "", Model.APP_LANE, Model.GRAPH, graph),
+                new Row(1, at, 0L, 3L, "vexel-logic", "bus", "send", m + "Timeline from dev.example.Bench 1", ""),
+                new Row(2, at + 400 * MS, 0L, 3L, "vexel-logic", "bus", "send", m + "Timeline from dev.example.Bench 1",
+                        ""))));
+        Flows f = took(Flows.class).getLast();
+        assertEquals(ONE.name(), f.run());
+        assertEquals("", f.why());
+        assertEquals(List.of(new Part("component", "dev.example.Bench", "logic", false)), f.parts());
+        assertEquals(2, f.flows().getFirst().written());
+
+        tell(Messages.PAUSE_TOPIC, new Pause(at + 200 * MS));
+        assertEquals(1, took(Flows.class).getLast().flows().getFirst().written(), "stopped before the second, as of the cursor");
+    }
+
+    @Test
+    void aRecordingSaysItDeclaresNoGraphAndShowsTheTopicsItsRowsCounted() {
+        build("", "C:/runs/run.csv", "");
+        tell(WindowOpened.TOPIC, new WindowOpened("main"));
+        tell(Messages.ROWS_TOPIC, new Rows("replay:run.csv", 0, 0, List.of(new Row(1, 100 * MS, 0L, 3L,
+                "vexel-logic", "bus", "send", "dev.example.Shown from dev.example.Bench 1", ""))));
+        Flows f = took(Flows.class).getLast();
+        assertEquals("a recording declares no bus graph: the topics its rows counted", f.why());
+        assertEquals(List.of("dev.example.Shown"), f.flows().stream().map(Flow::topic).toList());
     }
 
     @Test

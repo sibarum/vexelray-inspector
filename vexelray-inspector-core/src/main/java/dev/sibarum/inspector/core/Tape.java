@@ -166,6 +166,12 @@ public record Tape(List<Second> seconds) {
 
     /** The model as of {@code atNanos}: its second's checkpoint, with that second's rows up to it folded on. */
     Model asOf(long atNanos) {
+        Second at = secondAt(atNanos);
+        return at == null ? Model.EMPTY : at.start().fold(at.rows(), atNanos);
+    }
+
+    /** The second {@code atNanos} is in, the newest that begins by then; null when the tape begins after it. */
+    Second secondAt(long atNanos) {
         Second at = null;
         for (Second s : seconds) {
             if (s.fromNanos() > atNanos) {
@@ -173,6 +179,6 @@ public record Tape(List<Second> seconds) {
             }
             at = s;
         }
-        return at == null ? Model.EMPTY : at.start().fold(at.rows(), atNanos);
+        return at;
     }
 }

@@ -3,6 +3,7 @@ package dev.sibarum.inspector.core;
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.ChildExited;
 import dev.sibarum.inspector.core.Messages.Choose;
+import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
@@ -78,7 +79,7 @@ import java.util.Optional;
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
-        Details.class, RunPanel.class})
+        Details.class, RunPanel.class, Flows.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -285,9 +286,23 @@ public final class Bench {
                     kept.warning());
         }
 
-        /** The readouts as of the cursor: the model its island recomputes for it, or the live one while following. */
-        Readouts readouts() {
-            return (paused ? island.tape().asOf(cursor) : now).readouts(run);
+        /** The model as of the cursor: the one its island recomputes for it, or the live one while following. */
+        Model atCursor() {
+            return paused ? island.tape().asOf(cursor) : now;
+        }
+
+        /**
+         * The declared graph and what crossed it as of the cursor, {@code at} the model there: written a second taken
+         * from the tape's checkpoint a second or two before. A recording declares no graph, and says so.
+         */
+        Flows flows(Model at) {
+            long moment = paused ? cursor : now.newestNanos();
+            Tape.Second back = (paused ? island.tape() : tape).secondAt(moment - Tape.SECOND);
+            boolean recording = run.startsWith(REPLAY);
+            String why = run.isEmpty() || at.declared().said() ? ""
+                    : recording ? "a recording declares no bus graph: the topics its rows counted" : "";
+            return back == null ? at.flows(run, why, Model.EMPTY, 0L)
+                    : at.flows(run, why, back.start(), moment - back.fromNanos());
         }
 
         /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
@@ -666,10 +681,12 @@ public final class Bench {
         return (s.arriving() ? "Inspecting " : "Attaching to ") + named(s.title(), s.run());
     }
 
-    /** Tell the view the timeline, the readouts and the details, all as of the cursor. */
+    /** Tell the view the timeline, the readouts, the details and the flows, all as of the cursor. */
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
-        out.send(Messages.READOUTS_TOPIC, s.readouts());
+        Model at = s.atCursor();
+        out.send(Messages.READOUTS_TOPIC, at.readouts(s.run()));
+        out.send(Messages.FLOWS_TOPIC, s.flows(at));
         out.send(Messages.DETAILS_TOPIC, s.details());
         return panel(s, out);
     }

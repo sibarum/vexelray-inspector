@@ -1,8 +1,12 @@
 package dev.sibarum.inspector.core;
 
+import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Field;
+import dev.sibarum.inspector.core.Messages.Flow;
+import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
+import dev.sibarum.inspector.core.Messages.Part;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Row;
 
@@ -91,9 +95,12 @@ import java.util.Map;
  *                    then every lane is taken as recorded ({@link Lane#recorded})
  * @param warning     what the run's link said that makes what is shown less than whole, in words: an application of
  *                    another link version ({@link LinkRows#versionWarning}); empty when nothing has
+ * @param declared    the run's bus graph, as its link said it ({@link Declared}); {@link Declared#NONE} before it has
+ * @param counts      what crossed each topic, by its name, from the first row folded: see {@link Counted}
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
-                    Map<Long, List<Field>> ahead, List<String> probed, String warning) {
+                    Map<Long, List<Field>> ahead, List<String> probed, String warning, Declared declared,
+                    Map<String, Counted> counts) {
 
     /**
      * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
@@ -113,6 +120,26 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                         + (relaid + redrawn == 0 ? "" : " (" + relaid + " relaid out, " + redrawn + " redrawn)");
             }
             return says + (count > 1 ? " ×" + count : "");
+        }
+    }
+
+    /**
+     * What crossed one topic: messages written on it and deliveries of it, in all and by whom. A component's write is a
+     * {@code send} row, naming it; a write from outside a tick (a source's, a timer's, a widget's) is a row whose kind is
+     * the topic, naming nobody, and is counted by {@link #OUTSIDE}; a delivery is a {@code receive} row, naming the
+     * mailbox ({@code class#method}) or else the inbox it reached.
+     *
+     * @param by what each sender wrote, by its name
+     * @param to what was delivered to each receiver, by its name
+     */
+    public record Counted(long written, long delivered, Map<String, Long> by, Map<String, Long> to) {
+
+        /** The sender of a write from outside a tick, which the row does not name. */
+        public static final String OUTSIDE = "";
+
+        public Counted {
+            by = Map.copyOf(by);
+            to = Map.copyOf(to);
         }
     }
 
@@ -176,7 +203,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** Before any row. */
     static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of(), List.of(), "");
+            Map.of(), Map.of(), List.of(), "", Declared.NONE, Map.of());
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
@@ -186,6 +213,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     static final String RECORDED = "probe.lanes";
     /** The row {@link LinkRows} adds when the run's link is of another version: its detail, the warning in words. */
     static final String WARNING = "link.warning";
+    /** The row {@link LinkRows} adds for the run's bus graph: its detail, the graph's text, or why there is none. */
+    static final String GRAPH = "bus.graph";
 
     /** The probe lane each of {@link #LANES} is read from, in that order; see the class comment. */
     private static final List<String> PROBE_LANES = List.of("input", "frame", "bus", "bus", "gpu", "gpu");
@@ -206,11 +235,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         names = Map.copyOf(names);
         ahead = Map.copyOf(ahead);
         probed = List.copyOf(probed);
+        counts = Map.copyOf(counts);
     }
 
     /** This model warning of {@code warning} instead; empty to warn of nothing. */
     Model withWarning(String warning) {
-        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning);
+        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning, declared, counts);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -241,6 +271,9 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         Map<Long, List<Field>> told = ahead;
         List<String> probe = probed;
         String warned = warning;
+        Declared graph = declared;
+        // What this batch counted, by topic: merged onto the counts once, at the end, rather than copied for each row.
+        HashMap<String, Tally> tallies = null;
         // Each lane's events as they were, replaced only where a row changes one, and what this batch adds to them.
         List<Appended<Mark>> held = new ArrayList<>(lanes.size());
         List<List<Mark>> added = new ArrayList<>(lanes.size());
@@ -262,7 +295,14 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 lostNow += Long.parseLong(r.detail());
                 continue;
             }
+            if (r.lane().equals("bus")) {
+                tallies = tally(tallies, r);
+            }
             if (r.lane().equals(APP_LANE)) {
+                if (r.kind().equals(GRAPH)) {
+                    graph = r.detail().startsWith("# ") ? Declared.parse(r.detail()) : Declared.none(r.detail());
+                    continue;
+                }
                 if (r.kind().equals(RECORDED)) {
                     probe = r.detail().isBlank() ? List.of() : List.of(r.detail().trim().split(" +"));
                     continue;
@@ -330,7 +370,153 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             out.add(changed[i] || recorded != lanes.get(i).recorded() ? new Lane(LANES.get(i), marks, recorded)
                     : lanes.get(i));
         }
-        return new Model(newest, out, lostNow, offset, named, told, probe, warned);
+        Map<String, Counted> counted = tallies == null ? counts : merged(counts, tallies);
+        return new Model(newest, out, lostNow, offset, named, told, probe, warned, graph, counted);
+    }
+
+    /** The sender named for writes from outside a tick that more than one declared part could have made. */
+    static final String OUTSIDE_A_TICK = "outside a tick";
+
+    /**
+     * The declared graph and what crossed it as of this model, for the graph and flows panels: every topic the graph
+     * names, or, for a run that declared none (a recording), every topic the rows counted. A write from outside a tick
+     * names nobody, so it is put to the one declared part that can write so (a source, a job, a destination, a sender,
+     * a component that takes the timer), to the framework when the topic has none, and to {@link #OUTSIDE_A_TICK}
+     * when it has several.
+     *
+     * @param since     the model a second or two before, whose counts the rate is taken from
+     * @param overNanos how long before; 0 for no rate
+     */
+    Flows flows(String run, String why, Model since, long overNanos) {
+        java.util.TreeMap<String, String> topics = new java.util.TreeMap<>(declared.kinds());
+        if (topics.isEmpty()) {
+            counts.keySet().forEach(t -> topics.put(t, ""));
+        }
+        Map<String, Part> parts = new HashMap<>();
+        declared.parts().forEach(p -> parts.put(p.name(), p));
+        List<Flow> flows = new ArrayList<>(topics.size());
+        Counted none = new Counted(0L, 0L, Map.of(), Map.of());
+        for (Map.Entry<String, String> t : topics.entrySet()) {
+            Counted c = counts.getOrDefault(t.getKey(), none);
+            List<End> from = new ArrayList<>();
+            List<End> to = new ArrayList<>();
+            List<String> outsiders = new ArrayList<>();
+            java.util.Set<String> named = new java.util.HashSet<>();
+            for (Declared.Line l : declared.ends()) {
+                if (!l.topic().equals(t.getKey())) {
+                    continue;
+                }
+                named.add(l.part());
+                if (l.sends()) {
+                    from.add(new End(l.part(), l.how(), c.by().getOrDefault(l.part(), 0L)));
+                    Part p = parts.get(l.part());
+                    if (p != null && (!p.kind().equals("component") && !p.kind().equals("view") || p.timer())) {
+                        outsiders.add(l.part());
+                    }
+                } else {
+                    to.add(new End(l.part(), l.how(), c.to().getOrDefault(l.part(), 0L)));
+                }
+            }
+            c.by().forEach((who, n) -> {
+                if (who.equals(Counted.OUTSIDE)) {
+                    String part = outsiders.size() == 1 ? outsiders.getFirst()
+                            : outsiders.isEmpty() ? End.FRAMEWORK : OUTSIDE_A_TICK;
+                    int at = indexOf(from, part);
+                    if (at >= 0) {
+                        End e = from.get(at);
+                        from.set(at, new End(e.part(), e.how(), e.count() + n));
+                    } else {
+                        from.add(new End(part, Declared.Line.SENDS, n));
+                    }
+                } else if (!named.contains(who)) {
+                    from.add(new End(who, Declared.Line.SENDS, n));
+                }
+            });
+            c.to().forEach((who, n) -> {
+                if (!named.contains(who)) {
+                    to.add(new End(who, "", n));
+                }
+            });
+            long before = since.counts.getOrDefault(t.getKey(), none).written();
+            double perSecond = overNanos <= 0 ? 0.0 : (c.written() - before) * 1e9 / overNanos;
+            flows.add(new Flow(t.getKey(), t.getValue(), from, to, c.written(), c.delivered(), perSecond));
+        }
+        return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows);
+    }
+
+    private static int indexOf(List<End> ends, String part) {
+        for (int i = 0; i < ends.size(); i++) {
+            if (ends.get(i).part().equals(part)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** What a batch counts of one topic, before it is merged onto {@link #counts}. */
+    private static final class Tally {
+        long written;
+        long delivered;
+        final HashMap<String, Long> by = new HashMap<>();
+        final HashMap<String, Long> to = new HashMap<>();
+    }
+
+    /**
+     * {@code tallies} with what bus row {@code r} says crossed a topic, if it says: a write ({@code send}, or a
+     * publish from outside a tick, whose kind is the topic) or a delivery ({@code receive}).
+     */
+    private static HashMap<String, Tally> tally(HashMap<String, Tally> tallies, Row r) {
+        String kind = r.kind();
+        String detail = r.detail();
+        String topic;
+        String who;
+        boolean write;
+        if (kind.equals("send") || kind.equals("receive")) {
+            // "<topic> from <sender> <hops>", "<topic> to <inbox> [<mailbox>] <hops>"
+            write = kind.equals("send");
+            int split = detail.indexOf(write ? " from " : " to ");
+            int end = detail.lastIndexOf(' ');
+            if (split < 0 || end <= split) {
+                return tallies;
+            }
+            topic = detail.substring(0, split);
+            who = detail.substring(split + (write ? 6 : 4), end);
+            int mailbox = who.indexOf(' ');
+            if (mailbox > 0) {
+                who = who.substring(mailbox + 1);
+            }
+        } else if (isMessageType(kind)) {
+            write = true;
+            topic = kind;
+            who = Counted.OUTSIDE;
+        } else {
+            return tallies;
+        }
+        HashMap<String, Tally> out = tallies == null ? new HashMap<>() : tallies;
+        Tally t = out.computeIfAbsent(topic, k -> new Tally());
+        if (write) {
+            t.written++;
+            t.by.merge(who, 1L, Long::sum);
+        } else {
+            t.delivered++;
+            t.to.merge(who, 1L, Long::sum);
+        }
+        return out;
+    }
+
+    /** {@code counts} with {@code tallies} added. */
+    private static Map<String, Counted> merged(Map<String, Counted> counts, HashMap<String, Tally> tallies) {
+        HashMap<String, Counted> out = new HashMap<>(counts);
+        for (Map.Entry<String, Tally> e : tallies.entrySet()) {
+            Counted before = out.getOrDefault(e.getKey(), new Counted(0L, 0L, Map.of(), Map.of()));
+            Tally t = e.getValue();
+            HashMap<String, Long> by = new HashMap<>(before.by());
+            t.by.forEach((k, n) -> by.merge(k, n, Long::sum));
+            HashMap<String, Long> to = new HashMap<>(before.to());
+            t.to.forEach((k, n) -> to.merge(k, n, Long::sum));
+            out.put(e.getKey(), new Counted(before.written() + t.written, before.delivered() + t.delivered, by, to));
+        }
+        return out;
     }
 
     /** What the GUI's changes are said as, a hop of their own that counts them; see {@link Hop#said}. */

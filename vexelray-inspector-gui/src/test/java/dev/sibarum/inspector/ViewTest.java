@@ -151,6 +151,40 @@ class ViewTest {
     }
 
     @Test
+    void aTopicsRowSaysItsEndsByTheirClassesNamesAndWhatCrossedThem() {
+        Messages.Flow f = new Messages.Flow("dev.sibarum.inspector.core.Messages.Timeline", "state",
+                List.of(new Messages.End("dev.sibarum.inspector.core.Bench", "sends", 10)),
+                List.of(new Messages.End("dev.sibarum.inspector.View#timeline", "mailbox", 4),
+                        new Messages.End(Messages.End.FRAMEWORK, "", 1)), 10, 5, 59.6);
+        assertEquals(List.of("Messages.Timeline", "state", "Bench 10", "View#timeline 4, the framework 1", "10", "5",
+                "60"), View.flowCells(f));
+        assertEquals("ListRuns", View.flowCells(new Messages.Flow("dev.example.FindRuns", "edge", List.of(),
+                List.of(new Messages.End("dev.example.ListRuns", "request", Messages.End.UNCOUNTED)), 1, 0, 0.0)).get(3),
+                "a job's request is not counted, and says no number");
+        assertEquals("", View.flowCells(new Messages.Flow("dev.example.FindRuns", "edge", List.of(),
+                List.of(new Messages.End("dev.example.ListRuns", "request", Messages.End.UNCOUNTED)), 1, 0, 0.0)).get(5),
+                "nor does its delivered column");
+        assertEquals("", View.flowCells(new Messages.Flow("dev.example.Quiet", "edge", List.of(), List.of(), 0, 0,
+                0.0)).getLast(), "no rate said when nothing was written");
+    }
+
+    @Test
+    void theFlowsTableKeepsItsRowsAsTheCountsMoveAndRebuildsThemForNewTopics() throws InterruptedException {
+        Messages.Flow a = new Messages.Flow("dev.example.A", "edge", List.of(), List.of(), 1, 1, 0.0);
+        shell.bus().publish(Messages.FLOWS_TOPIC, new Messages.Flows("run", "", List.of(), List.of(a)));
+        eventually("a row for the topic", () -> "1".equals(cellOf(wiring.ui(), "dev.example.A", 4)));
+        Messages.Flow more = new Messages.Flow("dev.example.A", "edge", List.of(), List.of(), 7, 6, 0.0);
+        shell.bus().publish(Messages.FLOWS_TOPIC, new Messages.Flows("run", "a recording declares no bus graph",
+                List.of(), List.of(more)));
+        eventually("its count moved", () -> "7".equals(cellOf(wiring.ui(), "dev.example.A", 4)));
+    }
+
+    private static String cellOf(Ui ui, String topic, int column) {
+        List<String> cells = ui.flowCells(topic);
+        return cells.isEmpty() ? "" : cells.get(column);
+    }
+
+    @Test
     void theRunPanelSaysTheRunItsProcessHowItWasReachedAndItsLogic() {
         Messages.Run one = new Messages.Run("calculator-11", "Calculator", 11, "uds:one");
         assertEquals("Calculator · pid 11 · attached · logic on its own lane, vexel-logic",

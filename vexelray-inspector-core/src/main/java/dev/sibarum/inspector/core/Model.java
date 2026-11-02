@@ -126,16 +126,16 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /**
      * What crossed one topic: messages written on it and deliveries of it, in all and by whom. A component's write is a
      * {@code send} row, naming it; a write from outside a tick (a source's, a timer's, a widget's) is a row whose kind is
-     * the topic, naming nobody, and is counted by {@link #OUTSIDE}; a delivery is a {@code receive} row, naming the
-     * mailbox ({@code class#method}) or else the inbox it reached.
+     * the topic, naming nobody, and is counted by the thread that wrote it, after {@link #OUTSIDE}; a delivery is a
+     * {@code receive} row, naming the mailbox ({@code class#method}) or else the inbox it reached.
      *
-     * @param by what each sender wrote, by its name
+     * @param by what each sender wrote, by its name, or by {@link #OUTSIDE} and its thread's
      * @param to what was delivered to each receiver, by its name
      */
     public record Counted(long written, long delivered, Map<String, Long> by, Map<String, Long> to) {
 
-        /** The sender of a write from outside a tick, which the row does not name. */
-        public static final String OUTSIDE = "";
+        /** What a write from outside a tick is counted by, before its thread's name: the row names no sender. */
+        public static final String OUTSIDE = "@";
 
         public Counted {
             by = Map.copyOf(by);
@@ -380,9 +380,9 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /**
      * The declared graph and what crossed it as of this model, for the graph and flows panels: every topic the graph
      * names, or, for a run that declared none (a recording), every topic the rows counted. A write from outside a tick
-     * names nobody, so it is put to the one declared part that can write so (a source, a job, a destination, a sender,
-     * a component that takes the timer), to the framework when the topic has none, and to {@link #OUTSIDE_A_TICK}
-     * when it has several.
+     * names no sender, only its thread, so it is put to the declared sender of the topic that writes on that thread
+     * ({@link #writesOn}); to the framework when none does, the widgets' writes on the main thread among them; and to
+     * {@link #OUTSIDE_A_TICK} when more than one could have.
      *
      * @param since     the model a second or two before, whose counts the rate is taken from
      * @param overNanos how long before; 0 for no rate
@@ -400,7 +400,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             Counted c = counts.getOrDefault(t.getKey(), none);
             List<End> from = new ArrayList<>();
             List<End> to = new ArrayList<>();
-            List<String> outsiders = new ArrayList<>();
+            List<Part> senders = new ArrayList<>();
             java.util.Set<String> named = new java.util.HashSet<>();
             for (Declared.Line l : declared.ends()) {
                 if (!l.topic().equals(t.getKey())) {
@@ -410,17 +410,23 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 if (l.sends()) {
                     from.add(new End(l.part(), l.how(), c.by().getOrDefault(l.part(), 0L)));
                     Part p = parts.get(l.part());
-                    if (p != null && (!p.kind().equals("component") && !p.kind().equals("view") || p.timer())) {
-                        outsiders.add(l.part());
+                    if (p != null) {
+                        senders.add(p);
                     }
                 } else {
-                    to.add(new End(l.part(), l.how(), c.to().getOrDefault(l.part(), 0L)));
+                    // Only a mailbox and an inbox are delivered to by the tick, which writes a row for it; a job, a
+                    // source and a destination are handed their messages by the framework, which writes none.
+                    boolean counted = l.how().equals("mailbox") || l.how().equals("inbox");
+                    to.add(new End(l.part(), l.how(), counted ? c.to().getOrDefault(l.part(), 0L) : End.UNCOUNTED));
                 }
             }
             c.by().forEach((who, n) -> {
-                if (who.equals(Counted.OUTSIDE)) {
-                    String part = outsiders.size() == 1 ? outsiders.getFirst()
-                            : outsiders.isEmpty() ? End.FRAMEWORK : OUTSIDE_A_TICK;
+                if (who.startsWith(Counted.OUTSIDE)) {
+                    String thread = who.substring(Counted.OUTSIDE.length());
+                    List<Part> could = senders.stream().filter(p -> writesOn(p, thread)).toList();
+                    // With no graph there is no part to put it to: the thread is all that is known.
+                    String part = parts.isEmpty() ? "on " + thread : could.size() == 1 ? could.getFirst().name()
+                            : could.isEmpty() ? End.FRAMEWORK : OUTSIDE_A_TICK;
                     int at = indexOf(from, part);
                     if (at >= 0) {
                         End e = from.get(at);
@@ -442,6 +448,36 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             flows.add(new Flow(t.getKey(), t.getValue(), from, to, c.written(), c.delivered(), perSecond));
         }
         return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows);
+    }
+
+    /**
+     * Whether part {@code p} writes from outside a tick on {@code thread}, as the framework names its threads: a source
+     * or a destination on its own ({@code vexel-source-link-rows} for {@code LinkRows}), a job on the job lane's, a
+     * component that takes the timer on the timer's, a view or a sender on the main thread.
+     */
+    static boolean writesOn(Part p, String thread) {
+        return switch (p.kind()) {
+            case "source" -> thread.startsWith("vexel-source-" + kebab(typeName(p.name())));
+            case "destination" -> thread.startsWith("vexel-destination-" + kebab(typeName(p.name())))
+                    || thread.startsWith("vexel-source-" + kebab(typeName(p.name())));
+            case "job" -> thread.startsWith("vexel-job-");
+            case "component" -> p.timer() && thread.equals("vexel-timer");
+            case "view", "sender" -> thread.equals("main");
+            default -> false;
+        };
+    }
+
+    /** {@code LinkRows} as a thread names it: {@code link-rows}. */
+    private static String kebab(String name) {
+        StringBuilder out = new StringBuilder(name.length() + 4);
+        for (int i = 0; i < name.length(); i++) {
+            char ch = name.charAt(i);
+            if (Character.isUpperCase(ch) && i > 0) {
+                out.append('-');
+            }
+            out.append(Character.toLowerCase(ch));
+        }
+        return out.toString();
     }
 
     private static int indexOf(List<End> ends, String part) {
@@ -488,7 +524,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         } else if (isMessageType(kind)) {
             write = true;
             topic = kind;
-            who = Counted.OUTSIDE;
+            // The job lane's threads are numbered and taken in turn: one lane, so one sender.
+            who = Counted.OUTSIDE + r.thread().replaceFirst("^(vexel-job)-\\d+$", "$1");
         } else {
             return tallies;
         }

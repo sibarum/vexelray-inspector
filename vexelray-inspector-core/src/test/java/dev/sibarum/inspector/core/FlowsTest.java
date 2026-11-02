@@ -56,8 +56,8 @@ class FlowsTest {
         return new Row(seq, at, 0L, 3L, "main", "bus", "receive", M + topic + " to " + to + " 0", "");
     }
 
-    private static Row publish(long seq, long at, String topic) {
-        return new Row(seq, at, 0L, 3L, "vexel-timer", "bus", M + topic, "12us", "");
+    private static Row publish(long seq, long at, String topic, String thread) {
+        return new Row(seq, at, 0L, 3L, thread, "bus", M + topic, "12us", "");
     }
 
     @Test
@@ -85,9 +85,9 @@ class FlowsTest {
         for (int i = 0; i < 4; i++) {
             rows.add(receive(20 + i, at + i * MS, "Timeline", "widgets dev.sibarum.inspector.View#timeline"));
         }
-        rows.add(publish(30, at + 2 * MS, "Rows"));
+        rows.add(publish(30, at + 2 * MS, "Rows", "vexel-source-link-rows"));
         rows.add(receive(31, at + 2 * MS, "Rows", "dev.sibarum.inspector.core.Bench"));
-        rows.add(publish(32, at + 3 * MS, "FindRuns"));
+        rows.add(publish(32, at + 3 * MS, "FindRuns", "vexel-timer"));
         rows.add(send(33, at + 3 * MS, "FindRuns", "dev.sibarum.inspector.core.Bench"));
 
         Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
@@ -113,12 +113,37 @@ class FlowsTest {
         assertEquals(2, find.written());
         assertEquals(List.of(new End("dev.sibarum.inspector.core.Bench", "sends", 2)), find.from(),
                 "the bench's own send and its timer's, together");
-        assertEquals(List.of(new End("dev.sibarum.inspector.core.ListRuns", "request", 0)), find.to());
+        assertEquals(List.of(new End("dev.sibarum.inspector.core.ListRuns", "request", End.UNCOUNTED)), find.to(),
+                "what reaches a job is handed to it by the framework, and no row counts it");
 
         Flow attach = f.flows().getFirst();
         assertEquals("edge keyed", attach.kind());
         assertEquals(List.of(), attach.from(), "sent by no declared part, and by nothing yet");
         assertEquals(0, attach.written());
+    }
+
+    @Test
+    void aWriteFromOutsideATickIsPutToTheSenderWhoseThreadWroteIt() {
+        long at = 2_000 * MS;
+        String graph = String.join("\n", "# vexelray bus graph 2",
+                "part source dev.sibarum.inspector.core.LinkRows lane=own",
+                "part source dev.sibarum.inspector.core.RecordingRows lane=own",
+                "sends dev.sibarum.inspector.core.LinkRows topic=" + M + "Rows",
+                "sends dev.sibarum.inspector.core.RecordingRows topic=" + M + "Rows",
+                "topic " + M + "Rows kind=edge");
+        Model m = Model.EMPTY.fold(List.of(graph(at, graph),
+                publish(1, at, "Rows", "vexel-source-recording-rows"),
+                publish(2, at, "Rows", "vexel-source-recording-rows"),
+                publish(3, at, "Rows", "vexel-source-link-rows"),
+                publish(4, at, "Rows", "vexel-job-1")), Long.MAX_VALUE);
+        assertEquals(List.of(new End("dev.sibarum.inspector.core.LinkRows", "sends", 1),
+                        new End("dev.sibarum.inspector.core.RecordingRows", "sends", 2),
+                        new End(End.FRAMEWORK, "sends", 1)),
+                m.flows("run", "", Model.EMPTY, 0L).flows().getFirst().from().stream()
+                        .sorted(java.util.Comparator.comparing(End::part)).toList(),
+                "two sources of one topic told apart by their threads; a job's thread is neither's");
+        assertTrue(Model.writesOn(new Part("component", "dev.example.Bench", "logic", true), "vexel-timer"));
+        assertTrue(!Model.writesOn(new Part("component", "dev.example.Bench", "logic", false), "vexel-timer"));
     }
 
     @Test

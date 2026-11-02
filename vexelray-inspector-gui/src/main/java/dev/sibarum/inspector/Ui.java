@@ -14,9 +14,13 @@ import dev.vexelray.gui.widget.Button;
 import dev.vexelray.gui.widget.IconButton;
 import dev.vexelray.gui.widget.Select;
 import dev.vexelray.gui.widget.StatusBar;
+import dev.vexelray.gui.widget.Table;
 import dev.vexelray.gui.widget.TitleBar;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -71,6 +75,13 @@ final class Ui {
     /** A lane's height, in rem. */
     private static final float LANE_REM = 2.5f;
 
+    /** A row of the flows table, in rem. */
+    private static final float FLOW_ROW_REM = 1.5f;
+
+    /** The flows table's column widths, in {@link View#FLOW_COLUMNS}' order: the names share what is left. */
+    private static final List<Length> FLOW_WIDTHS = List.of(Length.grow(2f), Length.rem(5.5f), Length.grow(2f),
+            Length.grow(3f), Length.rem(6.5f), Length.rem(6.5f), Length.rem(7f));
+
     private final Gui gui;
     private final StatusBar status;
     private final Node lane;
@@ -87,6 +98,14 @@ final class Ui {
     private final Node runText;
     private final Select<Run> runs;
     private final Button detach;
+    private final Table<String> flows;
+    private final Node flowsWhy;
+    /** The topics the flows table holds, in the order last given. */
+    private List<String> flowTopics = List.of();
+    /** What each topic's cells say, by topic: what a row realized later is built with. */
+    private final Map<String, List<String>> flowCells = new HashMap<>();
+    /** Each realized cell's text, by topic and column, to change in place as the counts move. */
+    private final Map<String, Node[]> flowNodes = new HashMap<>();
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
@@ -164,8 +183,28 @@ final class Ui {
                 .children(runText, runs.node(), detach.node());
         gui.landmark(Landmarks.RUN, runPanel);
 
+        List<Table.Column<String>> columns = new ArrayList<>();
+        for (int i = 0; i < View.FLOW_COLUMNS.size(); i++) {
+            int at = i;
+            columns.add(Table.Column.of(View.FLOW_COLUMNS.get(i), FLOW_WIDTHS.get(i), (nodes, topic) -> {
+                Node text = nodes.text(flowCells.getOrDefault(topic, View.NO_FLOW).get(at))
+                        .textSize(Type.SMALL).textColor(gui.theme().color(at == 0 ? Role.INK : Role.DIM));
+                flowNodes.computeIfAbsent(topic, t -> new Node[View.FLOW_COLUMNS.size()])[at] = text;
+                return text;
+            }));
+        }
+        flows = new Table<>(gui, FLOW_ROW_REM, columns).name(Landmarks.FLOWS);
+        flows.headers(Type.UI, Type.SMALL, Role.DIM);
+        flows.node().width(Length.FILL).height(Length.grow(1f));
+        gui.landmark(Landmarks.FLOWS, flows.node());
+        flowsWhy = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        flowsWhy.visible(false);
+        gui.landmark(Landmarks.FLOWS_WHY, flowsWhy);
+        Node flowsPanel = gui.column().width(Length.FILL).height(Length.grow(1f)).gap(Type.TIGHT)
+                .children(flowsWhy, flows.node());
+
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(runPanel, warning, lanes, detailsPanel, readoutRow);
+                .children(runPanel, warning, lanes, detailsPanel, readoutRow, flowsPanel);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -224,6 +263,42 @@ final class Ui {
             details[i].text(values.get(i));
             detailRows[i].visible(i == 0 || !values.get(i).isEmpty());
         }
+    }
+
+    /**
+     * What the flows panel says: {@code why} there is no graph, when there is none, and a row a topic, each cell's text
+     * as {@code cells} gives it by topic. The rows are rebuilt only when the topics change, which is once a run; the
+     * counts, which change with every batch, change in place.
+     */
+    void flows(String why, List<String> topics, Map<String, List<String>> cells) {
+        flowsWhy.text(why);
+        flowsWhy.visible(!why.isEmpty());
+        if (!topics.equals(flowTopics)) {
+            flowTopics = List.copyOf(topics);
+            flowCells.clear();
+            flowCells.putAll(cells);
+            flowNodes.clear();
+            flows.items(flowTopics);
+            return;
+        }
+        for (String topic : topics) {
+            List<String> now = cells.get(topic);
+            List<String> was = flowCells.put(topic, now);
+            Node[] shown = flowNodes.get(topic);
+            if (now == null || now.equals(was) || shown == null) {
+                continue;
+            }
+            for (int i = 0; i < shown.length; i++) {
+                if (shown[i] != null && (was == null || !now.get(i).equals(was.get(i)))) {
+                    shown[i].text(now.get(i));
+                }
+            }
+        }
+    }
+
+    /** What a topic's cells say in the flows panel, for a test: empty when it has no row. */
+    List<String> flowCells(String topic) {
+        return flowCells.getOrDefault(topic, List.of());
     }
 
     /** What the readouts line says. */

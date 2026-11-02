@@ -10,7 +10,10 @@ import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Choose;
 import dev.sibarum.inspector.core.Messages.Details;
+import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Field;
+import dev.sibarum.inspector.core.Messages.Flow;
+import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
@@ -50,9 +53,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -1102,6 +1109,48 @@ final class View {
     @Subscribe
     public void readouts(Readouts r) {
         ui.readouts(readout(r));
+    }
+
+    /** The flows table's columns, in order. */
+    static final List<String> FLOW_COLUMNS = List.of("Topic", "Kind", "From", "To", "Written", "Delivered",
+            "Per second");
+
+    /** A topic's cells before anything is known of it. */
+    static final List<String> NO_FLOW = Collections.nCopies(FLOW_COLUMNS.size(), "");
+
+    @Subscribe
+    public void flows(Flows f) {
+        List<String> topics = new ArrayList<>(f.flows().size());
+        Map<String, List<String>> cells = new HashMap<>();
+        for (Flow flow : f.flows()) {
+            topics.add(flow.topic());
+            cells.put(flow.topic(), flowCells(flow));
+        }
+        ui.flows(f.why(), topics, cells);
+    }
+
+    /**
+     * What a topic's row says, a cell for each of {@link #FLOW_COLUMNS}: its type's name, its kind, who sends it and
+     * who hears it by their classes' names with what crossed each, what was written and delivered, and written a
+     * second. Pure, for a test.
+     */
+    static List<String> flowCells(Flow f) {
+        // Heard only by parts no row counts deliveries to (a job, a source): there is no number to say.
+        boolean uncounted = !f.to().isEmpty() && f.to().stream().allMatch(e -> e.count() == End.UNCOUNTED);
+        return List.of(Model.typeName(f.topic()), f.kind(), ends(f.from()), ends(f.to()),
+                Long.toString(f.written()), uncounted ? "" : Long.toString(f.delivered()),
+                f.perSecond() <= 0.0 ? "" : String.format(Locale.ROOT, "%.0f", f.perSecond()));
+    }
+
+    /** Ends as a list in words: each part by its class's name ({@code View#timeline}), then what crossed it. */
+    private static String ends(List<End> ends) {
+        List<String> said = new ArrayList<>(ends.size());
+        for (End e : ends) {
+            String part = e.part().equals(End.FRAMEWORK) || e.part().equals("outside a tick") ? e.part()
+                    : Model.typeName(e.part());
+            said.add(e.count() == End.UNCOUNTED ? part : part + " " + e.count());
+        }
+        return String.join(", ", said);
     }
 
     /** What the readouts line says. Pure, for a test. */

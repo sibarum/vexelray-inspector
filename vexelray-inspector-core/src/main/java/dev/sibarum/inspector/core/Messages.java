@@ -485,11 +485,15 @@ public final class Messages {
      * @param part  the part's name, or {@link #FRAMEWORK} for what no declared part sent
      * @param how   {@code sends}, or how the part hears it: {@code mailbox}, {@code inbox}, {@code request},
      *              {@code start}, {@code stop}, {@code open}, {@code write}
-     * @param count messages written by it, or delivered to it
+     * @param count messages written by it, or delivered to it; {@link #UNCOUNTED} for a job, a source or a destination
+     *              hearing, which no row counts
      */
     public record End(String part, String how, long count) {
 
         /** The part named for writes no declared part made: a widget's, the window's, input's, automation's. */
         public static final String FRAMEWORK = "the framework";
+
+        /** The count of an end no row counts: what reached a job, a source or a destination. */
+        public static final long UNCOUNTED = -1L;
     }
 }

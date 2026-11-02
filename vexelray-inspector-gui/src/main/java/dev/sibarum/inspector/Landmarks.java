@@ -25,6 +25,10 @@ final class Landmarks {
     static final String RUNS = "runs";
     static final String DETACH = "detach";
 
+    /** The flows table, a row a topic, and the line over it that says why there is no graph when there is none. */
+    static final String FLOWS = "flows";
+    static final String FLOWS_WHY = "flows.why";
+
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 

@@ -57,9 +57,10 @@ import java.util.Map;
  * <h2>An event's path</h2>
  *
  * <p>A cause travels: a source sets it off, and every publish, send, delivery, ledger step and change to the GUI made
- * in it writes rows under it, on whichever thread, so the rows sharing a cause are the hops it took, in order. They
- * are kept by cause in {@link #paths}, a run of rows from the same place folded into one hop ({@link Hop}), and
- * {@link #pathOf} says an event's: its cause's source, then each hop. A pass's cause is what woke it, so its path is
+ * in it writes rows under it, on whichever thread, so the rows sharing a cause are the hops it took, in order.
+ * {@link #pathOf} reads them from the rows kept on the tape when an event is shown, rather than the fold keeping every
+ * cause's path on each batch: a run of rows from the same place is one hop ({@link Hop}), and an event's path is its
+ * cause's source, then each hop. A pass's cause is what woke it, so its path is
  * the path of what made it run, ending at the pass.
  *
  * <h2>What a pass's rows say of it</h2>
@@ -90,11 +91,9 @@ import java.util.Map;
  *                    then every lane is taken as recorded ({@link Lane#recorded})
  * @param warning     what the run's link said that makes what is shown less than whole, in words: an application of
  *                    another link version ({@link LinkRows#versionWarning}); empty when nothing has
- * @param paths       the hops each cause took, by cause, while any of them is inside the reach
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
-                    Map<Long, List<Field>> ahead, List<String> probed, String warning,
-                    Map<String, List<Hop>> paths) {
+                    Map<Long, List<Field>> ahead, List<String> probed, String warning) {
 
     /**
      * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
@@ -177,7 +176,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** Before any row. */
     static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of(), List.of(), "", Map.of());
+            Map.of(), Map.of(), List.of(), "");
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
@@ -207,12 +206,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         names = Map.copyOf(names);
         ahead = Map.copyOf(ahead);
         probed = List.copyOf(probed);
-        paths = Map.copyOf(paths);
     }
 
     /** This model warning of {@code warning} instead; empty to warn of nothing. */
     Model withWarning(String warning) {
-        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning, paths);
+        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -227,7 +225,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /**
      * This model with {@code rows} folded on, in their order, leaving out any stamped after {@code upToNanos}; events
-     * that ended before the reach are let go.
+     * that ended before the reach are let go, from the oldest folded on, so one still inside it keeps those folded after
+     * it until it goes. A batch adds to the lanes without copying them ({@link Appended}).
      */
     Model fold(List<Row> rows, long upToNanos) {
         return fold(rows, upToNanos, Bench.REACH);
@@ -242,12 +241,14 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         Map<Long, List<Field>> told = ahead;
         List<String> probe = probed;
         String warned = warning;
-        HashMap<String, List<Hop>> walked = null;
-        List<List<Mark>> next = new ArrayList<>(lanes.size());
-        boolean[] changed = new boolean[lanes.size()];
+        // Each lane's events as they were, replaced only where a row changes one, and what this batch adds to them.
+        List<Appended<Mark>> held = new ArrayList<>(lanes.size());
+        List<List<Mark>> added = new ArrayList<>(lanes.size());
         for (Lane l : lanes) {
-            next.add(l.marks());
+            held.add(Appended.of(l.marks()));
+            added.add(null);
         }
+        boolean[] changed = new boolean[lanes.size()];
         int main = LANES.indexOf(MAIN);
         for (Row r : rows) {
             if (r.atNanos() > upToNanos) {
@@ -273,18 +274,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 named = learn(named, r);
                 continue;
             }
-            String says = r.cause().isEmpty() ? null : hopOf(r);
-            if (says != null) {
-                if (walked == null) {
-                    walked = new HashMap<>(paths);
-                }
-                walk(walked, r, says);
-            }
             Field about = r.frame() > 0 ? aboutPass(r) : null;
             if (about != null) {
                 long pass = r.kind().equals("wake") ? r.frame() + 1 : r.frame();
                 // The first wake is what woke it, and a reason a draw was held outranks that it only updated.
-                if (!setOn(next, changed, main, pass, about)) {
+                if (!setOn(held, added, changed, main, pass, about)) {
                     List<Field> before = told.getOrDefault(pass, List.of());
                     if (before.stream().noneMatch(f -> f.name().equals(about.name()))) {
                         List<Field> after = new ArrayList<>(before);
@@ -313,32 +307,30 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     told = kept;
                 }
             }
-            if (!changed[lane]) {
-                next.set(lane, new ArrayList<>(next.get(lane)));
-                changed[lane] = true;
+            if (added.get(lane) == null) {
+                added.set(lane, new ArrayList<>());
             }
-            next.get(lane).add(m);
+            added.get(lane).add(m);
+            changed[lane] = true;
         }
         long from = Bench.since(newest, reachNanos);
         List<Lane> out = new ArrayList<>(lanes.size());
         for (int i = 0; i < lanes.size(); i++) {
-            List<Mark> marks = next.get(i);
-            if (!marks.isEmpty() && marks.getFirst().toNanos() < from) {
-                marks = changed[i] ? marks : new ArrayList<>(marks);
-                marks.removeIf(m -> m.toNanos() < from);
+            Appended<Mark> marks = added.get(i) == null ? held.get(i) : held.get(i).plus(added.get(i));
+            // Let go of the events from the oldest on that ended before the reach: those folded in a row's order.
+            int gone = 0;
+            while (gone < marks.size() && marks.get(gone).toNanos() < from) {
+                gone++;
+            }
+            if (gone > 0) {
+                marks = marks.dropFirst(gone);
                 changed[i] = true;
             }
             boolean recorded = records(LANES.get(i), probe);
             out.add(changed[i] || recorded != lanes.get(i).recorded() ? new Lane(LANES.get(i), marks, recorded)
                     : lanes.get(i));
         }
-        Map<String, List<Hop>> trodden = paths;
-        if (walked != null || paths.values().stream().anyMatch(p -> p.getLast().atNanos() < from)) {
-            HashMap<String, List<Hop>> kept = walked != null ? walked : new HashMap<>(paths);
-            kept.values().removeIf(p -> p.getLast().atNanos() < from);
-            trodden = Map.copyOf(kept);
-        }
-        return new Model(newest, out, lostNow, offset, named, told, probe, warned, trodden);
+        return new Model(newest, out, lostNow, offset, named, told, probe, warned);
     }
 
     /** What the GUI's changes are said as, a hop of their own that counts them; see {@link Hop#said}. */
@@ -386,14 +378,13 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     }
 
     /** Add the hop {@code says} to {@code r}'s cause's path, or count it on the last if that said the same there. */
-    private static void walk(HashMap<String, List<Hop>> walked, Row r, String says) {
+    private static void walk(List<Hop> next, Row r, String says) {
         // In the order the hops began: a zone's row (a publish, a ledger's step) is written when it ends, after what
         // it did, so it goes back by how long it took.
         long took = r.lane().equals("layout") || r.lane().equals("frame") ? -1L : Durations.nanos(r.detail());
         long began = took > 0 ? r.atNanos() - took : r.atNanos();
         boolean relays = r.kind().equals("mutation layout");
         boolean redraws = r.kind().equals("mutation draw");
-        List<Hop> next = new ArrayList<>(walked.getOrDefault(r.cause(), List.of()));
         int at = next.size();
         while (at > 0 && next.get(at - 1).atNanos() > began) {
             at--;
@@ -404,15 +395,17 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         } else {
             next.add(at, new Hop(says, r.thread(), began, 1, relays ? 1 : 0, redraws ? 1 : 0));
         }
-        walked.put(r.cause(), List.copyOf(next));
     }
 
     /**
      * An event's path, in words, a hop at a time: what set its cause off, as {@link #causeOf} says it, then every hop
-     * the rows sharing that cause took ({@link #paths}); for a pass, ending at the pass. Input from the devices has no
-     * cause of its own, so its path is the devices and the pass that read them. Empty when nothing is known.
+     * the rows of {@code rows} sharing that cause took, in their order; for a pass, ending at the pass. Input from the
+     * devices has no cause of its own, so its path is the devices and the pass that read them. Empty when nothing is
+     * known.
+     *
+     * @param rows the rows to read the hops from, in the order they were folded: the tape's
      */
-    public String pathOf(Mark m) {
+    public String pathOf(Mark m, Iterable<Row> rows) {
         if (m.kind().equals(INPUT_TAKEN)) {
             return "the devices" + (m.frame() > 0 ? " → read in pass #" + m.frame() : "");
         }
@@ -421,7 +414,18 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (!origin.isEmpty()) {
             said.add(origin);
         }
-        for (Hop h : paths.getOrDefault(m.cause(), List.of())) {
+        List<Hop> hops = new ArrayList<>();
+        if (!m.cause().isEmpty()) {
+            // A minute of rows, most of them another cause's: a string's hash is kept once worked out, so it tells most apart.
+            int hash = m.cause().hashCode();
+            for (Row r : rows) {
+                String says = r.cause().hashCode() == hash && r.cause().equals(m.cause()) ? hopOf(r) : null;
+                if (says != null) {
+                    walk(hops, r, says);
+                }
+            }
+        }
+        for (Hop h : hops) {
             said.add(h.said());
         }
         boolean woke = said.contains("woke pass #" + m.frame());
@@ -466,21 +470,25 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * Set {@code about} on lane {@code lane}'s mark of pass {@code pass}, if it is folded, keeping what is already
      * there (a reason it did not draw over that it only updated); whether it was folded.
      */
-    private static boolean setOn(List<List<Mark>> next, boolean[] changed, int lane, long pass, Field about) {
-        List<Mark> marks = next.get(lane);
-        for (int i = marks.size() - 1; i >= 0; i--) {
-            Mark m = marks.get(i);
+    private static boolean setOn(List<Appended<Mark>> held, List<List<Mark>> added, boolean[] changed, int lane,
+                                 long pass, Field about) {
+        List<Mark> fresh = added.get(lane) == null ? List.of() : added.get(lane);
+        Appended<Mark> marks = held.get(lane);
+        for (int i = fresh.size() + marks.size() - 1; i >= 0; i--) {
+            boolean isFresh = i >= marks.size();
+            Mark m = isFresh ? fresh.get(i - marks.size()) : marks.get(i);
             if (m.frame() < pass) {
                 return false;
             }
             if (m.frame() == pass) {
-                if (!changed[lane]) {
-                    marks = new ArrayList<>(marks);
-                    next.set(lane, marks);
-                    changed[lane] = true;
+                Mark set = about.name().equals(WOKEN_IN) ? m.because(about.value())
+                        : m.with(about.name(), about.value(), true);
+                if (isFresh) {
+                    fresh.set(i - marks.size(), set);
+                } else {
+                    held.set(lane, marks.with(i, set));
                 }
-                marks.set(i, about.name().equals(WOKEN_IN) ? m.because(about.value())
-                        : m.with(about.name(), about.value(), true));
+                changed[lane] = true;
                 return true;
             }
         }

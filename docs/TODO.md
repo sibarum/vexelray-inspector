@@ -8,12 +8,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] The fold allocates 3 to 10 KB a row (about 190 MB a second at 19,000 rows a second) and its time grows with
-      what is kept: it copies every kept lane on each batch. Keep the lanes in a structure a batch appends to without
-      copying, then measure again with `BenchMeasureTest` ([design.md](design.md) §10, R1's measurements).
-- [ ] At about 40,000 rows a second the bench falls behind (its newest row 6 s old after a minute): it keeps up
-      at 19,000. The fold above first; then whether a batch should fold more than one link batch at a time.
-- [ ] A minute of tape at 19,000 rows a second holds about 145 MB, so the 5 min reach design.md section 8 offered
+- [ ] At about 40,000 rows a second the bench fell behind (its newest row 6 s old after a minute), before the fold
+      stopped copying (a batch now 0.05 ms rather than 0.8). Watch an Inspector watching one again; if it still falls
+      behind, whether a batch should fold more than one link batch at a time.
+- [ ] A minute of tape at 19,000 rows a second holds about 109 MB, so the 5 min reach design.md section 8 offered
       would not fit: rows kept as columns, or a coarser tape past the last minute, before the reach is made choosable.
 - [ ] An Inspector folding 19,000 rows a second drew 29 times a second instead of 55 once its tape was full,
       101 passes a second holding a draw for the GPU (another Inspector drawing beside it): measure what a picture of the full strip costs to

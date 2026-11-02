@@ -478,8 +478,8 @@ Each step ends with something to watch or something an agent can ask, and lands 
   **An event's path, ruled by the author 2026-10-31:** From and To gave way to Path, every hop the event's cause took,
   in the order they began: the source (`Model.causeOf`), each publish, each component's send, each delivery to an
   inbox, each ledger commit, the GUI's changes folded into one hop that counts them (relaid out, redrawn), and the
-  wake of the next pass. A pass's cause is what woke it, so its path is what made it run. The model keeps the hops by
-  cause (`Model.paths`, trimmed with the reach), and the bench fills Path when it says the details, since a cause goes
+  wake of the next pass. A pass's cause is what woke it, so its path is what made it run. The model kept the hops by
+  cause (`Model.paths`, trimmed with the reach; read from the tape since R1's fold was made to add), and the bench fills Path when it says the details, since a cause goes
   on after the event. A component's send is a message on the Messages lane too. Upstream, atchung's `Inbox` writes
   `send` and `receive` rows in the message's cause (FN-10). The panel shows a hop a line; the field keeps them on one,
   joined by arrows, as a filter matches it. Seen with `ottermate`, an Inspector watching one started with
@@ -531,6 +531,16 @@ Each step ends with something to watch or something an agent can ask, and lands 
   bench fell behind at that rate, its newest row 6 s old after a minute. So 20,000 rows a second holds, with the
   allocation its cost, and twice that does not. Its working set was 2.8 GB, the heap grown by the allocation. All five
   are TODO entries for after R1: the fold first.
+  **The fold made to add rather than copy, 2026-11-02.** A profile of the same measurement put half the allocation in
+  copying each changed lane (an `ArrayList` copy, then `Lane`'s own `List.copyOf`), a quarter in copying the map of
+  every cause's path and its hops, and an eighth in copying the tape's newest second. The lanes and a second's rows are
+  now an `Appended`: an immutable list over a store it shares with the list it was made from, added to in place by the
+  list that ends where the store does, with a short tail of its own where a pass is changed as the rows after it say
+  whether it drew. A path is no longer kept by the fold but read when an event's details are said, from the seconds of
+  the tape whose filter of causes (4,096 bits, two a cause) may hold its cause. Measured again: **about 295 bytes a row,
+  flat as the tape fills** (from 3.2 to 10 KB), a batch in p50 0.04 to 0.07 ms, p95 0.05 to 0.3 ms (from 0.41 to
+  0.78 ms), the same 54,202 events kept at 70 s, and a minute of tape holding about 109 MB (from 145). A path reads in
+  5 to 12 ms (92 ms over every row of the tape, 44 ms with each cause's hash compared first, before the filter).
   **Inspected W1 to W3 in both modes, 2026-11-02**, each launched by `--launch` from the witness projects the
   acceptance profile generates, driven by `ottermate` on its own buttons while the Inspector watched. *W3 (long run)*,
   running: 57 draws a second under the ceiling and 139 passes a second held for it, logic ticks on `vexel-logic` at p50

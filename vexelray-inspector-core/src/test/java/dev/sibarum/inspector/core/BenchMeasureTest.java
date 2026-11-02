@@ -109,6 +109,18 @@ class BenchMeasureTest {
         System.out.printf(Locale.ROOT, "tape holds %.1f s of rows; kept events %d; the bench and its bus hold about %.0f MB more than before%n",
                 (s.now().newestNanos() - s.tape().oldestNanos()) / 1e9,
                 s.kept().lanes().stream().mapToInt(l -> l.marks().size()).sum(), held / 1e6);
+        for (var l : s.kept().lanes()) {
+            long from = s.now().newestNanos() - Bench.RETAIN;
+            System.out.printf(Locale.ROOT, "  %s: %d events, %d ended before the minute%n", l.name(), l.marks().size(),
+                    l.marks().stream().filter(m -> m.toNanos() < from).count());
+        }
+        var pass = s.kept().lane(Model.MAIN).marks().getLast();
+        for (int k = 0; k < 3; k++) {
+            long before = System.nanoTime();
+            String path = s.kept().pathOf(pass, s.tape().rowsOf(pass.cause()));
+            System.out.printf(Locale.ROOT, "a pass's path read from the tape in %.1f ms: %s%n",
+                    (System.nanoTime() - before) / 1e6, path);
+        }
         timer.close();
     }
 

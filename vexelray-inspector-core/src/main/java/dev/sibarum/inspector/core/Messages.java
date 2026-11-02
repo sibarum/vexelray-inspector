@@ -315,7 +315,8 @@ public final class Messages {
      */
     public record Lane(String name, List<Mark> marks, boolean recorded) {
         public Lane {
-            marks = List.copyOf(marks);
+            // A fold's lanes are already immutable, and copying a minute of events for each batch is what it avoids.
+            marks = marks instanceof Appended<Mark> kept ? kept : List.copyOf(marks);
         }
 
         /** A lane the run is not known not to record. */

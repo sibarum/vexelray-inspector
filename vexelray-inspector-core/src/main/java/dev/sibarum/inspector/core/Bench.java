@@ -294,9 +294,9 @@ public final class Bench {
         Details details() {
             long at = paused ? cursor : now.newestNanos();
             // The path is filled here, not when the event was folded: the hops its cause takes go on after it.
-            Model model = paused ? island.kept() : kept;
-            Optional<Event> event = paused ? on.map(e -> new Event(e.lane(),
-                    e.mark().with(Model.PATH, model.pathOf(e.mark()), false))) : Optional.empty();
+            Optional<Event> event = paused ? on.map(e -> new Event(e.lane(), e.mark().with(Model.PATH,
+                    island.kept().pathOf(e.mark(), island.tape().rowsOf(e.mark().cause())), false)))
+                    : Optional.empty();
             return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event);
         }
 

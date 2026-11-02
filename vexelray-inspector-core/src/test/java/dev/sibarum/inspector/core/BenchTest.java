@@ -848,7 +848,7 @@ class BenchTest {
                 new Field(Model.WAITED, "200.29ms")), pass.fields(),
                 "why it did not draw outranks that it only updated");
         assertEquals("76673.o00.6c", pass.cause(), "every pass is the loop's timer: what made this one run woke it");
-        assertEquals("I/O dev.example.Rows, firing 108   (76673.o00.6c) → woke pass #64", m.pathOf(pass));
+        assertEquals("I/O dev.example.Rows, firing 108   (76673.o00.6c) → woke pass #64", m.pathOf(pass, rows));
         assertTrue(m.ahead().isEmpty(), "nothing left waiting for a pass");
     }
 
@@ -879,7 +879,7 @@ class BenchTest {
                 + " vexel-source-link-rows → reached Messages.Rows at Bench"
                 + " → ledger bench committed its state on vexel-logic"
                 + " → sent Messages.Timeline from Bench → reached Messages.Timeline at View#timeline in widgets"
-                + " → 37 changes to the GUI on main (2 relaid out, 1 redrawn) → woke pass #10", m.pathOf(published),
+                + " → 37 changes to the GUI on main (2 relaid out, 1 redrawn) → woke pass #10", m.pathOf(published, rows),
                 "from the source to the pass it woke, a hop at a time, a named mailbox by its method");
         assertEquals(List.of("Messages.Rows", "Messages.Timeline"), m.lane(Model.MESSAGES).marks().stream()
                 .map(e -> e.field(Model.TYPE)).toList(), "a component's send is a message too");
@@ -899,7 +899,7 @@ class BenchTest {
                 m.lane(Model.MESSAGES).marks().getFirst().fields(),
                 "the path is filled when the details are said, since it grows after the event");
         Mark held = m.lane(Model.DRAWING).marks().getFirst();
-        assertEquals("", m.pathOf(held), "a row with no cause has no path");
+        assertEquals("", m.pathOf(held, List.of()), "a row with no cause has no path");
         assertEquals("the GPU had not finished the last frame", held.field(Model.REASON));
         for (Lane l : m.lanes()) {
             for (Mark e : l.marks()) {
@@ -975,17 +975,18 @@ class BenchTest {
     @Test
     void anInjectedKeyAndADevicesEdgesSayWhatTheyWere() {
         long at = 2_000 * MS;
-        Model m = Model.EMPTY.fold(List.of(
+        List<Row> rows = List.of(
                 new Row(1, at, 0L, 5L, "vexelray-automation-1", "input", "key", "SPACE", "76673.c11.2"),
-                new Row(2, at + MS, 0L, 6L, "main", "input", "edges", "3", "76673.t03.6")), Long.MAX_VALUE);
+                new Row(2, at + MS, 0L, 6L, "main", "input", "edges", "3", "76673.t03.6"));
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
         List<Mark> input = m.lane(Model.INPUT).marks();
         assertEquals("key", input.get(0).field(Model.VERB));
         assertEquals("SPACE", input.get(0).field(Model.SENT));
         assertEquals("#5", input.get(0).field(Model.PASS_NUMBER));
         assertEquals("automation command not named by the run, firing 2   (76673.c11.2) → automation key SPACE",
-                m.pathOf(input.get(0)), "a command the run never said: its source's kind and firing");
+                m.pathOf(input.get(0), rows), "a command the run never said: its source's kind and firing");
         assertEquals("3", input.get(1).field(Model.EDGES));
-        assertEquals("the devices → read in pass #6", m.pathOf(input.get(1)));
+        assertEquals("the devices → read in pass #6", m.pathOf(input.get(1), rows));
     }
 
     @Test
@@ -996,5 +997,27 @@ class BenchTest {
         assertEquals(1_200_000_000L, Durations.nanos("1.2s"));
         assertEquals(-1L, Durations.nanos("#1"));
         assertEquals(-1L, Durations.nanos("widget message on Gui@1"));
+    }
+
+    @Test
+    void aFoldLeavesTheModelItFoldedOntoAsItWas() {
+        long at = 2_000 * MS;
+        Model before = Model.EMPTY;
+        for (int pass = 1; pass <= 200; pass++) {
+            before = before.fold(List.of(new Row(pass, at + pass * MS, 0L, pass, "main", "frame", "frame", "0.5ms",
+                    "")), Long.MAX_VALUE, Bench.RETAIN);
+        }
+        List<Mark> passes = List.copyOf(before.lane(Model.MAIN).marks());
+        Model after = before.fold(List.of(
+                new Row(201, at + 201 * MS, 0L, 200L, "main", "frame", "frame.present", "#200", "")),
+                Long.MAX_VALUE, Bench.RETAIN);
+        Model beside = before.fold(List.of(
+                new Row(201, at + 201 * MS, 0L, 201L, "main", "frame", "frame", "0.5ms", "")),
+                Long.MAX_VALUE, Bench.RETAIN);
+        assertEquals(passes, before.lane(Model.MAIN).marks(), "neither fold changed what it folded onto");
+        assertEquals(Model.DREW_YES, after.lane(Model.MAIN).marks().getLast().field(Model.DREW));
+        assertEquals("", before.lane(Model.MAIN).marks().getLast().field(Model.DREW));
+        assertEquals(201, beside.lane(Model.MAIN).marks().size());
+        assertEquals(200, after.lane(Model.MAIN).marks().size(), "a fold beside another sees none of its events");
     }
 }

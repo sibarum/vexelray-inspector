@@ -167,6 +167,7 @@ message is in one file. Read these in this order.
 | `Bench.java` | **the controller**: which run is inspected, what has been read of it, and the model the panels show, as declared steps on one immutable state, held by a ledger. Each message it hears runs one step, and each step that changes what is shown publishes the `Timeline` the view draws, as of the cursor. |
 | `Model.java` | what the panels show at one moment, and `fold`, the one pure function that moves it on by some rows. A new lane or readout is a field here. |
 | `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. |
+| `Appended.java` | the immutable list the lanes and the tape's seconds are kept in: a batch adds to it without copying what it holds, so a fold costs about its own rows. |
 | `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
 | `LinkRows.java` | the source that reads one run's rows over its link for as long as it is attached, setting each row on the machine's clock as it crosses. |
 | `RecordingRows.java` | the source that plays a probe recording back at its recorded pace, its rows sent as a run's, on the machine's clock as of when it started. |

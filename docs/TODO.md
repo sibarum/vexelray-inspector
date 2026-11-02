@@ -8,6 +8,14 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
+- [ ] The rows panel shows eleven rows whatever its height (`Bench.AROUND`); it could show as many as fit, the view
+      telling the bench how many.
+- [ ] The rows panel has no filter: by lane, thread, kind or cause, so a busy main thread's rows can hide a tick's.
+- [ ] A row that arrives more than a second after it was stamped is not found by the rows panel or Up and Down
+      (`Tape.around`, `Tape.next` read the seconds either side only).
+- [ ] On a row the cursor marks no path; a row with a cause could mark that cause's, as an event does.
+- [ ] A row's detail is clipped in the panel; the details' Row line has it whole, but a bus graph row is pages long.
+
 - [ ] A state topic's last value (design.md section 4): rows carry no payload, so the flows panel shows counts only. It
       needs the publish row to carry the value, or a summary of it, upstream.
 - [ ] The graph panel's labels overlap where several lit arrows meet one part (W2's `Shown`), and nothing on it can be

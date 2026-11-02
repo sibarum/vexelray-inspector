@@ -158,6 +158,10 @@ binds to pause. Seen with `ottermate`: after a click on the button, Space did no
 disabled button `focused ring`. Worked around by never letting the button take the focus (`Ui.canFollow`); End is its
 key. The widget could hand the focus on when it is disabled while focused, and a disabled button should not claim
 keys at all.
+Met again in R4: a click on the rows panel's table focused its body (`rowgroup ... focused ring`), so it is worked
+around the same way (`gui.focusable(rows.rows().node(), false)`, in `Ui`). Whether a focused list takes Space and the
+arrows ahead of a declared shortcut was not tested: Down still stepped by rows with the list focused. A control an
+application means for the pointer alone could say so once, rather than each application unfocusing every one.
 
 ## FN-12 · The link dropped every row's cause, and a late reader could not name a cause's source 🔬 (fixed upstream)
 

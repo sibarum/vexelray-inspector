@@ -133,8 +133,10 @@ stop where they were, and the status line says what happened.
 | Space | pause: the lanes slow to a stop; paused, follow the present again, catching up with it |
 | Left / Right | step the cursor onto the focused lane's previous or next event (pausing first if following) |
 | Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lanes span |
+| Up / Down | step the cursor onto the previous or next row, in order of time (pausing first if following); the rows panel and the details show it |
 | = / - | zoom in or out about the right edge: half or twice the time across, from 10 ms to a minute |
 | Click a lane | focus it (its name brightens and its band is outlined with a soft glow), and put the cursor on its event nearest the click, or where it was clicked if none is near |
+| Click a row | put the cursor on that row of the rows panel |
 
 Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
 says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click
@@ -168,7 +170,7 @@ message is in one file. Read these in this order.
 | `Messages.java` | **every message the parts send each other**, grouped by who sends it to whom, each record beside its topic. A record crosses as itself, so it holds only immutable values; a list it holds is copied in its constructor. Every time in it is on the machine's monotonic clock. |
 | `Bench.java` | **the controller**: which run is inspected, what has been read of it, and the model the panels show, as declared steps on one immutable state, held by a ledger. Each message it hears runs one step, and each step that changes what is shown publishes the `Timeline` the view draws, as of the cursor. |
 | `Model.java` | what the panels show at one moment, and `fold`, the one pure function that moves it on by some rows. A new lane or readout is a field here. |
-| `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. |
+| `Tape.java` | the last minute's rows, a second at a time beside a checkpoint of the model: the model as of any moment is recomputed from it by the same `fold`. It also says the rows around a moment, in order of time then sequence, and the row next to one, for the rows panel and Up and Down. |
 | `Appended.java` | the immutable list the lanes and the tape's seconds are kept in: a batch adds to it without copying what it holds, so a fold costs about its own rows. |
 | `Declared.java` | what a run declares about its messages: its bus graph, version 2 ([bus-graph.md](docs/bus-graph.md)), read from the row `LinkRows` adds on attaching. |
 | `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
@@ -183,7 +185,7 @@ message is in one file. Read these in this order.
 | File | What belongs in it |
 | --- | --- |
 | `Recipes.java` | **what this module builds.** One `@Provides` method per part; `InspectorAppWiring`, which builds them and the components, jobs and sources in order, is generated while it compiles. A part's phase is the latest phase of anything it takes, so there is none to declare. |
-| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lanes' picture; asked by every frame (`@Draw`), it slides the lanes to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lanes would rest at, which only it knows, and which lane is focused. Told the `Readouts`, it writes their line; told the `Flows`, the flows table's cells and the graph's picture; told the `Traced`, the path of the event the cursor is on, it marks that path in all three. It decides nothing. |
+| `View.java` | **the view**, a `@View`: told the bench's `Timeline`, it builds the lanes' picture; asked by every frame (`@Draw`), it slides the lanes to where the motion has it now. Its keys come to it and go on to the bench as `Pause` and `Step`, with the moment the lanes would rest at, which only it knows, and which lane is focused. Told the `Readouts`, it writes their line; told the `Flows`, the flows table's cells and the graph's picture; told the `RowsAround`, the rows panel, the cursor's row in the accent; told the `Traced`, the path of the event the cursor is on, it marks that path in all three. Up and Down go to the bench as `StepRow`, a click on a row as `GoToRow`. It decides nothing. |
 | `Diagram.java` | the graph panel's picture: the declared parts in tiers by where they run, an arrow a pair of parts, faint until a message crosses it, and the arrows a selected event's path crossed in the path's colour. Pure, so a test reads it as marks. |
 | `Glide.java` | **how the timeline moves**: smooth paths of time, and handovers between them that are smooth in every derivative and land exactly. Pure functions; its constants were set by eye, and say why. |
 | `Keys.java` | what a key chord sends the view. |

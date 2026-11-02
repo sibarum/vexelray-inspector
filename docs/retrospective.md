@@ -31,6 +31,52 @@ reasons and the full method.
 
 ## Milestones
 
+## R4, the rows panel · 2026-11-02
+
+The count: no new findings. The rows panel and stepping by rows needed nothing from the stack. FN-11 (a control
+focused by a click keeps the focus, and may claim the Inspector's keys) came up again, on the rows table, and was met
+the way the other controls meet it. Under `--logic=main` the Logic lane is still empty, as FN-16 said.
+
+### The shapes
+
+None new. FN-11 again: the table took the focus on a click. Whether a focused list takes Space and the arrows was not
+tested; it was unfocused before it could.
+
+### What would stop each
+
+Nothing new to propose. FN-11's own proposal stands, with R4's addition: a control an application means for the
+pointer alone says so once, rather than each application unfocusing every one it places.
+
+### My own mistakes
+
+- **I ran a shell `cat` with no input.** A stray `cat >> /tmp/x` before a heredoc waited on stdin, and the whole
+  command (the tests' edits and the build) hung for five minutes before it went to the background. *Rule:* read a
+  chained command back before running it, not only its heredocs.
+- **I wrote a test's window by hand and got it wrong.** The tape's test expected the rows before a moment to fill the
+  window, where the code (rightly) puts half after it; the code was right and the expectation was not. *Rule:* a
+  test's expected list is derived from the rule the javadoc states, not from the picture in my head.
+- **I nearly heard the table's selection for a click.** `Table.SELECTED` is published on every change, the view's own
+  included, so following the cursor's row with it would have looped; `ListView.CLICKED` is the person's click alone.
+  Found by reading the widget before writing the mailbox. *Rule:* before hearing a widget's message, read what
+  publishes it.
+- **I checked the focus only by accident.** A click left the table focused, ring and all, which I saw only because I
+  read the whole tree for the status line. *Rule:* after a click on any new control, read the tree for `focused` and
+  check Space still pauses.
+- **I edited CRLF files with patterns written for LF.** Two docs took none of a substitution and the command said
+  nothing. *Rule:* after a scripted edit, grep for what it was to write.
+
+### What to keep exactly as it is
+
+- **One order for rows, used everywhere.** `Tape.ORDER`, by time then sequence, is what the panel shows, what Up and
+  Down step through, and what a row is placed by; a moment is a key in that order (`Tape.key`), so "the row at the
+  cursor" and "the next row" need no second rule.
+- **Fixed places, changed text.** The panel's eleven places are built once and their text changes in place, as the
+  flows table's counts do, so stepping rebuilds nothing.
+- **A row is not an event.** On a row the cursor is on no event and marks no path; Left and Right then step the
+  focused lane from the row's moment. Nothing had to guess which event a row belongs to.
+- **The rows show what the lanes cannot.** Around a tick on the logic lane the panel interleaves its rows with the
+  main thread's, in the order they happened, which no lane draws.
+
 ## R3, a click's path · 2026-11-02
 
 The count: 1 finding (FN-16), a framework gap, not fixed upstream yet. The milestone's own upstream changes were a

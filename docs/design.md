@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1, R2 and R3 done 2026-11-02, R4 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 to R4 done 2026-11-02, R5 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -71,7 +71,7 @@ The first panels:
 | **Graph** | The declared parts and topics (section 4) |
 | **Flows** | Every topic between two parts: written, delivered, rate, total |
 | **Threads** | The ledger per clock (section 5) |
-| **Rows** | The raw rows around the cursor, the cursor's row selected |
+| **Rows** | The raw rows around the cursor, the cursor's row selected (R4) |
 | **Run** | What is inspected and from where (attached, launched, replayed), the logic mode, the GPU, the build |
 
 What 0.2 makes visible that 0.1 could not:
@@ -605,7 +605,22 @@ Each step ends with something to watch or something an agent can ask, and lands 
   An Inspector watching another said its Space the same way: `PauseKey` → `Pause` at `Bench` in tick #6304 → six
   sends → the view → 66 changes → a draw. **R3 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R3
   section.
-- **R4, the rows panel**, and stepping the cursor row by row, tick by tick and draw by draw.
+- **R4, the rows panel**, and stepping the cursor row by row, tick by tick and draw by draw. *Built:* the bench says
+  `RowsAround` with every say, eleven rows in order of time and then sequence (`Tape.ORDER`): paused, about the
+  cursor's row, the newest at or before it (on an event, the row that ended it), read from its second and the ones
+  either side, since a late thread's row is kept where it arrived; following, the newest of the last 256 to arrive.
+  The panel stands beside the details, as tall, each row's time from the cursor's, the cursor's in the accent and the
+  path's in the path's colour. Up and Down step the cursor a row (`StepRow`), a click on one goes to it (`GoToRow`),
+  within the island; on a row the cursor is on no event, the details say the row and its thread, and Left and Right
+  step the focused lane from there. Ticks and draws were already stepped by focusing their lanes (event stepping,
+  R1), and say their numbers since R3. The table never takes the focus (FN-11).
+  **Inspected 2026-11-02** on W2, launched by `--launch` and counted three times: on its own lane, the newest tick
+  (#3, 0.13 ms) and two rows on, `tick delivered` among the logic thread's `receive`, `send`, `tick` and `tick.ran` rows
+  and the main thread's `tree update` and `draw held for the ceiling`, in the order they happened, which no lane
+  shows; the newest draw (#53) is its `present frame` row, its `draw.ran` and `emit canvas` before it. A click on a
+  row put the cursor there; Left from it stepped onto the pass before; Space after a click still followed. Under
+  `--logic=main` the same steps by rows and draws, and the Logic lane empty (FN-16). **R4 done 2026-11-02.** Its
+  retrospective is `docs/retrospective.md`'s R4 section.
 - **R5, the ledger per clock**, with recording measured on its own.
 - **R6, replay**: run the same inputs again and show which widget writes differ.
 - **Later**, as 0.1 planned them: time (kronometer) where a view still has motion, GPU and present, the JVM, the

@@ -91,13 +91,24 @@ class ClockLedgerTest {
     }
 
     @Test
-    void theLedgerHasEveryClockAndJobsSayTheyWriteNoRowsAndRecordingIsReadForTheReadouts() {
+    void theLedgerHasEveryClockAndJobsSayTheyWriteNoRows() {
         twoPassesAndTheirDraws();
         Messages.LedgerAt l = ClockLedger.at("run", rows, B + 5000 * US, "");
         assertEquals(ClockLedger.CLOCKS, l.accounts().stream().map(Account::clock).toList());
         assertEquals(Account.none(ClockLedger.JOBS, "a job writes no rows (FN-15)"), l.accounts().getLast());
-        assertEquals(List.of(1_000 * US), java.util.Arrays.stream(ClockLedger.recordings(rows, B + 5000 * US)).boxed()
-                .toList(), "the one draw recorded in the second before");
+    }
+
+    @Test
+    void followingReadsOnlyTheNewestRowsTheLedgerReadsBackToAMomentAndALittleLateness() {
+        Tape tape = Tape.EMPTY;
+        Row old = new Row(1, 10 * Tape.SECOND, "main", "frame", "frame", "1ms");
+        Row send = new Row(2, 10 * Tape.SECOND + 400 * US * 1000, "vexel-logic", "bus", "send", "Rows from Bench 1");
+        Row pass = new Row(3, 10 * Tape.SECOND + 500 * US * 1000, "main", "frame", "frame", "1ms");
+        Row late = new Row(4, 10 * Tape.SECOND + 450 * US * 1000, "vexel-logic", "bus", "tick", "1ms");
+        Row newest = new Row(5, 10 * Tape.SECOND + 600 * US * 1000, "main", "gpu", "present frame", "1ms");
+        tape = tape.add(List.of(old, send, pass, late, newest), newest.atNanos(), Bench.RETAIN);
+        assertEquals(List.of(newest, late, pass), tape.since(10 * Tape.SECOND + 420 * US * 1000, ClockLedger::reads),
+                "newest first, the late tick among them; not the send, which the ledger does not read, nor the old pass");
     }
 
     @Test
@@ -111,7 +122,7 @@ class ClockLedgerTest {
             tape = tape.add(List.of(r), r.atNanos(), Bench.RETAIN);
         }
         tape = tape.add(List.of(late), arriving.atNanos(), Bench.RETAIN);
-        assertEquals(List.of(near, late), tape.near(12 * Tape.SECOND, Tape.SECOND / 2),
+        assertEquals(List.of(near, late), tape.near(12 * Tape.SECOND, Tape.SECOND / 2, r -> true),
                 "the moment's second, and the late row kept in the one it arrived in");
     }
 }

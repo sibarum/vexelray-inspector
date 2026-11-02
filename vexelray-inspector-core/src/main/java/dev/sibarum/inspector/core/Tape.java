@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * The retained rows of a run, a second at a time, each second beside a checkpoint of the {@link Model} as it stood
@@ -255,9 +256,10 @@ public record Tape(List<Second> seconds) {
 
     /**
      * The rows stamped within {@code spanNanos} of {@code atNanos}, either side, in the order they were folded: read
-     * from the seconds that may hold them, the one after the last too, since a late row is kept where it arrived.
+     * from the seconds that may hold them, the one after the last too, since a late row is kept where it arrived. Only
+     * those {@code which} takes.
      */
-    List<Row> near(long atNanos, long spanNanos) {
+    List<Row> near(long atNanos, long spanNanos, Predicate<Row> which) {
         List<Row> out = new ArrayList<>();
         long from = atNanos - spanNanos;
         long to = atNanos + spanNanos;
@@ -268,13 +270,39 @@ public record Tape(List<Second> seconds) {
                 continue;
             }
             for (Row r : s.rows()) {
-                if (r.atNanos() >= from && r.atNanos() <= to) {
+                if (r.atNanos() >= from && r.atNanos() <= to && which.test(r)) {
                     out.add(r);
                 }
             }
         }
         return out;
     }
+
+    /**
+     * The rows stamped at or after {@code fromNanos}, read back from the newest to arrive, in no order: what a ledger
+     * following the newest row reads on every batch, rather than whole seconds. A row arriving more than {@link #LATE}
+     * after another stamped later is not found. Only those {@code which} takes.
+     */
+    List<Row> since(long fromNanos, Predicate<Row> which) {
+        List<Row> out = new ArrayList<>();
+        for (int i = seconds.size() - 1; i >= 0; i--) {
+            List<Row> rows = seconds.get(i).rows();
+            for (int j = rows.size() - 1; j >= 0; j--) {
+                Row r = rows.get(j);
+                if (r.atNanos() >= fromNanos) {
+                    if (which.test(r)) {
+                        out.add(r);
+                    }
+                } else if (r.atNanos() < fromNanos - LATE) {
+                    return out;
+                }
+            }
+        }
+        return out;
+    }
+
+    /** How far out of time order {@link #since} reads past the moment it is asked for: a late thread's rows. */
+    static final long LATE = 100_000_000L;
 
     /** The {@code count} newest rows, the newest selected, read from the last {@link #TAIL} to arrive. */
     RowsAround newest(String run, int count) {

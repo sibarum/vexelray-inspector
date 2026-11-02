@@ -56,6 +56,9 @@ public final class ClockLedger {
     /** How far either side of the moment its rows are read: a turn longer than this is not found. */
     static final long SPAN = 1_000_000_000L;
 
+    /** How far back from the newest row a following ledger first reads; four times as far while a turn is not whole. */
+    static final long FIRST_LOOK = 50_000_000L;
+
     /** What the presenter waits on: the GPU. */
     static final List<String> WAITS = List.of("wait fence", "dxgi wait", "acquire image", "wait image");
 
@@ -67,6 +70,22 @@ public final class ClockLedger {
     static final String TICK_ZONE = "tick";
 
     private ClockLedger() {
+    }
+
+    /**
+     * Whether the ledger reads {@code r} at all: its clocks' zones, their waits and rests, the wakes, the draws' own
+     * rows and the holds. The rest, most of a busy run's (the bus's sends and deliveries), is left on the tape.
+     */
+    static boolean reads(Row r) {
+        String k = r.kind();
+        return switch (r.lane()) {
+            case "frame" -> k.equals(PASS_ZONE) || k.equals(IDLE) || k.equals(WAKE) || k.equals(Model.HELD_FOR_CEILING)
+                    || k.equals(Model.HELD_FOR_GPU);
+            case "gpu" -> k.equals(DRAW_ZONE) || WAITS.contains(k);
+            case "draw" -> k.equals(RECORDING) || k.equals(Model.DRAW_RAN);
+            case "bus" -> k.equals(TICK_ZONE) || k.equals(Model.TICK_RAN);
+            default -> false;
+        };
     }
 
     /** A span a row said: from {@code from} to {@code to}, on the machine's clock. */
@@ -114,13 +133,6 @@ public final class ClockLedger {
         return new Account(Model.LOGIC, Model.TICK + (number.isEmpty() ? "" : " " + number), from, to, working, -1L,
                 -1L, unaccounted(from, to, working, 0L, 0L), -1L, -1, -1L,
                 (note.isEmpty() ? parks : note + "; " + parks) + over);
-    }
-
-    /** How long each draw's commands took to record over the second before {@code atNanos}, shortest first. */
-    static long[] recordings(List<Row> rows, long atNanos) {
-        return rows.stream().filter(r -> r.lane().equals("draw") && r.kind().equals(RECORDING)
-                        && r.atNanos() > atNanos - Model.READOUT_NANOS && r.atNanos() <= atNanos)
-                .mapToLong(r -> Durations.nanos(r.detail())).filter(n -> n >= 0).sorted().toArray();
     }
 
     /** The main thread's pass {@code atNanos} is in, from its start to the next one's. */

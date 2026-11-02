@@ -833,13 +833,13 @@ class BenchTest {
                 row(-1, 2_050 * MS, "", Model.LOST_LANE, Model.LOST, "6"),
                 pass(300, 2_100 * MS, "1ms"))));
         Readouts live = readouts();
-        assertEquals(new Readouts(ONE.name(), 9, 10, 0, 677_400, 677_400, 10, 1_500_000, 2_000_000, 6), live,
+        assertEquals(new Readouts(ONE.name(), 9, 10, 0, 677_000, 677_000, 10, 1_500_000, 2_000_000, 6), live,
                 "after 1.1 s: nine draws (the one ending at 1.1 s is out), their recording, ten holds and ticks,"
                         + " and the lost rows");
         sent.clear();
         tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 2_100 * MS));
         Readouts then = readouts();
-        assertEquals(new Readouts(ONE.name(), 10, 10, 0, 677_400, 677_400, 10, 500_000, 1_000_000, 0), then,
+        assertEquals(new Readouts(ONE.name(), 10, 10, 0, 677_000, 677_000, 10, 500_000, 1_000_000, 0), then,
                 "a second back: the ticks as they were then, and nothing lost yet");
     }
 

@@ -369,19 +369,25 @@ public final class Bench {
         }
 
         /** The ledger of each clock's turn the cursor is in; following, of the newest whole turns. */
-        LedgerAt ledger(List<Row> near) {
-            return tape.isEmpty() && island.tape().isEmpty() ? new LedgerAt(run, List.of())
-                    : ClockLedger.at(run, near, moment(), logicThread(kept));
-        }
-
-        /** The cursor's moment, the newest row's while following. */
-        long moment() {
-            return paused ? cursor : now.newestNanos();
-        }
-
-        /** The rows stamped within {@link ClockLedger#SPAN} of the cursor's moment, for the ledger and the readouts. */
-        List<Row> near() {
-            return (paused ? island.tape() : tape).near(moment(), ClockLedger.SPAN);
+        LedgerAt ledger() {
+            if (tape.isEmpty() && island.tape().isEmpty()) {
+                return new LedgerAt(run, List.of());
+            }
+            String logic = logicThread(kept);
+            if (paused) {
+                return ClockLedger.at(run, island.tape().near(cursor, ClockLedger.SPAN, ClockLedger::reads), cursor,
+                        logic);
+            }
+            // Following, on every batch: the newest rows only, read back a widening window until the main thread's and
+            // drawing's turns are whole in it, rather than the seconds either side.
+            long at = now.newestNanos();
+            for (long back = ClockLedger.FIRST_LOOK; ; back *= 4) {
+                LedgerAt l = ClockLedger.at(run, tape.since(at - back, ClockLedger::reads), at, logic);
+                if (back >= ClockLedger.SPAN || l.accounts().stream().filter(a -> !a.clock().equals(Model.LOGIC))
+                        .filter(a -> !a.clock().equals(ClockLedger.JOBS)).noneMatch(a -> a.turn().isEmpty())) {
+                    return l;
+                }
+            }
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -806,14 +812,13 @@ public final class Bench {
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
         Model at = s.atCursor();
-        List<Row> near = s.near();
-        out.send(Messages.READOUTS_TOPIC, at.readouts(s.run(), ClockLedger.recordings(near, at.newestNanos())));
+        out.send(Messages.READOUTS_TOPIC, at.readouts(s.run()));
         out.send(Messages.FLOWS_TOPIC, s.flows(at));
         List<Model.Hop> hops = s.hops();
         out.send(Messages.DETAILS_TOPIC, s.details(hops));
         out.send(Messages.TRACED_TOPIC, s.traced(hops));
         out.send(Messages.ROWS_AROUND_TOPIC, s.rowsAround());
-        out.send(Messages.LEDGER_TOPIC, s.ledger(near));
+        out.send(Messages.LEDGER_TOPIC, s.ledger());
         return panel(s, out);
     }
 

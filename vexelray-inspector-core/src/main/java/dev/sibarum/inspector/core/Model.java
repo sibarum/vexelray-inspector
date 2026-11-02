@@ -183,8 +183,13 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /** A draw's, from its {@code draw.ran} row, and its pass's: its number, and what set off the changes it showed. */
     public static final String DRAW_NUMBER = "Draw";
     public static final String SHOWED = "Showed";
+    /** A draw's, from the {@code emit canvas} zone in its pass: how long recording its commands took on the CPU. */
+    public static final String RECORDING = "Recording";
+
+    /** Where {@link #ahead} keeps what a row with no pass said for the next draw: a recording's rows have none. */
+    private static final long UNNUMBERED = 0L;
     public static final List<String> FIELDS = List.of(TYPE, PATH, PASS_NUMBER, TICK_NUMBER, DRAW_NUMBER, TOOK, THREAD,
-            DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, PACKAGE, VERB, SENT, EDGES, REASON);
+            DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, RECORDING, PACKAGE, VERB, SENT, EDGES, REASON);
 
     /** The row a tick writes after its zone, and a draw after its own: atchung's and vexelray-gui's. */
     static final String TICK_RAN = "tick.ran";
@@ -382,6 +387,18 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 }
                 continue;
             }
+            if (r.lane().equals("draw") && r.kind().equals(ClockLedger.RECORDING)) {
+                // The draw's commands recorded, inside the presenter's zone and before the draw's mark: kept for its
+                // pass, as its number is, or under no pass in a recording, which has none; timed like a mark's took.
+                long took = Durations.nanos(r.detail());
+                if (took >= 0) {
+                    long pass = r.frame() > 0 ? r.frame() : UNNUMBERED;
+                    List<Field> after = new ArrayList<>(told.getOrDefault(pass, List.of()));
+                    after.add(new Field(RECORDING, String.format(Locale.ROOT, "%.3f ms", took / 1e6)));
+                    told = withPass(told, pass, after);
+                }
+                continue;
+            }
             if (r.kind().equals(TICK_RAN) && r.lane().equals("bus")) {
                 // After the tick's zone, on its thread: the newest tick there is its own. Under --logic=main the
                 // logic's ticks and the widgets' are both on main and both numbered, each by its own count, so
@@ -414,10 +431,18 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             }
             if (lane == drawing && m.kind().equals(DRAW) && m.frame() > 0) {
                 for (Field f : told.getOrDefault(m.frame(), List.of())) {
-                    if (f.name().equals(DRAW_NUMBER) || f.name().equals(SHOWED)) {
+                    if (f.name().equals(DRAW_NUMBER) || f.name().equals(SHOWED) || f.name().equals(RECORDING)) {
                         m = m.with(f.name(), f.value(), false);
                     }
                 }
+            } else if (lane == drawing && m.kind().equals(DRAW) && told.containsKey(UNNUMBERED)) {
+                // A recording's draw, with no pass: its recording was kept under no pass, for this draw alone.
+                for (Field f : told.get(UNNUMBERED)) {
+                    m = m.with(f.name(), f.value(), false);
+                }
+                Map<Long, List<Field>> kept = new HashMap<>(told);
+                kept.remove(UNNUMBERED);
+                told = kept;
             }
             if (lane == main && m.frame() > 0) {
                 // A pass: what was said of it before its own row, and nothing older than a few passes before it.
@@ -1153,11 +1178,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
     }
 
-    /**
-     * The readouts over the second before this model's moment, with {@code recordings}, how long each draw's commands
-     * took to record then, shortest first ({@link ClockLedger#recordings}).
-     */
-    Readouts readouts(String run, long[] recordings) {
+    /** The readouts over the second before this model's moment. */
+    Readouts readouts(String run) {
         long from = newestNanos - READOUT_NANOS;
         int draws = 0;
         int ceiling = 0;
@@ -1170,6 +1192,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             ceiling += m.kind().equals(HELD_FOR_CEILING) ? 1 : 0;
             gpu += m.kind().equals(HELD_FOR_GPU) ? 1 : 0;
         }
+        long[] recordings = lane(DRAWING).marks().stream().filter(m -> m.toNanos() > from && m.kind().equals(DRAW))
+                .mapToLong(m -> Durations.nanos(m.field(RECORDING))).filter(n -> n >= 0).sorted().toArray();
         long[] ticks = lane(LOGIC).marks().stream().filter(m -> m.toNanos() > from)
                 .mapToLong(m -> m.toNanos() - m.fromNanos()).toArray();
         Arrays.sort(ticks);

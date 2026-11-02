@@ -423,6 +423,54 @@ public final class Messages {
     }
 
     /**
+     * The path of the event the cursor is on, for every panel to mark (design.md section 3, a click's path): what
+     * shares its cause, and the passes, ticks and draws it went through, which run in causes of their own, and the
+     * topics it crossed. Read from the same hops as the details' Path. A state topic, as the details are; {@link #NONE}
+     * while following, or on no event.
+     *
+     * @param run     the run attached, or empty when none is
+     * @param cause   the event's cause, as the probe writes one; empty when it has none
+     * @param passes  the passes its hops were in or woke, by number
+     * @param ticks   the ticks its hops were in, by number ({@code #12})
+     * @param draws   the draws that showed what it changed, by number ({@code #31})
+     * @param crossed every topic it crossed, a write or a delivery each, in the order they began
+     */
+    public static final Topic<Traced> TRACED_TOPIC = Topic.state(Traced.class);
+
+    public record Traced(String run, String cause, List<Long> passes, List<String> ticks, List<String> draws,
+                         List<Crossed> crossed) {
+
+        public static final Traced NONE = new Traced("", "", List.of(), List.of(), List.of(), List.of());
+
+        public Traced {
+            passes = List.copyOf(passes);
+            ticks = List.copyOf(ticks);
+            draws = List.copyOf(draws);
+            crossed = List.copyOf(crossed);
+        }
+
+        /** Whether lane {@code lane}'s event {@code m} is on the path: in its cause, or a pass, tick or draw of it. */
+        public boolean has(String lane, Mark m) {
+            if (!cause.isEmpty() && cause.equals(m.cause())) {
+                return true;
+            }
+            return switch (lane) {
+                case Model.MAIN -> passes.contains(m.frame());
+                case Model.LOGIC -> ticks.contains(m.field(Model.TICK_NUMBER));
+                case Model.DRAWING -> draws.contains(m.field(Model.DRAW_NUMBER));
+                default -> false;
+            };
+        }
+    }
+
+    /**
+     * A topic the path crossed: a write on it, or a delivery of it to {@code to}, a mailbox ({@code class#method}) or an
+     * inbox's component, as the flows' receivers are named; empty for a write.
+     */
+    public record Crossed(String topic, String to) {
+    }
+
+    /**
      * The declared graph, lit by the traffic, as of the cursor: every part the run declares, and every topic with who
      * sends it, who hears it and how many messages crossed, for the graph and flows panels (design.md section 4). A
      * state topic, as the timeline is.

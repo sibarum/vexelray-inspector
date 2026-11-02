@@ -12,6 +12,8 @@ import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Timeline;
+import dev.sibarum.inspector.core.Messages.Traced;
+import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Model;
 import dev.sibarum.inspector.core.Bench;
 import dev.vexelray.canvas.Color;
@@ -321,6 +323,28 @@ class ViewTest {
     }
 
     @Test
+    void thePathsEventsAreDrawnOverTheLanesInItsColourByCauseAndByNumber() {
+        long at = 20_000 * MS;
+        Mark tick = new Mark(at - 300 * MS, at - 290 * MS, Model.TICK, "vexel-logic", 9L, "", List.of())
+                .with(Model.TICK_NUMBER, "#7", false);
+        Mark other = new Mark(at - 200 * MS, at - 190 * MS, Model.TICK, "vexel-logic", 9L, "", List.of())
+                .with(Model.TICK_NUMBER, "#8", false);
+        Mark sent = new Mark(at - 295 * MS, at - 295 * MS, Model.MESSAGE, "vexel-logic", 9L, "c.i01.1", List.of());
+        Timeline t = new Timeline("r", "", false, at, List.of(new Lane(Model.LOGIC, List.of(tick, other)),
+                new Lane(Model.MESSAGES, List.of(sent))), Optional.empty());
+        Traced traced = new Traced("r", "c.i01.1", List.of(), List.of("#7"), List.of(), List.of());
+        Picture p = View.lanes(t, traced, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at, View.SLIDE_LANES, null);
+        List<Picture.Mark> path = p.marks().stream().filter(m -> (m instanceof Picture.Fill f && f.color().equals(PATH))
+                || (m instanceof Picture.Line l && l.color().equals(PATH))).toList();
+        assertEquals(2, path.size(), "tick #7 by its number, the message by its cause; not tick #8: " + path);
+        assertEquals(0, View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at).marks().stream()
+                .filter(m -> m instanceof Picture.Fill f && f.color().equals(PATH)).count(), "no path, nothing marked");
+        assertEquals(List.of("Rows", "Bump"), View.crossedTopics(new Traced("r", "c", List.of(), List.of(), List.of(),
+                List.of(new Crossed("Rows", ""), new Crossed("Rows", "B"), new Crossed("Bump", "C")))),
+                "each topic once, in the order crossed");
+    }
+
+    @Test
     void manyMomentsInAPixelAreOneMarkAsStrongAsTheyAreMany() {
         long at = 20_000 * MS;
         java.util.ArrayList<Mark> burst = new java.util.ArrayList<>();
@@ -534,9 +558,10 @@ class ViewTest {
         return Float.parseFloat(out.set.getLast().split(",")[0]);
     }
 
-    /** White marks, a black cursor, and a colour of its own for each other kind, to tell them apart. */
+    /** White marks, a black cursor, and a colour of its own for each other kind, and for a path, to tell them apart. */
+    private static final Color PATH = Color.rgb(1, 1, 0);
     private static final View.Inks INKS = new View.Inks(Color.WHITE, Color.rgb(1, 0, 0), Color.rgb(0, 1, 0),
-            Color.rgb(0, 0, 1), Color.BLACK, Color.rgb(0.5f, 0.5f, 0.5f));
+            Color.rgb(0, 0, 1), Color.BLACK, Color.rgb(0.5f, 0.5f, 0.5f), PATH);
 
     private static Mark pass(long from, long to) {
         return new Mark(from, to, Model.PASS);

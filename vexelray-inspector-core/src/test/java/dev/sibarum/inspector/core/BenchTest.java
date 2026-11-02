@@ -963,6 +963,21 @@ class BenchTest {
                 + " → 1 change to the GUI on main (1 relaid out, 0 redrawn) +0.15 ms"
                 + " → shown by draw #31 +0.60 ms", m.pathOf(clicked, rows),
                 "input, the tick that heard it, the change it made and the draw that showed it, with the time between");
+        Messages.Traced traced = Model.traced("run", clicked, Model.hopsOf(clicked.cause(), rows));
+        assertEquals(click, traced.cause());
+        assertEquals(List.of(40L, 41L), traced.passes(), "the pass it was published in, and the one that changed the GUI");
+        assertEquals(List.of("#7"), traced.ticks());
+        assertEquals(List.of("#31"), traced.draws());
+        assertEquals(List.of(new Messages.Crossed(pressed, ""),
+                new Messages.Crossed(pressed, "dev.example.Counter"),
+                new Messages.Crossed("dev.example.Counted", "")), traced.crossed(),
+                "each write and each delivery, a receiver as the flows name it");
+        assertTrue(traced.has(Model.LOGIC, tick), "the tick by its number, though it runs in no cause of the click's");
+        assertTrue(traced.has(Model.DRAWING, draw), "and the draw");
+        assertTrue(traced.has(Model.MESSAGES, clicked));
+        assertTrue(traced.has(Model.MAIN, m.lane(Model.MAIN).marks().getFirst().because("")),
+                "pass #41 changed the GUI and drew it: on the path by its number, whatever woke it");
+        assertFalse(Messages.Traced.NONE.has(Model.MESSAGES, clicked.because("")), "nothing is on no path");
     }
 
     @Test

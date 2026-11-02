@@ -26,6 +26,7 @@ import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
+import dev.sibarum.inspector.core.Messages.Traced;
 import dev.vexelray.framework.api.Component;
 import dev.vexelray.framework.api.Hears;
 import dev.vexelray.framework.api.Publishes;
@@ -79,7 +80,7 @@ import java.util.Optional;
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
-        Details.class, RunPanel.class, Flows.class})
+        Details.class, RunPanel.class, Flows.class, Traced.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -305,14 +306,31 @@ public final class Bench {
                     : at.flows(run, why, back.start(), moment - back.fromNanos());
         }
 
+        /**
+         * The hops of the cause of the event the cursor is on, read from the tape when they are said, not when the
+         * event was folded: the hops its cause takes go on after it. None while following, or on no event.
+         */
+        List<Model.Hop> hops() {
+            return paused && on.isPresent()
+                    ? Model.hopsOf(on.get().mark().cause(), island.tape().rowsOf(on.get().mark().cause())) : List.of();
+        }
+
         /** The details of the cursor's moment, the newest row's while following, and of the event it is on. */
         Details details() {
+            return details(hops());
+        }
+
+        /** As {@link #details()}, its event's path said from {@code hops}. */
+        Details details(List<Model.Hop> hops) {
             long at = paused ? cursor : now.newestNanos();
-            // The path is filled here, not when the event was folded: the hops its cause takes go on after it.
             Optional<Event> event = paused ? on.map(e -> new Event(e.lane(), e.mark().with(Model.PATH,
-                    island.kept().pathOf(e.mark(), island.tape().rowsOf(e.mark().cause())), false)))
-                    : Optional.empty();
+                    island.kept().pathFrom(e.mark(), hops), false))) : Optional.empty();
             return new Details(run, at, tape.isEmpty() ? 0L : at - first, kept.clockAt(at), event);
+        }
+
+        /** What every panel marks of the path of the event the cursor is on, from {@code hops}; none while following. */
+        Traced traced(List<Model.Hop> hops) {
+            return paused && on.isPresent() ? Model.traced(run, on.get().mark(), hops) : Traced.NONE;
         }
 
         /** The island the cursor is on, or, following, the one stopping now at {@code atNanos} would freeze. */
@@ -681,13 +699,15 @@ public final class Bench {
         return (s.arriving() ? "Inspecting " : "Attaching to ") + named(s.title(), s.run());
     }
 
-    /** Tell the view the timeline, the readouts, the details and the flows, all as of the cursor. */
+    /** Tell the view the timeline, the readouts, the details, the path and the flows, all as of the cursor. */
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
         Model at = s.atCursor();
         out.send(Messages.READOUTS_TOPIC, at.readouts(s.run()));
         out.send(Messages.FLOWS_TOPIC, s.flows(at));
-        out.send(Messages.DETAILS_TOPIC, s.details());
+        List<Model.Hop> hops = s.hops();
+        out.send(Messages.DETAILS_TOPIC, s.details(hops));
+        out.send(Messages.TRACED_TOPIC, s.traced(hops));
         return panel(s, out);
     }
 

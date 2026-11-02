@@ -1,9 +1,12 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Flow;
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Part;
+import dev.sibarum.inspector.core.Messages.Traced;
+import dev.sibarum.inspector.core.Model;
 import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.draw.Picture;
 import org.junit.jupiter.api.Test;
@@ -67,15 +70,34 @@ class DiagramTest {
 
     @Test
     void theTopicsAreNamedOnALitArrowAndNotOnAFaintOne() {
-        Diagram.Inks inks = new Diagram.Inks(Color.WHITE, Color.WHITE, Color.rgb(1, 0, 0), Color.rgb(0, 1, 0),
-                Color.WHITE);
-        Picture p = Diagram.draw(FLOWS, 600f, 600f, inks);
+        Picture p = Diagram.draw(FLOWS, 600f, 600f, INKS);
         List<String> texts = p.marks().stream().filter(m -> m instanceof Picture.Text).map(m -> ((Picture.Text) m)
                 .text()).toList();
         assertTrue(texts.contains("Timeline, Details"), texts.toString());
         assertTrue(texts.contains("Rows"), texts.toString());
         assertFalse(texts.contains("FindRuns"), "a faint arrow names nothing: " + texts);
         assertTrue(texts.containsAll(List.of("Bench", "View", "LinkRows", "ListRuns", End.FRAMEWORK)), texts.toString());
-        assertEquals(0, Diagram.draw(FLOWS, 0f, 0f, inks).marks().size(), "nothing before the panel is laid out");
+        assertEquals(0, Diagram.draw(FLOWS, 0f, 0f, INKS).marks().size(), "nothing before the panel is laid out");
+    }
+
+    private static final Color PATH = Color.rgb(1, 1, 0);
+    private static final Diagram.Inks INKS = new Diagram.Inks(Color.WHITE, Color.WHITE, Color.rgb(1, 0, 0),
+            Color.rgb(0, 1, 0), Color.WHITE, PATH);
+
+    @Test
+    void theArrowsAPathWasDeliveredAlongAreDrawnInItsColourAndNamedThoughFaint() {
+        Traced t = new Traced("run", "c", List.of(), List.of(), List.of(), List.of(
+                new Crossed(P + "Rows", ""), new Crossed(P + "Rows", P + "Bench"),
+                new Crossed(P + "FindRuns", P + "ListRuns")));
+        Diagram.Layout l = Diagram.lay(FLOWS, 600f, 600f);
+        List<String> on = l.arrows().stream().filter(a -> Diagram.onPath(a, l, t)).map(a ->
+                Model.typeName(a.from()) + ">" + Model.typeName(a.to())).toList();
+        assertEquals(List.of("LinkRows>Bench", "Bench>ListRuns"), on, "by topic and receiver; a write alone is no arrow");
+        Picture p = Diagram.draw(FLOWS, t, 600f, 600f, INKS);
+        List<String> texts = p.marks().stream().filter(m -> m instanceof Picture.Text).map(m -> ((Picture.Text) m)
+                .text()).toList();
+        assertTrue(texts.contains("FindRuns"), "named on the path though nothing else crossed it: " + texts);
+        assertEquals(6, p.marks().stream().filter(m -> m instanceof Picture.Line line && line.color().equals(PATH))
+                .count(), "two arrows, each a line and a head of two strokes");
     }
 }

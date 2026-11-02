@@ -1,9 +1,11 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Flow;
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Part;
+import dev.sibarum.inspector.core.Messages.Traced;
 import dev.sibarum.inspector.core.Model;
 import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.draw.Picture;
@@ -36,8 +38,11 @@ final class Diagram {
     /** How far apart two arrows between the same two parts, one each way, are drawn. */
     private static final float APART = 5f;
 
-    /** The colours: a part's box and name, an arrow something crossed, one nothing has, and the topics on it. */
-    record Inks(Color box, Color name, Color lit, Color faint, Color label) {
+    /**
+     * The colours: a part's box and name, an arrow something crossed, one nothing has, the topics on it, and an arrow
+     * the path of the event the cursor is on crossed.
+     */
+    record Inks(Color box, Color name, Color lit, Color faint, Color label, Color path) {
     }
 
     /** A part's box, where it is laid out. */
@@ -158,15 +163,41 @@ final class Diagram {
      * the edge of the sender's box that faces the receiver to the receiver's, with the topics a lit one carries on it.
      */
     static Picture draw(Flows f, float w, float h, Inks inks) {
+        return draw(f, Traced.NONE, w, h, inks);
+    }
+
+    /**
+     * Whether arrow {@code a} of layout {@code l} is on path {@code t}: one of its topics was delivered along it, to its
+     * receiver's part, or to the framework for a receiver no part of the layout is. A delivery names its receiver and
+     * not its sender, so where two parts send a topic to the same one, both arrows are.
+     */
+    static boolean onPath(Arrow a, Layout l, Traced t) {
+        for (Crossed c : t.crossed()) {
+            if (!c.to().isEmpty() && a.topics().contains(Model.typeName(c.topic()))) {
+                String receiver = partOf(c.to());
+                if (!l.boxes().containsKey(receiver)) {
+                    receiver = End.FRAMEWORK;
+                }
+                if (receiver.equals(a.to())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** As {@link #draw(Flows, float, float, Inks)}, the arrows path {@code t} crossed drawn in its colour, named. */
+    static Picture draw(Flows f, Traced t, float w, float h, Inks inks) {
         Sketch s = new Sketch().tag("graph");
         if (w <= 0f || h <= 0f) {
             return s.picture();
         }
         Layout l = lay(f, w, h);
-        // Faint arrows first, so a lit one crossing it is drawn over it.
+        // Faint arrows first, then lit ones, then the path's, so each is drawn over what it crosses.
         List<Arrow> ordered = new ArrayList<>(l.arrows());
-        ordered.sort((a, b) -> Boolean.compare(a.lit(), b.lit()));
+        ordered.sort(java.util.Comparator.comparingInt(a -> onPath(a, l, t) ? 2 : a.lit() ? 1 : 0));
         for (Arrow a : ordered) {
+            boolean path = onPath(a, l, t);
             Box from = l.boxes().get(a.from());
             Box to = l.boxes().get(a.to());
             if (from == null || to == null) {
@@ -181,11 +212,12 @@ final class Diagram {
             float y0 = ends[1] + dy;
             float x1 = ends[2] + dx;
             float y1 = ends[3] + dy;
-            Color ink = a.lit() ? inks.lit() : inks.faint();
-            float thick = a.lit() ? (float) Math.min(4.0, 1.0 + Math.log10(1.0 + a.written())) : 1f;
+            Color ink = path ? inks.path() : a.lit() ? inks.lit() : inks.faint();
+            float thick = (a.lit() ? (float) Math.min(4.0, 1.0 + Math.log10(1.0 + a.written())) : 1f)
+                    + (path ? 1f : 0f);
             s.line(x0, y0, x1, y1, thick, ink);
             head(s, x0, y0, x1, y1, thick, ink);
-            if (a.lit()) {
+            if (a.lit() || path) {
                 String said = a.topics().size() <= 2 ? String.join(", ", a.topics())
                         : a.topics().get(0) + ", " + a.topics().get(1) + " +" + (a.topics().size() - 2);
                 // A third of the way along, beside the line on its own side.

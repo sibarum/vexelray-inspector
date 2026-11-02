@@ -52,7 +52,8 @@ import java.util.Objects;
  *
  * <p>Right under the lanes, where the eye goes first: a label and a value a line ({@link #details}), what the run's
  * clock said at the cursor and the fields of the event it is on, a row for each field of the event schema, shown only
- * while that event has it.
+ * while that event has it. Its height is kept, {@link #DETAILS_REM}, and what does not fit scrolls inside it: a
+ * click's path is thirty hops, and the graph and flows under it must stay in view beside the lanes that mark it.
  *
  * <h2>The readouts</h2>
  *
@@ -74,6 +75,13 @@ final class Ui {
 
     /** A lane's height, in rem. */
     private static final float LANE_REM = 2.5f;
+
+    /** What the path of the event the cursor is on is marked in, in every panel: apart from the accent, which every
+     * lane and lit arrow is drawn in. */
+    static final Role PATH = Role.SUCCESS;
+
+    /** The details panel's height, in rem: the clock, a few fields and a path of a dozen hops before it scrolls. */
+    static final float DETAILS_REM = 16f;
 
     /** A row of the flows table, in rem. */
     private static final float FLOW_ROW_REM = 1.5f;
@@ -101,6 +109,8 @@ final class Ui {
     private final Table<String> flows;
     private final Node flowsWhy;
     private final Node graph;
+    /** The topics the path of the event the cursor is on crossed, whose names the flows table marks. */
+    private java.util.Set<String> crossed = java.util.Set.of();
     /** The topics the flows table holds, in the order last given. */
     private List<String> flowTopics = List.of();
     /** What each topic's cells say, by topic: what a row realized later is built with. */
@@ -159,7 +169,8 @@ final class Ui {
             gui.landmark(Landmarks.detail(View.DETAILS.get(i)), details[i]);
             detailRows[i] = gui.row().width(Length.FILL).gap(Type.TIGHT).children(label, details[i]);
         }
-        Node detailsPanel = gui.column().width(Length.FILL).padding(Type.TIGHT).children(detailRows);
+        Node detailsPanel = gui.column().width(Length.FILL).height(Length.rem(DETAILS_REM)).padding(Type.TIGHT)
+                .clip(true).scroll(false, true).children(detailRows);
         gui.landmark(Landmarks.DETAILS, detailsPanel);
 
         warningText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
@@ -189,7 +200,8 @@ final class Ui {
             int at = i;
             columns.add(Table.Column.of(View.FLOW_COLUMNS.get(i), FLOW_WIDTHS.get(i), (nodes, topic) -> {
                 Node text = nodes.text(flowCells.getOrDefault(topic, View.NO_FLOW).get(at))
-                        .textSize(Type.SMALL).textColor(gui.theme().color(at == 0 ? Role.INK : Role.DIM));
+                        .textSize(Type.SMALL).textColor(gui.theme().color(at > 0 ? Role.DIM
+                                : crossed.contains(topic) ? PATH : Role.INK));
                 flowNodes.computeIfAbsent(topic, t -> new Node[View.FLOW_COLUMNS.size()])[at] = text;
                 return text;
             }));
@@ -306,6 +318,27 @@ final class Ui {
                 }
             }
         }
+    }
+
+    /**
+     * Mark the flows table's {@code topics}, those the path of the event the cursor is on crossed, by their names in
+     * the path's colour, and unmark the rest; in place, as the counts change.
+     */
+    void crossed(List<String> topics) {
+        java.util.Set<String> now = java.util.Set.copyOf(topics);
+        for (Map.Entry<String, Node[]> e : flowNodes.entrySet()) {
+            boolean was = crossed.contains(e.getKey());
+            boolean is = now.contains(e.getKey());
+            if (was != is && e.getValue()[0] != null) {
+                e.getValue()[0].textColor(gui.theme().color(is ? PATH : Role.INK));
+            }
+        }
+        crossed = now;
+    }
+
+    /** The topics {@link #crossed} marked last, for a test. */
+    java.util.Set<String> crossed() {
+        return crossed;
     }
 
     /** What a topic's cells say in the flows panel, for a test: empty when it has no row. */

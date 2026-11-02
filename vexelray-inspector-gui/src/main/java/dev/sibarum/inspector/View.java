@@ -9,6 +9,7 @@ import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Choose;
+import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Field;
@@ -28,6 +29,7 @@ import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
+import dev.sibarum.inspector.core.Messages.Traced;
 import dev.sibarum.inspector.core.Model;
 import dev.sibarum.inspector.core.Bench;
 import dev.vexelray.framework.api.Draw;
@@ -177,9 +179,9 @@ final class View {
 
     /**
      * The colours the lanes are drawn in: a stretch or a moment, a draw held for the ceiling, one held for the GPU,
-     * injected input, the event the cursor is on, and the hairlines between the lanes.
+     * injected input, the event the cursor is on, the hairlines between the lanes, and the rest of that event's path.
      */
-    record Inks(Color mark, Color ceiling, Color gpu, Color injected, Color on, Color line) {
+    record Inks(Color mark, Color ceiling, Color gpu, Color injected, Color on, Color line, Color path) {
 
         /** What {@code kind} is drawn in. */
         Color of(String kind) {
@@ -241,15 +243,16 @@ final class View {
         this.leave = leave;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
                 gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
-                gui.theme().color(Role.LINE));
+                gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
         this.diagramInks = new Diagram.Inks(gui.theme().color(Role.LINE), gui.theme().color(Role.INK),
-                gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Role.DIM));
+                gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Role.DIM),
+                gui.theme().color(Ui.PATH));
         gui.hear(ui.graph(), NodeEvent.RESIZE, layout -> {
             graphW = layout.rect().w();
             graphH = layout.rect().h();
-            ui.graph().picture(Diagram.draw(lastFlows, graphW, graphH, diagramInks));
+            ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
         });
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneX = layout.rect().x();
@@ -563,7 +566,7 @@ final class View {
             hi = Double.MAX_VALUE;
         }
         ui.reach(reach);
-        Fit fit = fit(last, laneW, laneH, scale, inks, lo - widest, hi, reach, rests);
+        Fit fit = fit(last, traced, laneW, laneH, scale, inks, lo - widest, hi, reach, rests);
         ui.strip().picture(fit.picture());
         tell(fit, malformed(last));
         state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, reach, edge, state.zoom());
@@ -676,13 +679,20 @@ final class View {
     /** See {@link Fit}. Pure, for a test. */
     static Fit fit(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos,
                    int slideLanes, double... restsNanos) {
-        Picture p = lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, restsNanos);
+        return fit(t, Traced.NONE, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, restsNanos);
+    }
+
+    /** As above, with the path {@code traced} marked on the lanes. */
+    static Fit fit(Timeline t, Traced traced, float w, float h, float pxPerNano, Inks inks, double fromNanos,
+                   double toNanos, int slideLanes, double... restsNanos) {
+        Picture p = lanes(t, traced, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, null, restsNanos);
         int wanted = p.marks().size();
         int columns = (int) Math.ceil(w * (1 + 2 * slideLanes));
         int cell = 1;
         while (p.marks().size() > MARK_BUDGET && cell < columns) {
             cell *= 2;
-            p = lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, Cells.uniform(cell), restsNanos);
+            p = lanes(t, traced, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, Cells.uniform(cell),
+                    restsNanos);
         }
         return new Fit(p, cell, wanted);
     }
@@ -726,12 +736,17 @@ final class View {
      */
     static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos, double toNanos,
                          int slideLanes, double... restsNanos) {
-        return lanes(t, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, null, restsNanos);
+        return lanes(t, Traced.NONE, w, h, pxPerNano, inks, fromNanos, toNanos, slideLanes, null, restsNanos);
     }
 
-    /** As above, in {@code cells} if they are given, or else in cells fine about {@code restsNanos}. */
-    private static Picture lanes(Timeline t, float w, float h, float pxPerNano, Inks inks, double fromNanos,
-                                 double toNanos, int slideLanes, Cells given, double... restsNanos) {
+    /**
+     * As above, with the path {@code traced} marked, in {@code cells} if they are given, or else in cells fine about
+     * {@code restsNanos}. Every event on the path is drawn over the lanes in the path's colour, its band's whole height,
+     * a stretch as long as it took and a moment as a line, so a click's tick and draw stand out among their lanes'; the
+     * event the cursor is on is drawn over it.
+     */
+    static Picture lanes(Timeline t, Traced traced, float w, float h, float pxPerNano, Inks inks, double fromNanos,
+                         double toNanos, int slideLanes, Cells given, double... restsNanos) {
         Sketch s = new Sketch().tag("lanes");
         float edge = w * (1 + slideLanes);
         float band = h / Model.LANES.size();
@@ -790,6 +805,24 @@ final class View {
             }
             ends.draw(s, floor, reach, false, cells);
             moments.draw(s, floor, reach, true, cells);
+        }
+        if (!traced.equals(Traced.NONE)) {
+            for (Lane l : t.lanes()) {
+                float y = band * Model.LANES.indexOf(l.name());
+                for (Mark m : l.marks()) {
+                    if (m.toNanos() < fromNanos || m.fromNanos() > toNanos || m.toNanos() < m.fromNanos()
+                            || !traced.has(l.name(), m)) {
+                        continue;
+                    }
+                    float x0 = edge + (m.fromNanos() - t.edgeNanos()) * pxPerNano;
+                    float x1 = edge + (m.toNanos() - t.edgeNanos()) * pxPerNano;
+                    if (x1 - x0 >= 1f) {
+                        s.fill(x0, y, x1 - x0, band, inks.path());
+                    } else {
+                        s.line(x1 - 0.5f, y, x1 - 0.5f, y + band, 1f, inks.path());
+                    }
+                }
+            }
         }
         t.on().ifPresent(e -> {
             Mark m = e.mark();
@@ -1049,6 +1082,29 @@ final class View {
         ui.details(details(d, ZoneId.systemDefault()));
     }
 
+    /** The path of the event the cursor is on, marked on the lanes, the graph and the flows table. */
+    private Traced traced = Traced.NONE;
+
+    /**
+     * Mark {@code t}'s path in every panel: the lanes' events on it, the graph's arrows it crossed, the flows table's
+     * topics it crossed. Drawn again only when the path changes, which is when the cursor's event does.
+     */
+    @Subscribe
+    public void traced(Traced t) {
+        if (t.equals(traced)) {
+            return;
+        }
+        traced = t;
+        ui.crossed(crossedTopics(t));
+        ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
+        show();
+    }
+
+    /** The topics {@code t} crossed, each once, in the order it first crossed them. Pure, for a test. */
+    static List<String> crossedTopics(Traced t) {
+        return t.crossed().stream().map(Crossed::topic).distinct().toList();
+    }
+
     /**
      * What the details panel says, a value for each of {@link #DETAILS}, empty for a row to hide: the run's clock as
      * local time of day, as the application's log has it, then as UTC, as its probe's rows have it; and each field of
@@ -1135,7 +1191,7 @@ final class View {
         }
         ui.flows(f.why(), topics, cells);
         lastFlows = f;
-        ui.graph().picture(Diagram.draw(f, graphW, graphH, diagramInks));
+        ui.graph().picture(Diagram.draw(f, traced, graphW, graphH, diagramInks));
     }
 
     /** The graph panel's colours, and its size and what it last showed, for a resize to draw it again. */

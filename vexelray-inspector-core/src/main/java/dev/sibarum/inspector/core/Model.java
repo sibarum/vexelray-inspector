@@ -1,5 +1,6 @@
 package dev.sibarum.inspector.core;
 
+import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Flow;
@@ -9,6 +10,7 @@ import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Part;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Row;
+import dev.sibarum.inspector.core.Messages.Traced;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -584,43 +586,56 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * publish from outside a tick, whose kind is the topic) or a delivery ({@code receive}).
      */
     private static HashMap<String, Tally> tally(HashMap<String, Tally> tallies, Row r) {
+        Crossing c = crossing(r);
+        if (c == null) {
+            return tallies;
+        }
+        HashMap<String, Tally> out = tallies == null ? new HashMap<>() : tallies;
+        Tally t = out.computeIfAbsent(c.topic(), k -> new Tally());
+        if (c.write()) {
+            t.written++;
+            t.by.merge(c.who(), 1L, Long::sum);
+        } else {
+            t.delivered++;
+            t.to.merge(c.who(), 1L, Long::sum);
+        }
+        return out;
+    }
+
+    /**
+     * A message crossing a topic, as a row says it: a write, by a component ({@code send}, naming it) or from outside a
+     * tick ({@link Counted#OUTSIDE} and the thread), or a delivery, to a mailbox ({@code class#method}) or else an inbox.
+     */
+    record Crossing(String topic, String who, boolean write) {
+    }
+
+    /** The crossing {@code r} says, or null when it says none. */
+    static Crossing crossing(Row r) {
         String kind = r.kind();
-        String detail = r.detail();
-        String topic;
-        String who;
-        boolean write;
+        if (!r.lane().equals("bus")) {
+            return null;
+        }
         if (kind.equals("send") || kind.equals("receive")) {
             // "<topic> from <sender> <hops>", "<topic> to <inbox> [<mailbox>] <hops>"
-            write = kind.equals("send");
+            String detail = r.detail();
+            boolean write = kind.equals("send");
             int split = detail.indexOf(write ? " from " : " to ");
             int end = detail.lastIndexOf(' ');
             if (split < 0 || end <= split) {
-                return tallies;
+                return null;
             }
-            topic = detail.substring(0, split);
-            who = detail.substring(split + (write ? 6 : 4), end);
+            String who = detail.substring(split + (write ? 6 : 4), end);
             int mailbox = who.indexOf(' ');
             if (mailbox > 0) {
                 who = who.substring(mailbox + 1);
             }
-        } else if (isMessageType(kind)) {
-            write = true;
-            topic = kind;
+            return new Crossing(detail.substring(0, split), who, write);
+        }
+        if (isMessageType(kind)) {
             // The job lane's threads are numbered and taken in turn: one lane, so one sender.
-            who = Counted.OUTSIDE + r.thread().replaceFirst("^(vexel-job)-\\d+$", "$1");
-        } else {
-            return tallies;
+            return new Crossing(kind, Counted.OUTSIDE + r.thread().replaceFirst("^(vexel-job)-\\d+$", "$1"), true);
         }
-        HashMap<String, Tally> out = tallies == null ? new HashMap<>() : tallies;
-        Tally t = out.computeIfAbsent(topic, k -> new Tally());
-        if (write) {
-            t.written++;
-            t.by.merge(who, 1L, Long::sum);
-        } else {
-            t.delivered++;
-            t.to.merge(who, 1L, Long::sum);
-        }
-        return out;
+        return null;
     }
 
     /** {@code counts} with {@code tallies} added. */
@@ -712,6 +727,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * @param rows the rows to read the hops from, in the order they were folded: the tape's
      */
     public String pathOf(Mark m, Iterable<Row> rows) {
+        return pathFrom(m, hopsOf(m.cause(), rows));
+    }
+
+    /** As {@link #pathOf(Mark, Iterable)}, from the hops {@link #hopsOf} read of the event's cause. */
+    public String pathFrom(Mark m, List<Hop> hops) {
         if (m.kind().equals(INPUT_TAKEN)) {
             return "the devices" + (m.frame() > 0 ? " → read in pass #" + m.frame() : "");
         }
@@ -720,7 +740,6 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (!origin.isEmpty()) {
             said.add(origin);
         }
-        List<Hop> hops = hopsOf(m.cause(), rows);
         for (int i = 0; i < hops.size(); i++) {
             Hop h = hops.get(i);
             // How long after the hop before it this one began: the time a click's answer took, a hop at a time.
@@ -732,6 +751,42 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             said.add("pass #" + m.frame());
         }
         return String.join(" → ", said);
+    }
+
+    /**
+     * What every panel marks of event {@code m}'s path, from the {@code hops} of its cause: the cause itself; the passes
+     * its hops on the main thread were in, and those its wakes woke, and its own if it is a pass or the devices' input;
+     * the ticks its hops were in; the draws that showed what it changed; and each topic it wrote or was delivered on.
+     */
+    static Traced traced(String run, Mark m, List<Hop> hops) {
+        java.util.LinkedHashSet<Long> passes = new java.util.LinkedHashSet<>();
+        java.util.LinkedHashSet<String> ticks = new java.util.LinkedHashSet<>();
+        java.util.LinkedHashSet<String> draws = new java.util.LinkedHashSet<>();
+        java.util.LinkedHashSet<Crossed> crossed = new java.util.LinkedHashSet<>();
+        if ((m.kind().equals(PASS) || m.kind().equals(INPUT_TAKEN)) && m.frame() > 0) {
+            passes.add(m.frame());
+        }
+        for (Hop h : hops) {
+            Row r = h.row();
+            if (isDraw(r)) {
+                draws.add(numberOf(r));
+                continue;
+            }
+            if (r.lane().equals("frame") && r.kind().equals("wake") && r.frame() > 0) {
+                passes.add(r.frame() + 1);
+            } else if (r.thread().equals("main") && r.frame() > 0) {
+                passes.add(r.frame());
+            }
+            if (!h.tick().isEmpty()) {
+                ticks.add(h.tick());
+            }
+            Crossing c = crossing(r);
+            if (c != null) {
+                crossed.add(new Crossed(c.topic(), c.write() ? "" : c.who()));
+            }
+        }
+        return new Traced(run, m.cause(), List.copyOf(passes), List.copyOf(ticks), List.copyOf(draws),
+                List.copyOf(crossed));
     }
 
     /**

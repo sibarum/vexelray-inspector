@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 done 2026-11-02, R2 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 and R2 done 2026-11-02, R3 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -201,7 +201,7 @@ repository's TODO when this design is accepted.
 | Repo | Addition | For |
 | --- | --- | --- |
 | atchung | A tick number, and a row per tick with its number, start, end, rounds, delivered, carried and whether it met its deadline (9.3) | the timeline's logic lane and its tick rulings |
-| atchung | Superseded writes counted per state topic and per inbox | registers' written and delivered (R2) |
+| atchung | ~~Superseded writes counted per state topic and per inbox~~ Not needed: R2 counts written and delivered from the `send`, publish and `receive` rows | registers' written and delivered (R2) |
 | atchung, vexelray-framework | A cause source for the framework's `Timer` and for jobs | no `uncaused` rows from the framework's own parts |
 | vexelray-gui | A draw number apart from the pass, and a row per draw with its number, start and end; the held counts in `LoopCounters` and `Snap` (9.3) | the timeline's drawing lane; the readouts |
 | vexelray-gui | The recorder keeps the cause: the eight-argument `row`, a field on `RecordedRow` and the link's `Row` (9.3) | a click's thread (R3) |
@@ -561,6 +561,25 @@ Each step ends with something to watch or something an agent can ask, and lands 
   **R1 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s first section.
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
+  **Built 2026-11-02, in four slices.** *Upstream:* the processor writes bus graph version 2 ([bus-graph.md](bus-graph.md)):
+  a part line per component, view, job, source, destination and sender with its real lane and whether it takes the
+  timer, a hears line per way of hearing (a mailbox, an inbox's `@Hears`, a job's request, a source's start and stop, a
+  destination's), a sends line per send, and a topic line per channel with its kind, read off the topic's constant when
+  the wiring loads; vexelray-gui's `BusGraph` reads only version 2; W2's acceptance test checks the new lines.
+  *The graph read:* `LinkRows` asks the run for it once and adds it as a row (`Model.GRAPH`), so it is on the tape and a
+  recording has none. *Counted:* written from `send` rows (a component's, naming it) and publish rows (from outside a
+  tick, naming a thread, put to the sender whose thread it is, FN-14), delivered from `receive` rows; what reaches a
+  job, a source or a destination writes no row and says no number (FN-15). The bench says `Flows`, a state topic, with
+  the timeline, as of the cursor, the rate from the tape's checkpoint a second or two back. *Flows panel:* a table a
+  topic beside the graph, its cells changed in place. *Graph panel:* the parts in tiers from outside in (the framework,
+  sources, jobs, senders, components, views), an arrow a pair of parts, faint until its sender writes, then as thick as
+  the log of what it wrote and named with its topics. The bench allocates about 410 bytes a row with the counts (295
+  before), flat.
+  **Inspected W2 in both modes, 2026-11-02**, launched by `--launch` and driven by its own buttons: six clicks were six
+  `Button.Pressed` from the framework to `Shown#pressed`; three counts, three `Bump` to `Counter` and three `Counted`
+  back; one work and one echo each a `Job`, `Worked`, `Ping` and `Echoed`; `Wedge`, `Reset` and `Stalled` declared and
+  faint at 0. The same under `--logic=main`, where the Logic lane is empty (FN-8): the counts come from rows on every
+  thread. **R2 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R2 section.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);
   select an input, mark its path in every panel.
 - **R4, the rows panel**, and stepping the cursor row by row, tick by tick and draw by draw.

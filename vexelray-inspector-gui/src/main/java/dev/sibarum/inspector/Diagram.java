@@ -226,9 +226,19 @@ final class Diagram {
         s.line(x1, y1, x1 - size * ux - size * 0.5 * uy, y1 - size * uy + size * 0.5 * ux, thick, ink);
     }
 
-    /** {@code label} cut to fit {@code w} px of text, with an ellipsis when it was cut. */
-    private static String fit(String label, float w) {
+    /**
+     * {@code label} cut to fit {@code w} px of text: its lane let go first, as the part's name says more, then the name,
+     * with an ellipsis.
+     */
+    static String fit(String label, float w) {
         int room = (int) ((w - 12f) / (TEXT_PX * 0.55f));
-        return label.length() <= room || room < 2 ? label : label.substring(0, room - 1) + "…";
+        if (label.length() <= room || room < 2) {
+            return label;
+        }
+        int lane = label.indexOf(" · ");
+        if (lane > 0) {
+            return fit(label.substring(0, lane), w);
+        }
+        return label.substring(0, room - 1) + "…";
     }
 }

@@ -47,6 +47,8 @@ class DiagramTest {
         assertEquals(l.boxes().get(P + "Bench").y(), l.boxes().get(P + "Physics").y(), "components share a tier");
         assertEquals("Physics · physics", l.boxes().get(P + "Physics").label(), "a declared lane is named");
         assertEquals("Bench", l.boxes().get(P + "Bench").label());
+        assertEquals("Physics", Diagram.fit("Physics · physics", 80f), "a narrow box lets its lane go first");
+        assertEquals("Physics · physics", Diagram.fit("Physics · physics", 200f));
     }
 
     @Test

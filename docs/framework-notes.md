@@ -183,3 +183,25 @@ command, `--launch="<command>"`, which `Child.words` splits on spaces outside do
 by starting the Inspector with `java` directly. The framework could let an application declare one key whose value is
 the rest of the line (`@Setting(value = "launch", rest = true)`), parsed before the refusal of unknown options, and
 `ottermate` could use the same rule.
+
+## FN-14 · A write from outside a tick names no sender, only its thread 🔬
+
+The flows panel counts what each part wrote on each topic. A component's write inside a tick is a `send` row that
+names it (`<topic> from <inbox> <hops>`, FN-10), but a write from outside one, a source's `Sender.outside`, a job's
+reply, a timer's beat, a widget's message, is only the publish row, whose kind is the topic and whose thread is the
+one that published it. So a topic two sources declare (the Inspector's own `Rows`: `LinkRows` and `RecordingRows`)
+could not say which wrote it. Worked around in `Model.writesOn`, by the framework's own thread names: a source's is
+`vexel-source-<its name in kebab case>`, a destination's `vexel-destination-...`, the job lane's `vexel-job-<n>`, the
+timer's `vexel-timer`, a view's the main thread. It holds while those names do, and says nothing when two parts share
+a thread kind (two components that take the timer). The publish row could say who published it, as `send` does, when
+the sender knows (`Sender.outside` is built for one part, `Sources.sender(shell, "<part>", topic)`).
+
+## FN-15 · What reaches a job, a source or a destination writes no row 🔬
+
+A tick's delivery to a mailbox or an inbox is a `receive` row, so the flows panel can say how many of a topic's
+messages each receiver was handed. A job's request, a source's start and stop, and a destination's open and write are
+handed over by the framework (`Jobs`, `Sources`, `Destinations`), which writes no row, so those ends have no count.
+Worked around by saying none (`End.UNCOUNTED`, shown as the part's name alone, and no delivered count for a topic
+heard only that way) rather than 0, which would claim nothing arrived. The framework could write a `receive` row
+there too, naming the part as bus graph 2 does (`<topic> to <part> <hops>`), which would also put those hops on a
+cause's path.

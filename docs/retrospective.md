@@ -34,6 +34,57 @@ reasons and the full method.
 *(none yet)*
 ## Milestones
 
+## R2, the declared graph · 2026-11-02
+
+The count: 2 findings (FN-14, FN-15), both framework gaps, neither fixed upstream yet. The milestone's own upstream
+change was the bus graph, version 2 ([bus-graph.md](bus-graph.md)): vexelray-framework's processor writes it and
+vexelray-gui's `BusGraph` reads only it. Architectural: who a message came from and where it went are facts the rows
+must state, not the Inspector infer (both findings).
+
+### The shapes
+
+| | The promise | What happened | How it looked |
+| --- | --- | --- | --- |
+| G | Every write says who wrote it | A component's `send` row names it; a write from outside a tick (a source, a job, the timer, a widget) is a publish row naming only its thread (FN-14) | `Rows` "LinkRows 0, RecordingRows 0, outside a tick 3454" until the thread names were read as part names |
+| H | Every delivery is a row | A tick's delivery to a mailbox or inbox is; what the framework hands a job, a source or a destination is not (FN-15) | `FindRuns` "ListRuns 0", a count nobody measured, until it said no number |
+
+### What would stop each
+
+1. **G:** a publish row names its sender when the sender is known, as `send` does: `Sender.outside` and the framework's
+   source, job and timer senders are each built for one part.
+2. **H:** the framework writes a `receive` row when it hands a job its request, a source its start or stop, and a
+   destination its open or write, naming the part as bus graph 2 does; those hops then join a cause's path too.
+
+### My own mistakes
+
+- **I edited files with shell substitutions that silently matched nothing.** In vexelray-framework and vexelray-gui,
+  sed and perl patterns over files with Windows line endings left them unchanged and said nothing; twice I moved on
+  before a grep caught it. *Rule:* in the stack's repos, edit with the editor, or grep for the result straight after.
+- **I took `keyed` to mean "declared a key".** atchung's `Topic.keyed()` is true of every state topic, so the first
+  graph called an unkeyed state topic keyed. The javadoc said so in one line. *Rule:* read the accessor's javadoc
+  before naming a field after it.
+- **I showed a count that nothing counted.** Deliveries to a job or a source were shown as 0 because no row was found,
+  which reads as "nothing arrived". R1's rule again, at the other end: a number shown is a number measured.
+- **I broke my own fix in the next slice.** Folding the job lane's numbered threads into one sender (`vexel-job`) left
+  the matcher looking for `vexel-job-`, so `Runs` went to the framework; only the next screenshot showed it. *Rule:*
+  a change to how a key is made is tested where the key is read, in the same commit.
+- **I installed a jar built from someone else's uncommitted work.** `mvn install` of vexelray-gui-automation took the
+  working tree, which held another session's drag-and-drop changes, into `.m2`. Harmless this time; the commit itself
+  was staged hunk by hunk. *Rule:* before installing a module of a shared checkout, look at `git status` and say what
+  else goes with it.
+
+### What to keep exactly as it is
+
+- **The rows already held the counts.** Written and delivered came from the `send`, publish and `receive` rows FN-10
+  put there, so the atchung counter design.md 7½ planned was not needed. Read what a run records before asking the
+  stack for more.
+- **What a run says once is a row on the tape.** The graph arrives as one row, beside the sources and the version
+  warning: it rewinds with the cursor, a recording simply has none, and the bench's state did not change shape.
+- **Facts read where they live.** A topic's kind is read off its own constant when the wiring loads, so a library's
+  topics say theirs; nothing in the processor guesses it.
+- **A table whose cells change in place.** The flows table's rows are the topics, built once a run; the counts that
+  change every batch are written into the cells already built.
+
 ## R1, first light · 2026-11-02
 
 The count: 13 findings (FN-1 to FN-13), 12 of them framework gaps, 6 fixed upstream during the milestone (FN-1, FN-2,

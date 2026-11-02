@@ -8,6 +8,18 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
+- [ ] A state topic's last value (design.md section 4): rows carry no payload, so the flows panel shows counts only. It
+      needs the publish row to carry the value, or a summary of it, upstream.
+- [ ] The graph panel's labels overlap where several lit arrows meet one part (W2's `Shown`), and nothing on it can be
+      clicked: a part or an arrow chosen should filter the flows table to its topics.
+- [ ] "The framework" is one box: a widget's, the window's, input's and automation's messages cannot be told apart, as
+      the bus graph names none of them. Name them as parts upstream, or tell them apart by topic package here.
+- [ ] A recording has no graph: the probe could write the bus graph as a row when it starts, so a replay is drawn
+      as its run was.
+- [ ] The flows table does not sort: its items are the topics' names, so a sort by written or rate needs the counts
+      beside them in the item, and a comparator for each column.
+- [ ] FN-14 and FN-15 upstream: a publish row naming its sender, and a receive row for what the framework hands a
+      job, a source or a destination. Then drop `Model.writesOn` and `End.UNCOUNTED`.
 - [ ] The link's slowest batch grew over a 90 s watch at 31,000 to 48,000 rows a second, from 11 ms to 101 ms behind
       its newest row (p50 0.7 ms and p95 under 7 ms throughout): find whose pause it is, the watcher's or the target's.
 - [ ] A minute of tape at 19,000 rows a second holds about 109 MB, so the 5 min reach design.md section 8 offered
@@ -21,8 +33,8 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       `localX`/`localY` into an event through the view's `Strip`.
 - [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter, which
       matches `Mark.fields` by name and value (`Model.FIELDS`), the same on every lane.
-- [ ] The path is a line of text a filter can match; a hop at a time (click one to go to its event) waits for the
-      graph panel (R2).
+- [ ] The path is a line of text a filter can match; a hop at a time (click one to go to its event), and the path
+      marked on the graph panel's arrows, are R3's.
 - [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state
       topic) for each position; the view turns a pixel into a moment as a click does.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the

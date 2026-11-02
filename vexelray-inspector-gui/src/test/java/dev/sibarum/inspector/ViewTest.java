@@ -10,8 +10,10 @@ import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Model;
+import dev.sibarum.inspector.core.Bench;
 import dev.vexelray.canvas.Color;
 import dev.vexelray.framework.shell.Shell;
 import dev.vexelray.framework.shell.VexelApplication;
@@ -135,6 +137,28 @@ class ViewTest {
         assertEquals(lane / View.SPAN_NANOS, s.pictureScale(), 1e-12f, "built at the first zoom");
         assertEquals(lane * (1 + 2 * View.SLIDE_LANES), wiring.ui().strip().layout().rect().w(), 1f,
                 "the strip reaches past the lane both sides, and the lane is not widened by it");
+    }
+
+    @Test
+    void theRunPanelIsShownWithNothingAttachedAndThenWithTheRunAttached() throws InterruptedException {
+        Messages.Run one = new Messages.Run("calculator-11", "Calculator", 11, "uds:one");
+        shell.bus().publish(Messages.RUN_PANEL_TOPIC, new RunPanel("", "", 0, "", "", List.of(one), false));
+        eventually("nothing attached, said", () -> "No application inspected".equals(wiring.ui().runLine()));
+        shell.bus().publish(Messages.RUN_PANEL_TOPIC,
+                new RunPanel(one.name(), one.title(), 11, Bench.ATTACHED, "", List.of(one), true));
+        eventually("the run attached, said", () -> "Calculator · pid 11 · attached".equals(
+                wiring.ui().runLine()));
+    }
+
+    @Test
+    void theRunPanelSaysTheRunItsProcessHowItWasReachedAndItsLogic() {
+        Messages.Run one = new Messages.Run("calculator-11", "Calculator", 11, "uds:one");
+        assertEquals("Calculator · pid 11 · attached · logic on its own lane, vexel-logic",
+                View.runLine(new RunPanel("calculator-11", "Calculator", 11, Bench.ATTACHED,
+                        "logic on its own lane, vexel-logic", List.of(one), true)));
+        assertEquals("run.csv · replayed", View.runLine(new RunPanel("replay:run.csv", "run.csv", 0,
+                Bench.REPLAYED, "", List.of(one), true)), "a recording has no process, and no logic said yet");
+        assertEquals("No application inspected", View.runLine(new RunPanel("", "", 0, "", "", List.of(one), false)));
     }
 
     @Test

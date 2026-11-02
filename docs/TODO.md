@@ -8,10 +8,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] R1 ([design.md](design.md) §10), slices 4 and 5: the run panel, the picker, launch and replay; then measure (the
+- [ ] R1 ([design.md](design.md) §10), slice 5: launch and replay; then measure (the
       tape's `RETAIN` included, and the fold, which copies every lane kept on each batch), and inspect W1 to W3 in
-      both modes. Slices 1 to 3 (attach and the live lane; checkpoints, pause and stepping; every lane and the
-      readouts) are done.
+      both modes. Slices 1 to 4 (attach and the live lane; checkpoints, pause and stepping; every lane and the
+      readouts; the run panel and the picker) are done.
 - [ ] The Messages lane's moments are drawn by how many share a pixel now, but its event highlight is still lost in a
       busy band, and the filter should be able to hide the busiest types. Not yet seen against a target whose probe
       records the bus: the traced Inspector's Messages lane was empty.

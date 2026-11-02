@@ -1,6 +1,8 @@
 package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
+import dev.sibarum.inspector.core.Messages.Choose;
+import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
@@ -9,10 +11,12 @@ import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
+import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Runs;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Readouts;
@@ -61,13 +65,22 @@ class BenchTest {
     void build() {
         previous = Atchung.fatal();
         Atchung.onFatal(Fatal.THROW);
+        build("");
+    }
+
+    /** A bench of its own on a bus of its own, as launched with {@code --attach=<attach>}. */
+    private void build(String attach) {
+        if (timer != null) {
+            timer.close();
+        }
+        sent.clear();
         bus = Atchung.create();
         tick = bus.tick(null);
         timer = new Timer(bus);
-        new Bench(tick.inbox("bench"), timer);
+        new Bench(tick.inbox("bench"), timer, attach);
         Inbox heard = tick.inbox("heard");
-        for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.TIMELINE_TOPIC,
-                Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC)) {
+        for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
+                Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -173,6 +186,87 @@ class BenchTest {
         assertFalse(t.live());
         tell(Messages.RUNS_TOPIC, new Runs(List.of(), ""));
         assertEquals(List.of(), took(Timeline.class), "said once, not every beat");
+    }
+
+    @Test
+    void aRunChosenIsAttachedToAndTheOneAttachedIsStopped() {
+        attached(ONE);
+        tell(Messages.CHOOSE_TOPIC, new Choose(TWO, Bench.ATTACHED));
+        assertEquals(List.of(new Detach(ONE.name())), took(Detach.class));
+        tell(Messages.CHOOSE_TOPIC, new Choose(TWO, Bench.ATTACHED));
+        assertEquals(List.of(), took(Attach.class), "chosen again: it is attached already");
+        tell(Messages.CHOOSE_TOPIC, new Choose(ONE, Bench.ATTACHED));
+        assertEquals(List.of(new Attach(ONE.name(), ONE.stream())), took(Attach.class));
+    }
+
+    @Test
+    void aChosenRunThatGoesAwayStaysOnScreenAndNoOtherIsAttached() {
+        tell(Messages.CHOOSE_TOPIC, new Choose(ONE, Bench.ATTACHED));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(1, 100 * MS, "4ms"))));
+        tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "it went away"));
+        sent.clear();
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(TWO), ""));
+        assertTrue(sent.stream().noneMatch(Attach.class::isInstance), "chosen: not left for another by itself");
+        Timeline t = timeline();
+        assertEquals(1, passes(t).size(), "its tape stays to step through");
+        assertEquals("Calculator (calculator-11): it went away. Choose an application to inspect", t.status());
+    }
+
+    @Test
+    void aFoundRunThatGoesAwayIsReplacedByTheNextFound() {
+        attached(ONE);
+        tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "it went away"));
+        sent.clear();
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(TWO), ""));
+        assertEquals(List.of(new Attach(TWO.name(), TWO.stream())), took(Attach.class));
+    }
+
+    @Test
+    void detachingStopsTheRunKeepsItsTapeAndAttachesToNothing() {
+        attached(ONE);
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(1, 100 * MS, "4ms"))));
+        sent.clear();
+        tell(Messages.LEAVE_TOPIC, new Leave());
+        assertEquals(List.of(new Detach(ONE.name())), took(Detach.class));
+        tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "stopped"));
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
+        assertTrue(sent.stream().noneMatch(Attach.class::isInstance));
+        Timeline t = timeline();
+        assertEquals(1, passes(t).size());
+        assertEquals("Detached from Calculator (calculator-11). Choose an application to inspect", t.status());
+    }
+
+    @Test
+    void attachWaitsForTheRunItNamesByNameOrPid() {
+        build("pid:12");
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        assertEquals(List.of(), took(Attach.class), "not the newest: the one named");
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(), ""));
+        assertEquals("Waiting for pid:12 to start", timeline().status());
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
+        assertEquals(List.of(new Attach(TWO.name(), TWO.stream())), took(Attach.class));
+
+        build("calculator-11");
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
+        assertEquals(List.of(new Attach(ONE.name(), ONE.stream())), took(Attach.class));
+    }
+
+    @Test
+    void theRunPanelSaysTheRunHowItWasReachedAndTheChoices() {
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
+        RunPanel p = took(RunPanel.class).getLast();
+        assertEquals(new RunPanel(TWO.name(), "Scheduler", 12, Bench.ATTACHED, "", List.of(ONE, TWO), false), p,
+                "found, not chosen; nothing yet of its logic");
+        tell(Messages.ROWS_TOPIC, new Rows(TWO.name(), 0, 0, List.of(
+                row(1, 100 * MS, "vexel-logic", "bus", "tick", "0.3ms"))));
+        assertEquals("logic on its own lane, vexel-logic", took(RunPanel.class).getLast().logic());
+        tell(Messages.ROWS_TOPIC, new Rows(TWO.name(), 0, 0, List.of(pass(2, 110 * MS, "1ms"))));
+        tell(Messages.CHOOSE_TOPIC, new Choose(ONE, Bench.LAUNCHED));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(1, 200 * MS, "1ms"))));
+        p = took(RunPanel.class).getLast();
+        assertEquals(Bench.LAUNCHED, p.from());
+        assertTrue(p.chosen());
+        assertEquals("no logic tick off the main thread: --logic=main, or idle", p.logic());
     }
 
     @Test

@@ -118,6 +118,56 @@ public final class Messages {
         }
     }
 
+    /**
+     * Stop reading {@code run}'s rows: the stop of {@link LinkRows} and {@link RecordingRows}, keyed as their requests
+     * are, so it stops that run alone. The bench sends it when the person detaches or chooses another run.
+     */
+    public static final Topic<Detach> DETACH_TOPIC = Topic.edge(Detach.class, Detach::run);
+
+    public record Detach(String run) {
+    }
+
+    /**
+     * Play the probe CSV at {@code path} back at its recorded pace ({@link RecordingRows}), its rows sent as
+     * {@code run}'s, as if it were running now. {@code --replay=<csv>}.
+     */
+    public static final Topic<Replay> REPLAY_TOPIC = Topic.edge(Replay.class, Replay::run);
+
+    public record Replay(String run, String path) {
+    }
+
+    /**
+     * Start {@code command} with its automation on ({@link Child}), and choose it once it can be inspected.
+     * {@code --launch="<command>"}.
+     */
+    public static final Topic<LaunchChild> LAUNCH_CHILD_TOPIC = Topic.edge(LaunchChild.class);
+
+    public record LaunchChild(String command) {
+    }
+
+    /** A launched command has ended, or could not be started: why, in words for the status line. */
+    public static final Topic<ChildExited> CHILD_EXITED_TOPIC = Topic.edge(ChildExited.class);
+
+    public record ChildExited(String command, String why) {
+    }
+
+    /**
+     * Inspect {@code run} and stay with it: the picker, {@code --attach}, or a launched child once its discovery file
+     * appears. A run chosen is not left for a newer one, and when it goes away its tape stays on screen.
+     *
+     * @param from how it was reached, one of {@link Bench}'s {@code ATTACHED}, {@code LAUNCHED}
+     */
+    public static final Topic<Choose> CHOOSE_TOPIC = Topic.edge(Choose.class);
+
+    public record Choose(Run run, String from) {
+    }
+
+    /** The Detach button: stop inspecting the run attached, keep its tape, and attach to nothing until one is chosen. */
+    public static final Topic<Leave> LEAVE_TOPIC = Topic.edge(Leave.class);
+
+    public record Leave() {
+    }
+
     // ------------------------------------------------------------------ the person tells the bench
 
     /**
@@ -345,6 +395,27 @@ public final class Messages {
      * @param on          the event the cursor is on, if any
      */
     public static final Topic<Details> DETAILS_TOPIC = Topic.state(Details.class);
+
+    /**
+     * The run panel: what is inspected and from where, and what else could be. A state topic, as the timeline is.
+     *
+     * @param run     the run attached or replayed, or empty when none is
+     * @param title   its window's title, or the recording's file name
+     * @param pid     its process; 0 for a recording
+     * @param from    how it was reached: attached, launched or replayed ({@link Bench}'s words); empty with no run
+     * @param logic   where its logic ticks run, as far as the rows tell, in words; empty before any row
+     * @param choices the runs that could be inspected now, oldest first, this one among them when it is running
+     * @param chosen  whether the run was chosen (picked, {@code --attach}, launched, replayed) rather than found: a
+     *                chosen run is kept when it goes away, and the bench attaches to no other by itself
+     */
+    public static final Topic<RunPanel> RUN_PANEL_TOPIC = Topic.state(RunPanel.class);
+
+    public record RunPanel(String run, String title, long pid, String from, String logic, List<Run> choices,
+                           boolean chosen) {
+        public RunPanel {
+            choices = List.copyOf(choices);
+        }
+    }
 
     public record Details(String run, long atNanos, long intoNanos, long clockNanos, Optional<Event> on) {
     }

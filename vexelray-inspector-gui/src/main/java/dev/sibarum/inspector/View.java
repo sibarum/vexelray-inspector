@@ -8,20 +8,25 @@ import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
+import dev.sibarum.inspector.core.Messages.Choose;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.Run;
+import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Model;
+import dev.sibarum.inspector.core.Bench;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
 import dev.vexelray.gui.core.Drawn;
@@ -34,6 +39,7 @@ import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
 import dev.vexelray.gui.widget.Button;
+import dev.vexelray.gui.widget.Select;
 import dev.vexelray.canvas.Color;
 import sibarum.atchung.Sender;
 import sibarum.probe.Log;
@@ -187,6 +193,8 @@ final class View {
     private final Sender<StepEvent> stepEvent;
     private final Sender<GoTo> goTo;
     private final Sender<Seek> seek;
+    private final Sender<Choose> choose;
+    private final Sender<Leave> leave;
 
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
@@ -212,7 +220,8 @@ final class View {
 
     View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey, Sender<EventKey> eventKey,
          Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<Pause> pause, Sender<Follow> follow,
-         Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek) {
+         Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek, Sender<Choose> choose,
+         Sender<Leave> leave) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -221,6 +230,8 @@ final class View {
         this.stepEvent = stepEvent;
         this.goTo = goTo;
         this.seek = seek;
+        this.choose = choose;
+        this.leave = leave;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
                 gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
                 gui.theme().color(Role.LINE));
@@ -267,6 +278,20 @@ final class View {
     public void pressed(Button.Pressed p) {
         if (p.button().equals(ui.followAddress())) {
             followed();
+        } else if (p.button().equals(ui.detachAddress())) {
+            leave.send(new Leave());
+        }
+    }
+
+    /** A run picked in the run panel: ask the bench to inspect it. */
+    @Subscribe
+    public void picked(Select.Committed c) {
+        if (c.select().equals(ui.runsAddress())) {
+            for (Object chosen : c.chosen()) {
+                if (chosen instanceof Run run) {
+                    choose.send(new Choose(run, Bench.ATTACHED));
+                }
+            }
         }
     }
 
@@ -1046,6 +1071,34 @@ final class View {
     // ------------------------------------------------------------------ the readouts
 
     /** The bench's readouts, as one line of numbers. */
+    /** The run panel: what is inspected, from where, and the running applications to choose among. */
+    @Subscribe
+    public void runPanel(RunPanel p) {
+        Run current = null;
+        for (Run r : p.choices()) {
+            if (r.name().equals(p.run())) {
+                current = r;
+            }
+        }
+        ui.runPanel(runLine(p), p.choices(), current, !p.run().isEmpty());
+    }
+
+    /** The run panel's line: the run, its process, how it was reached and where its logic runs. */
+    static String runLine(RunPanel p) {
+        if (p.run().isEmpty()) {
+            return "No application inspected";
+        }
+        StringBuilder b = new StringBuilder(p.title().isBlank() ? p.run() : p.title());
+        if (p.pid() > 0) {
+            b.append(" · pid ").append(p.pid());
+        }
+        b.append(" · ").append(p.from());
+        if (!p.logic().isEmpty()) {
+            b.append(" · ").append(p.logic());
+        }
+        return b.toString();
+    }
+
     @Subscribe
     public void readouts(Readouts r) {
         ui.readouts(readout(r));

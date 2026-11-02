@@ -1,5 +1,6 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
@@ -9,11 +10,14 @@ import dev.vexelray.gui.core.layout.LayoutEnums.Direction;
 import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.icons.Icon;
 import dev.vexelray.gui.icons.IconView;
+import dev.vexelray.gui.widget.Button;
 import dev.vexelray.gui.widget.IconButton;
+import dev.vexelray.gui.widget.Select;
 import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.TitleBar;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The window: the framework's title bar, the timeline, and a status line under both.
@@ -28,6 +32,12 @@ import java.util.List;
  * through is in the text's colour, the others dimmed ({@link #focus}), and the view outlines its band with an
  * overlay on the lanes' box, which the strip's slide does not move. At that lane's right end, past the present, is
  * the button that follows the present again, pressable while the cursor is stopped ({@link #canFollow}).
+ *
+ * <h2>The run panel</h2>
+ *
+ * <p>One line over everything else: what is inspected, how it was reached and where its logic runs, then the picker
+ * of running applications and the button that detaches ({@link #runPanel}). Neither control takes the focus: a
+ * focused control claims Space, and Space pauses here (FN-11), so both are driven by the pointer.
  *
  * <h2>The warning</h2>
  *
@@ -74,6 +84,9 @@ final class Ui {
     private final Node[] detailRows;
     private final Node warning;
     private final Node warningText;
+    private final Node runText;
+    private final Select<Run> runs;
+    private final Button detach;
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
@@ -138,8 +151,21 @@ final class Ui {
         warning.visible(false);
         gui.landmark(Landmarks.WARNING, warning);
 
+        runText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
+        gui.landmark(Landmarks.RUN_TEXT, runText);
+        runs = new Select<Run>(gui, Ui::runLabel).name(Landmarks.RUNS).placeholder("Choose an application");
+        runs.node().width(Length.rem(18f));
+        gui.focusable(runs.node(), false);
+        gui.landmark(Landmarks.RUNS, runs.node());
+        detach = new Button(gui, "Detach").name(Landmarks.DETACH).enabled(false);
+        gui.focusable(detach.node(), false);
+        gui.landmark(Landmarks.DETACH, detach.node());
+        Node runPanel = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
+                .children(runText, runs.node(), detach.node());
+        gui.landmark(Landmarks.RUN, runPanel);
+
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(warning, lanes, detailsPanel, readoutRow);
+                .children(runPanel, warning, lanes, detailsPanel, readoutRow);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -254,6 +280,53 @@ final class Ui {
             warningText.text(text);
             warning.visible(!text.isEmpty());
         }
+    }
+
+    /** What the run panel last showed: its line, and the picker's options and value. */
+    private String runSaid = "";
+    private List<Run> runChoices = List.of();
+    private Run runShown;
+
+    /**
+     * What the run panel shows: {@code line}, what is inspected and from where; the running applications to choose
+     * from, {@code current} shown chosen when it is among them; and whether there is a run to detach from.
+     */
+    void runPanel(String line, List<Run> choices, Run current, boolean canDetach) {
+        if (!line.equals(runSaid)) {
+            runSaid = line;
+            runText.text(line);
+        }
+        if (!choices.equals(runChoices)) {
+            runChoices = choices;
+            runs.options(choices);
+            runShown = null;
+        }
+        Run shown = current != null && choices.contains(current) ? current : null;
+        if (!Objects.equals(shown, runShown)) {
+            runShown = shown;
+            runs.show(shown);
+        }
+        detach.enabled(canDetach);
+    }
+
+    /** What the run panel's line last said: what is inspected and from where. */
+    String runLine() {
+        return runSaid;
+    }
+
+    /** The address the picker commits a choice with. */
+    String runsAddress() {
+        return runs.address();
+    }
+
+    /** The address the detach button presses with. */
+    String detachAddress() {
+        return detach.address();
+    }
+
+    /** A running application as the picker lists it. */
+    private static String runLabel(Run run) {
+        return (run.title().isBlank() ? run.name() : run.title()) + " · pid " + run.pid();
     }
 
     /** What the status line says: which run is inspected, or why none is. */

@@ -1,6 +1,7 @@
 package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Attach;
+import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Rows;
@@ -41,7 +42,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * {@link #versionWarning} says so in words, logged and added as one more row, {@link Model#WARNING}, which the view
  * shows as a banner for as long as the run is attached.
  */
-@Source
+@Source(stop = Detach.class)
 public final class LinkRows {
 
     private static final Log LOG = Log.of("vexelray-inspector.link");

@@ -15,6 +15,16 @@ package dev.sibarum.inspector;
  */
 final class Landmarks {
 
+    /**
+     * The run panel over the lanes, and in it: what is inspected and from where ({@code run.text}, which says
+     * {@code attached}, {@code launched} or {@code replayed} once one is), the picker of running applications, and
+     * the button that stops inspecting.
+     */
+    static final String RUN = "run";
+    static final String RUN_TEXT = "run.text";
+    static final String RUNS = "runs";
+    static final String DETACH = "detach";
+
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 

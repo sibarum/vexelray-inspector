@@ -487,6 +487,20 @@ Each step ends with something to watch or something an agent can ask, and lands 
   reached Messages.Rows at Bench → sent Timeline, Readouts and Details from Bench → ledger bench committed its state →
   reached Messages.Timeline at widgets → woke pass #882 → reached Readouts and Details at widgets → 39 changes to the
   GUI on main (2 relaid out, 1 redrawn). Not yet: which `@View` method a delivery to `widgets` reached.
+  **Slice 4, the run panel and the picker, done 2026-11-02, as proposed to and ruled by the author that day:** a line
+  over the lanes says what is inspected, its pid, how it was reached (attached, launched, replayed) and where its logic
+  ticks run, as far as the rows tell (`Bench.logicOf`: the thread of a tick off `main`, or that none was seen, which
+  under FN-8 is `--logic=main` or idle; the mode itself is still not said by the stack, section 7). Beside it a `Select`
+  of the running applications (`ListRuns`' answers, the bench's `Pick.choices`) and a Detach button, neither focusable,
+  since a focused control claims Space (FN-11). Choosing (`Choose`) or `--attach=<name|pid:n>` (a `@Setting` on the
+  bench, waited for until that run is running) makes a run **chosen**: the bench no longer attaches to the newest by
+  itself, and a chosen run that goes away keeps its tape on screen until another is chosen (ruled). Detaching
+  (`Leave`) stops the link with `Detach`, the link source's declared stop, keeps the tape, and counts as a choice of
+  none. A found run that goes away is still replaced by the newest, as before. Seen with `ottermate` against two
+  background Inspectors: attached to the newer by itself; the picker listed both by pid, choosing the older attached
+  to it and Space still paused after; Detach said so, kept the lanes and emptied the picker; `--attach=pid:<older>`
+  attached to the older at launch. Found on the way: `List.contains(null)` throws on an immutable list, so the view
+  fell over on the first run panel with nothing attached (held by `ViewTest` now).
 - **R2, the declared graph.** Bus graph version 2 upstream; the graph and flows panels from the declaration, written
   and delivered.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);

@@ -26,7 +26,8 @@ import java.util.List;
  * the present moves on, which is the frame contract's asked half, and the box's clip is what keeps the slid strip
  * inside it (a container's clip is anchored, so a child slides within it). The name of the lane the arrows step
  * through is in the text's colour, the others dimmed ({@link #focus}), and the view outlines its band with an
- * overlay on the lanes' box, which the strip's slide does not move.
+ * overlay on the lanes' box, which the strip's slide does not move. At that lane's right end, past the present, is
+ * the button that follows the present again, pressable while the cursor is stopped ({@link #canFollow}).
  *
  * <h2>The warning</h2>
  *
@@ -41,8 +42,7 @@ import java.util.List;
  *
  * <h2>The readouts</h2>
  *
- * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}), with the button
- * that follows the present again before it, pressable while the cursor is stopped ({@link #canFollow}).
+ * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
  *
  * <h2>It holds no state</h2>
  *
@@ -68,6 +68,8 @@ final class Ui {
     private final Node[] names;
     private final Node readouts;
     private final IconButton follow;
+    /** The space over the follow button, a lane high for each lane above the focused one. */
+    private final Node above;
     private final Node[] details;
     private final Node[] detailRows;
     private final Node warning;
@@ -99,16 +101,21 @@ final class Ui {
                     .textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         }
         Node column = gui.column().width(NAMES).children(names);
-        Node lanes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(column, lane);
-
-        readouts = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
-        gui.landmark(Landmarks.READOUTS, readouts);
         follow = new IconButton(gui, Icon.SKIP_NEXT, "Follow the present").name(Landmarks.FOLLOW)
                 .tip("Follow the present (End)");
         canFollow(false);
         gui.landmark(Landmarks.FOLLOW, follow.node());
+        // Laid out, not translated, into the focused lane's row: a translated node is still hit where it was.
+        above = gui.box().height(Length.rem(0f));
+        Node followSlot = gui.row().height(Length.rem(LANE_REM)).alignItems(AlignItems.CENTER)
+                .children(follow.node());
+        Node ends = gui.column().width(Length.AUTO).height(Length.rem(LANE_REM * count)).children(above, followSlot);
+        Node lanes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(column, lane, ends);
+
+        readouts = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        gui.landmark(Landmarks.READOUTS, readouts);
         Node readoutRow = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
-                .children(follow.node(), readouts);
+                .children(readouts);
 
         details = new Node[View.DETAILS.size()];
         detailRows = new Node[details.length];
@@ -146,6 +153,9 @@ final class Ui {
         return lane;
     }
 
+    /** The lane the follow button stands at the right of, as {@link #names} last set it. */
+    private int followLane = 0;
+
     /** Show {@code name} as the lane the arrows step through. */
     void focus(String name) {
         names(name, List.of());
@@ -156,6 +166,11 @@ final class Ui {
      * probe does not record, faintest of all, so an empty band there reads as not looked at rather than quiet.
      */
     void names(String focus, List<String> unrecorded) {
+        int index = Math.max(0, Model.LANES.indexOf(focus));
+        if (index != followLane) {
+            followLane = index;
+            above.height(Length.rem(LANE_REM * index));
+        }
         for (int i = 0; i < names.length; i++) {
             String name = Model.LANES.get(i);
             names[i].textColor(gui.theme().color(unrecorded.contains(name) ? Role.FAINT

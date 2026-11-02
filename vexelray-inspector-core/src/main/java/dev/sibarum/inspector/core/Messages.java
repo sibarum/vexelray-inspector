@@ -131,7 +131,7 @@ public final class Messages {
     }
 
     /**
-     * End, or the button beside the readouts: follow the present again, leaving the island the cursor was kept on.
+     * End, or the button at the focused lane's right end: follow the present again, leaving the island the cursor was kept on.
      * Following already, nothing. Not {@link Pause}, which toggles: a button pressed while following must not stop it.
      */
     public static final Topic<Follow> FOLLOW_TOPIC = Topic.edge(Follow.class);

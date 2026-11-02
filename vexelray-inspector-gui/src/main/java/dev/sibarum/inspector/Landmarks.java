@@ -33,7 +33,7 @@ final class Landmarks {
     /** The readouts line, over the second before the cursor. */
     static final String READOUTS = "readouts";
 
-    /** The button beside the readouts that follows the present again, as End does. */
+    /** The button at the focused lane's right end that follows the present again, as End does. */
     static final String FOLLOW = "follow";
 
     /**

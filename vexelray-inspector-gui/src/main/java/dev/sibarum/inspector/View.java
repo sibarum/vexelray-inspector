@@ -80,7 +80,7 @@ import java.util.Optional;
  *
  * <h2>Keys</h2>
  *
- * <p>Space pauses and follows again, End (and the button beside the readouts) only follows again, the arrows step the cursor onto the next or previous event of the focused lane,
+ * <p>Space pauses and follows again, End (and the button at the focused lane's right end) only follows again, the arrows step the cursor onto the next or previous event of the focused lane,
  * Shift with them steps a tenth of the lane, and {@code =} and {@code -} zoom about the right edge: a second motion, of
  * the time the lane spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch})
  * until the next picture is built at the new scale. A click on a lane focuses it, and puts the cursor on the event
@@ -262,7 +262,7 @@ final class View {
         followed();
     }
 
-    /** The button beside the readouts: as End. */
+    /** The button at the focused lane's right end: as End. */
     @Subscribe
     public void pressed(Button.Pressed p) {
         if (p.button().equals(ui.followAddress())) {

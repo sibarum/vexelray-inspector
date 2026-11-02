@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 and R2 done 2026-11-02, R3 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1, R2 and R3 done 2026-11-02, R4 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -200,12 +200,12 @@ repository's TODO when this design is accepted.
 
 | Repo | Addition | For |
 | --- | --- | --- |
-| atchung | A tick number, and a row per tick with its number, start, end, rounds, delivered, carried and whether it met its deadline (9.3) | the timeline's logic lane and its tick rulings |
+| atchung | ~~A tick number, and a row per tick with its number, start, end, rounds, delivered, carried and whether it met its deadline (9.3)~~ Done for R3: `tick.ran`, after the `tick` zone that times it (atchung `2d244f7`); it names no tick (FN-16) | the timeline's logic lane and its tick rulings |
 | atchung | ~~Superseded writes counted per state topic and per inbox~~ Not needed: R2 counts written and delivered from the `send`, publish and `receive` rows | registers' written and delivered (R2) |
 | atchung, vexelray-framework | A cause source for the framework's `Timer` and for jobs | no `uncaused` rows from the framework's own parts |
-| vexelray-gui | A draw number apart from the pass, and a row per draw with its number, start and end; the held counts in `LoopCounters` and `Snap` (9.3) | the timeline's drawing lane; the readouts |
-| vexelray-gui | The recorder keeps the cause: the eight-argument `row`, a field on `RecordedRow` and the link's `Row` (9.3) | a click's thread (R3) |
-| vexelray-gui | A draw's row lists the causes of the writes it drew, capped, saying when it overflowed (9.3) | write → draw in a click's thread (R3) |
+| vexelray-gui | ~~A draw number apart from the pass, and a row per draw with its number, start and end~~ Done for R3: `draw.ran`, after the `emit canvas` zone (vexelray-gui `c862fef`); still to do: the held counts in `LoopCounters` and `Snap` (9.3) | the timeline's drawing lane; the readouts |
+| vexelray-gui | ~~The recorder keeps the cause: the eight-argument `row`, a field on `RecordedRow` and the link's `Row` (9.3)~~ Done in R1 (FN-12) | a click's thread (R3) |
+| vexelray-gui | ~~A draw's row lists the causes of the writes it drew, capped, saying when it overflowed (9.3)~~ Done for R3: `draw.ran` names at most 16, then `+n` | write → draw in a click's thread (R3) |
 | vexelray-gui | `frames` and `why` rebuilt on the three clocks: logic rows counted, held draws read | agent first: the timeline's facts askable |
 | vexelray-framework | Bus graph version 2: topic kind and key filters, `Inbox` receivers, a job's request side, ledger steps, timers, views as their own kind, real lane names, no invented overflow | the declared graph (R2) |
 | vexelray-framework | The logic mode and the lane-to-thread map in `hello` (and the discovery file) | the Run panel saying which mode it shows |
@@ -582,6 +582,29 @@ Each step ends with something to watch or something an agent can ask, and lands 
   thread. **R2 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R2 section.
 - **R3, a click's path.** The cause kept, ticks and draws numbered, draws naming their causes, upstream (9.3);
   select an input, mark its path in every panel.
+  **Built 2026-11-02, in four slices as proposed to and ruled by the author that day.** *Upstream:* atchung's `Tick`
+  writes `tick.ran #<n> <rounds> rounds <delivered> delivered [carried]` after its zone (`2d244f7`); vexelray-gui's
+  window writes `draw.ran #<n> [<cause> ...] [+<more>]` after `emit canvas`, the causes being those of the tree's
+  edits that changed what it drew, kept by the reconciler while the layout lane is traced, at most 16 (`c862fef`). The
+  cause itself had been kept since R1 (FN-12). *Read:* a tick's row numbers its Logic mark, a draw's its Drawing mark
+  and its pass; a path places each hop in the numbered tick it fell in, ends with every draw that names its cause,
+  and says the time from each hop to the next; the link asks for the `draw` lane, and the tape's filter of causes
+  takes a draw's. Ticks on `main` are not read, since the logic's and the widgets' both number themselves there
+  (FN-16). *Marked:* the bench says `Traced`, a state topic, from the same hops as the Path, read once a say: the
+  cause, the passes, ticks and draws it went through, the topics it crossed; the lanes draw those events over theirs,
+  the graph its arrows, named though faint, the flows table its topics' names, all in the theme's success colour,
+  apart from the accent everything else is drawn in. The details panel keeps a height of its own and scrolls, so a
+  path of thirty hops leaves the graph and flows in view.
+  **Inspected 2026-11-02**, W2 regenerated from vexelray-framework's HEAD into this repository's `target/` (another
+  session had cleaned the framework's own) and launched by `--launch`, driven by its buttons: the last of three
+  counts said, after the pointer's travel, *published Button.Pressed on main → reached Button.Pressed at
+  Shown#pressed → published Bump → reached Bump at Counter#bump in tick #5 → sent Counted in tick #5 → reached
+  Counted at Shown#counted → 2 changes to the GUI (2 relaid out) → shown by draw #49*, 3.6 ms from the press to the
+  draw; the framework→Shown, Shown→Counter and Counter→Shown arrows and the three topics marked, and the pass, the
+  messages and the draw on the lanes. Under `--logic=main` the same path to draw #39 in about 4.0 ms, naming no tick.
+  An Inspector watching another said its Space the same way: `PauseKey` → `Pause` at `Bench` in tick #6304 → six
+  sends → the view → 66 changes → a draw. **R3 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R3
+  section.
 - **R4, the rows panel**, and stepping the cursor row by row, tick by tick and draw by draw.
 - **R5, the ledger per clock**, with recording measured on its own.
 - **R6, replay**: run the same inputs again and show which widget writes differ.

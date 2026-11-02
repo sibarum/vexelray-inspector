@@ -33,8 +33,18 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       `localX`/`localY` into an event through the view's `Strip`.
 - [ ] Design 9.8: Sequence (a sequence per lane, each landing on the cursor on its own), and the filter, which
       matches `Mark.fields` by name and value (`Model.FIELDS`), the same on every lane.
-- [ ] The path is a line of text a filter can match; a hop at a time (click one to go to its event), and the path
-      marked on the graph panel's arrows, are R3's.
+- [ ] The path is a line of text a filter can match, marked in every panel since R3, but its hops are not chosen one
+      at a time: clicking a hop should go to its event, which `Hop.row` already holds.
+- [ ] A click's cause is the whole automation command, so its path begins with every `pointer.move` of the travel to
+      the button (W2: twenty-odd hops before the press). Fold a run of moves into one hop that counts them, as the
+      GUI's changes are.
+- [ ] The details panel is a fixed 16 rem that scrolls (R3), so a long path keeps the graph and flows in view; the
+      split between it and the panels under it could be the person's to drag.
+- [ ] A delivery names its receiver and not its sender, so where two parts send a topic to one, the graph marks both
+      arrows on a path. Upstream FN-14 (a publish naming its sender) would tell them apart.
+- [ ] A recording's draws and ticks: the CSV has no `frame` column, so `draw.ran` cannot be put on its draw by pass
+      and a replay's draws stay unnumbered; read it by thread and order instead, as a tick's is.
+- [ ] FN-16 upstream: a tick that names itself, so ticks on `main` under `--logic=main` can be numbered too.
 - [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state
       topic) for each position; the view turns a pixel into a moment as a click does.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the

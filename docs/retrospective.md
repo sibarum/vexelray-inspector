@@ -31,8 +31,55 @@ reasons and the full method.
 
 ## Milestones
 
-*(none yet)*
-## Milestones
+## R3, a click's path · 2026-11-02
+
+The count: 1 finding (FN-16), a framework gap, not fixed upstream yet. The milestone's own upstream changes were a
+tick's row (atchung `2d244f7`) and a draw's row naming the causes it showed (vexelray-gui `c862fef`). Architectural:
+a row that numbers something must say whose count the number is (FN-16, and FN-8 before it).
+
+### The shapes
+
+| | The promise | What happened | How it looked |
+| --- | --- | --- | --- |
+| I | A number names one thing | `tick.ran #1` is written by every `Tick`, each counting its own: the logic's, the widgets', `Senders'`. Off `main` only the logic's coordinator runs one; on `main` under `--logic=main` two do (FN-16) | Under `--logic=main` the Logic lane empty and a path naming no tick, though both ticks wrote their numbers |
+
+### What would stop each
+
+1. **I:** a tick is made with a name (`Atchung.tick(name, arrival)`) and its row says it; the framework names its own.
+   The same holds for anything else that numbers itself in a row: the number's owner is part of the row, by type,
+   not by which thread wrote it.
+
+### My own mistakes
+
+- **I added a lane's rows upstream and forgot the Inspector asks for lanes by name.** `draw.ran` was in W2's
+  recording, and no path showed a draw: `LinkRows.LANES` asks the link for seven lanes, and `draw` was not one. Only
+  reading the witness's CSV beside the Inspector's path showed the rows were there and not arriving. *Rule:* a new
+  row on a lane the Inspector has not read before is checked in the Inspector's own rows, not the run's recording.
+- **I took the first draw for the one that showed the click.** A click's cause is the whole automation command, so
+  the hover redraws on the pointer's way to the button name it too; the first was one of those. The fix was to say
+  every draw, which also shows the hover was drawn. *Rule:* a cause covers everything its source did, not the one
+  thing it was named for.
+- **I wrote an assertion the wrong way round.** `assertFalse` on a pass that the test itself had put on the path; the
+  message I wrote beside it said why it was on it. Caught by reading it back before the build. *Rule:* read an
+  assertion's message as a sentence before running it.
+- **I let the details panel grow.** A path of thirty hops pushed the graph and flows panels below the window, which
+  only a screenshot showed; the rule that nothing grows to make room was this application's own. *Rule:* a panel
+  whose text comes from the run gets a fixed height before it is filled.
+- **I chose the path's colour by its name.** `ACTION` read as the accent dimmed, beside lanes and arrows already in
+  the accent. *Rule:* a highlight is chosen against the colours already on screen, in a screenshot.
+
+### What to keep exactly as it is
+
+- **The hops are read once, and every panel is told from them.** The Path's words and `Traced` come from the same
+  `Model.hopsOf`, so the details, the lanes, the graph and the flows cannot disagree about a path.
+- **A row of its own for each thing that happens on another clock.** The tick and the draw each say their number
+  after the zone that timed them; nothing else was stamped, and the Inspector places the rest by thread and time, as
+  design.md section 6 said it would.
+- **Regenerate the witness out of someone else's way.** When another session had cleaned the framework's acceptance
+  output, `-Dacceptance.root` from a clean worktree of its HEAD rebuilt W2 under this repository's `target/`, and
+  nothing of theirs was touched.
+- **Watching an Inspector with an Inspector.** When no witness was to hand, one Inspector's Space, watched by
+  another, was a whole input → tick → draw path through the logic lane.
 
 ## R2, the declared graph · 2026-11-02
 

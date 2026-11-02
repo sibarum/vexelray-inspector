@@ -67,12 +67,22 @@ public record Tape(List<Second> seconds) {
             long[] more = bits.clone();
             for (Row r : rows) {
                 if (!r.cause().isEmpty()) {
-                    int h = r.cause().hashCode();
-                    set(more, h);
-                    set(more, h >>> 16 ^ h * 31);
+                    add(more, r.cause());
+                }
+                // A draw runs in its pass's cause and names the causes it showed: it is a hop of theirs too.
+                if (Model.isDraw(r)) {
+                    for (String shown : Model.shownBy(r)) {
+                        add(more, shown);
+                    }
                 }
             }
             return new Causes(more);
+        }
+
+        private static void add(long[] bits, String cause) {
+            int h = cause.hashCode();
+            set(bits, h);
+            set(bits, h >>> 16 ^ h * 31);
         }
 
         /** Whether {@code cause} may be among them: false only when it is not. */

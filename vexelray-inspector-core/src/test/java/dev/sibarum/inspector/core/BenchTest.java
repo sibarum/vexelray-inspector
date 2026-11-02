@@ -912,13 +912,57 @@ class BenchTest {
         Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
         Mark published = m.lane(Model.MESSAGES).marks().getFirst();
         assertEquals("I/O dev.example.LinkRows, firing 40   (b3702.o00.28) → published Messages.Rows on"
-                + " vexel-source-link-rows → reached Messages.Rows at Bench"
-                + " → ledger bench committed its state on vexel-logic"
-                + " → sent Messages.Timeline from Bench → reached Messages.Timeline at View#timeline in widgets"
-                + " → 37 changes to the GUI on main (2 relaid out, 1 redrawn) → woke pass #10", m.pathOf(published, rows),
-                "from the source to the pass it woke, a hop at a time, a named mailbox by its method");
+                + " vexel-source-link-rows → reached Messages.Rows at Bench +0.11 ms"
+                + " → ledger bench committed its state on vexel-logic +0.01 ms"
+                + " → sent Messages.Timeline from Bench +0.01 ms"
+                + " → reached Messages.Timeline at View#timeline in widgets +0.08 ms"
+                + " → 37 changes to the GUI on main (2 relaid out, 1 redrawn) +0.10 ms → woke pass #10 +0.60 ms",
+                m.pathOf(published, rows),
+                "from the source to the pass it woke, a hop at a time, a named mailbox by its method, with the time"
+                + " from each hop to the next");
         assertEquals(List.of("Messages.Rows", "Messages.Timeline"), m.lane(Model.MESSAGES).marks().stream()
                 .map(e -> e.field(Model.TYPE)).toList(), "a component's send is a message too");
+    }
+
+    @Test
+    void aClicksPathNamesTheTickThatHeardItAndTheDrawThatShowedWhatItChanged() {
+        long at = 2_000 * MS;
+        String click = "b3702.i01.5";
+        String frame = "b3702.t03.90";
+        String pressed = "dev.vexelray.gui.widget.Button.Pressed";
+        List<Row> rows = List.of(
+                new Row(1, at, 0L, 0L, "main", Model.APP_LANE, Model.SOURCE, "i01 automation", ""),
+                new Row(2, at, 0L, 40L, "main", "bus", pressed, "3.0us", click),
+                new Row(3, at + 100_000, 0L, 40L, "vexel-logic", "bus", "receive",
+                        pressed + " to dev.example.Counter 0", click),
+                new Row(4, at + 150_000, 0L, 40L, "vexel-logic", "bus", "send",
+                        "dev.example.Counted from dev.example.Counter 1", click),
+                new Row(5, at + 200_000, 0L, 40L, "vexel-logic", "bus", "tick", "120us", ""),
+                new Row(6, at + 200_000, 0L, 40L, "vexel-logic", "bus", Model.TICK_RAN, "#7 2 rounds 2 delivered", ""),
+                new Row(7, at + 300_000, 0L, 41L, "main", "layout", "mutation layout", "SetText", click),
+                new Row(8, at + 900_000, 0L, 41L, "main", "draw", Model.DRAW_RAN, "#31 " + frame + " " + click + " +2",
+                        frame),
+                new Row(9, at + 1_000_000, 0L, 41L, "main", "gpu", "present frame", "300us", frame),
+                new Row(10, at + 1_100_000, 0L, 41L, "main", "frame", "frame", "900us", frame),
+                new Row(11, at + 1_100_000, 0L, 41L, "main", "frame", "frame.present", "#41", frame));
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
+        Mark tick = m.lane(Model.LOGIC).marks().getFirst();
+        assertEquals("#7", tick.field(Model.TICK_NUMBER), "the stack's number, from the row after the zone");
+        assertEquals("2", tick.field(Model.ROUNDS));
+        assertEquals("2", tick.field(Model.DELIVERED));
+        assertEquals("", tick.field(Model.CARRIED), "said only when its deadline cut it short");
+        Mark draw = m.lane(Model.DRAWING).marks().getFirst();
+        assertEquals("#31", draw.field(Model.DRAW_NUMBER), "a draw's number, apart from its pass's");
+        assertTrue(draw.field(Model.SHOWED).startsWith("timer "), draw.field(Model.SHOWED));
+        assertTrue(draw.field(Model.SHOWED).endsWith("; and 2 more"), draw.field(Model.SHOWED));
+        assertEquals("#31", m.lane(Model.MAIN).marks().getFirst().field(Model.DRAW_NUMBER), "and the pass that drew it");
+        Mark clicked = m.lane(Model.MESSAGES).marks().getFirst();
+        assertEquals("input automation, firing 5   (b3702.i01.5) → published Button.Pressed on main"
+                + " → reached Button.Pressed at Counter in tick #7 +0.10 ms"
+                + " → sent Counted from Counter in tick #7 +0.05 ms"
+                + " → 1 change to the GUI on main (1 relaid out, 0 redrawn) +0.15 ms"
+                + " → shown by draw #31 +0.60 ms", m.pathOf(clicked, rows),
+                "input, the tick that heard it, the change it made and the draw that showed it, with the time between");
     }
 
     @Test

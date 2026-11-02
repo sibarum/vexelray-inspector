@@ -35,4 +35,14 @@ class TapeTest {
                 "the first and last seconds, which hold its rows, and not the one between");
         assertEquals(List.of(), tape.rowsOf("76673.c11.2"));
     }
+
+    @Test
+    void aDrawsSecondIsReadForTheCausesItShowedThoughItRunsInItsPasss() {
+        Row click = row(1, 10 * S, "76673.i01.4");
+        Row draw = new Row(2, 11 * S + 3, 0L, 9L, "main", "draw", Model.DRAW_RAN, "#12 76673.i01.4 +1", "76673.t03.40");
+        Tape tape = Tape.EMPTY.add(List.of(click), click.atNanos(), Bench.RETAIN)
+                .add(List.of(draw), draw.atNanos(), Bench.RETAIN);
+        assertEquals(List.of(click, draw), tape.rowsOf("76673.i01.4"),
+                "the click's second, and the next one, where the draw that showed it is");
+    }
 }

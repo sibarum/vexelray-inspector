@@ -205,3 +205,14 @@ Worked around by saying none (`End.UNCOUNTED`, shown as the part's name alone, a
 heard only that way) rather than 0, which would claim nothing arrived. The framework could write a `receive` row
 there too, naming the part as bus graph 2 does (`<topic> to <part> <hops>`), which would also put those hops on a
 cause's path.
+
+## FN-16 · A tick's row says its number but not whose tick it is 🔬
+
+atchung's `tick.ran` row (added for R3) numbers each `Tick`'s runs from one, and a `Tick` has no name. The framework
+makes several: the logic lane's (`Logic`), the widgets' (`Gui`), and `Senders`'. Off the main thread that is no
+trouble, since the logic's coordinator is the only tick on `vexel-logic`. Under `--logic=main` the logic's ticks and
+the widgets' run on `main`, both write `tick #1`, `tick #2`, ... by their own counts, and a reader cannot tell which
+tick a number is, the same fact as FN-8 from the other side. Worked around by reading tick numbers only off `main`
+(`Model.setOnTick`, `Model.hopsOf`), so under `--logic=main` the Logic lane stays empty and a path's hops on `main`
+name no tick. `Atchung.tick(name, arrival)` could take a name and write it in the row (`#12 logic 2 rounds ...`);
+the framework would name its own (`logic`, `widgets`, `senders`), and FN-8 would go with it.

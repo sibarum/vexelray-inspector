@@ -50,12 +50,14 @@ public final class LinkRows {
 
     /**
      * The probe's lanes asked for: those {@link Model}'s timeline lanes are read from; {@code state} and {@code layout},
-     * whose ledger steps and GUI changes are hops of a cause's path; and {@code app}, whose rows name
-     * what set an event off (its cause's source, an automation command). The bench reads what it knows, so
-     * asking for more only costs the link. A run with its link open records them all, whatever its probe settings say
-     * (atchung's {@code LogConfig.inspected}).
+     * whose ledger steps and GUI changes are hops of a cause's path; {@code draw}, whose {@code draw.ran} numbers a
+     * draw and names the causes it showed (a few rows a draw); and {@code app}, whose rows name what set an event off
+     * (its cause's source, an automation command). The bench reads what it knows, so asking for more only costs the
+     * link. A run with its link open records them all, whatever its probe settings say (atchung's
+     * {@code LogConfig.inspected}).
      */
-    static final List<String> LANES = List.of("input", "frame", "bus", "gpu", "state", "layout", Model.APP_LANE);
+    static final List<String> LANES = List.of("input", "frame", "bus", "gpu", "state", "layout", "draw",
+            Model.APP_LANE);
 
     /** The end of the link, queued after its last batch. */
     private static final RowBatch CLOSED = new RowBatch(0, 0, List.of());

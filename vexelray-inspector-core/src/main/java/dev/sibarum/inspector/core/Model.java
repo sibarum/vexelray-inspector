@@ -40,14 +40,16 @@ import java.util.Map;
  *   <li><b>Main thread</b>: the {@code frame} zone, one a pass of the loop.</li>
  *   <li><b>Logic</b>: the {@code tick} zone on the {@code bus} lane, on any thread but {@code main}, whose own tick
  *       is the widgets'. Under {@code --logic=main} the logic's ticks are on {@code main} too and cannot be told from
- *       the widgets' (framework-notes FN-8), so this lane is empty there.</li>
+ *       the widgets' (framework-notes FN-8), so this lane is empty there. The {@code tick.ran} row after the zone
+ *       numbers the tick and says its rounds and deliveries; on {@code main} it could be either tick's (FN-16).</li>
  *   <li><b>Messages</b>: a row on the {@code bus} lane whose kind is a message's type, a class name
  *       ({@code dev.sibarum.inspector.core.Messages.Rows}), as a moment on the thread that published it; not the
  *       bus's own bookkeeping ({@code tick}, {@code pump drain}, {@code vexelray.gui.main.mutations depth},
  *       {@code uncaused main}), whose kinds are no class name.</li>
  *   <li><b>Drawing</b>: the presenter's {@code present frame} zone, one a draw, from recording to present; and the
- *       loop's {@code draw held for the ceiling} and {@code draw held for the GPU} counts, as moments. A draw is not
- *       numbered yet (design.md 7½), so it is placed by its time alone.</li>
+ *       loop's {@code draw held for the ceiling} and {@code draw held for the GPU} counts, as moments. A draw's own
+ *       {@code draw.ran} row, written inside the presenter's zone, numbers it and its pass, and names the causes of the
+ *       changes it showed, which is how a path reaches the draw.</li>
  *   <li><b>GPU</b>: what the presenter waited on: {@code wait fence}, {@code dxgi wait}, {@code acquire image}.</li>
  * </ul>
  *
@@ -104,22 +106,31 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /**
      * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
-     * row said it; for the GUI's changes, how many of them laid it out again and how many drew it again.
+     * row said it; for the GUI's changes, how many of them laid it out again and how many drew it again; the first row
+     * that said it; and the tick it happened in, {@code #12}, when it was in one that said its number.
      */
-    public record Hop(String says, String thread, long atNanos, int count, int relaid, int redrawn) {
+    public record Hop(String says, String thread, long atNanos, int count, int relaid, int redrawn, Row row,
+                      String tick) {
 
         /** This hop, said once more, by a row that relaid or redrew the GUI if those say so. */
         Hop again(boolean relays, boolean redraws) {
-            return new Hop(says, thread, atNanos, count + 1, relaid + (relays ? 1 : 0), redrawn + (redraws ? 1 : 0));
+            return new Hop(says, thread, atNanos, count + 1, relaid + (relays ? 1 : 0), redrawn + (redraws ? 1 : 0),
+                    row, tick);
+        }
+
+        /** This hop, placed in tick {@code tick}. */
+        Hop in(String tick) {
+            return new Hop(says, thread, atNanos, count, relaid, redrawn, row, tick);
         }
 
         /** This hop in words, as a path says it. */
         public String said() {
+            String in = tick.isEmpty() ? "" : " in tick " + tick;
             if (says.equals(GUI_CHANGED)) {
-                return count + (count == 1 ? " change" : " changes") + " to the GUI on " + thread
+                return count + (count == 1 ? " change" : " changes") + " to the GUI on " + thread + in
                         + (relaid + redrawn == 0 ? "" : " (" + relaid + " relaid out, " + redrawn + " redrawn)");
             }
-            return says + (count > 1 ? " ×" + count : "");
+            return says + in + (count > 1 ? " ×" + count : "");
         }
     }
 
@@ -162,8 +173,48 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String EDGES = "Edges";
     /** A draw held's: what it was held for. */
     public static final String REASON = "Reason";
-    public static final List<String> FIELDS = List.of(TYPE, PATH, PASS_NUMBER, TOOK, THREAD, DREW, PARKED, WAITED,
-            PACKAGE, VERB, SENT, EDGES, REASON);
+    /** A tick's, from its {@code tick.ran} row: its number, its rounds, what it delivered, whether it was cut short. */
+    public static final String TICK_NUMBER = "Tick";
+    public static final String ROUNDS = "Rounds";
+    public static final String DELIVERED = "Delivered";
+    public static final String CARRIED = "Carried over";
+    /** A draw's, from its {@code draw.ran} row, and its pass's: its number, and what set off the changes it showed. */
+    public static final String DRAW_NUMBER = "Draw";
+    public static final String SHOWED = "Showed";
+    public static final List<String> FIELDS = List.of(TYPE, PATH, PASS_NUMBER, TICK_NUMBER, DRAW_NUMBER, TOOK, THREAD,
+            DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, PACKAGE, VERB, SENT, EDGES, REASON);
+
+    /** The row a tick writes after its zone, and a draw after its own: atchung's and vexelray-gui's. */
+    static final String TICK_RAN = "tick.ran";
+    static final String DRAW_RAN = "draw.ran";
+
+    /** Whether {@code r} is a draw's own row: {@code draw.ran #<n> [<cause> ...] [+<more>]}. */
+    static boolean isDraw(Row r) {
+        return r.kind().equals(DRAW_RAN) && r.lane().equals("draw");
+    }
+
+    /** The causes a draw's row says it showed, as the probe writes them; none for any other row. */
+    static List<String> shownBy(Row r) {
+        if (!isDraw(r)) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        String[] words = r.detail().split(" ");
+        for (int i = 1; i < words.length; i++) {
+            if (!words[i].isEmpty() && !words[i].startsWith("+")) {
+                out.add(words[i]);
+            }
+        }
+        return out;
+    }
+
+    /** The number a {@code tick.ran} or {@code draw.ran} row begins with, {@code #12}; empty when it does not. */
+    static String numberOf(Row r) {
+        String d = r.detail();
+        int space = d.indexOf(' ');
+        String first = space < 0 ? d : d.substring(0, space);
+        return first.startsWith("#") && first.length() > 1 ? first : "";
+    }
 
     /** The lanes' names, top to bottom, which is also the order of {@link #lanes}. */
     public static final String INPUT = "Input";
@@ -283,6 +334,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
         boolean[] changed = new boolean[lanes.size()];
         int main = LANES.indexOf(MAIN);
+        int drawing = LANES.indexOf(DRAWING);
         for (Row r : rows) {
             if (r.atNanos() > upToNanos) {
                 continue;
@@ -314,6 +366,29 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 named = learn(named, r);
                 continue;
             }
+            if (isDraw(r)) {
+                // Written inside the presenter's zone, so before the draw's mark: kept for its pass, which the draw's
+                // mark and the pass's own both take (a recording has no pass numbers, so its draws stay unnumbered).
+                if (r.frame() > 0) {
+                    List<Field> after = new ArrayList<>(told.getOrDefault(r.frame(), List.of()));
+                    after.add(new Field(DRAW_NUMBER, numberOf(r)));
+                    String showed = showed(r, named);
+                    if (!showed.isEmpty()) {
+                        after.add(new Field(SHOWED, showed));
+                    }
+                    told = withPass(told, r.frame(), after);
+                }
+                continue;
+            }
+            if (r.kind().equals(TICK_RAN) && r.lane().equals("bus")) {
+                // After the tick's zone, on its thread: the newest tick there is its own. Under --logic=main the
+                // logic's ticks and the widgets' are both on main and both numbered, each by its own count, so
+                // neither is (FN-8, FN-16).
+                if (!r.thread().equals("main")) {
+                    setOnTick(held, added, changed, LANES.indexOf(LOGIC), r);
+                }
+                continue;
+            }
             Field about = r.frame() > 0 ? aboutPass(r) : null;
             if (about != null) {
                 long pass = r.kind().equals("wake") ? r.frame() + 1 : r.frame();
@@ -334,6 +409,13 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             Mark m = markOf(r);
             if (m == null) {
                 continue;
+            }
+            if (lane == drawing && m.kind().equals(DRAW) && m.frame() > 0) {
+                for (Field f : told.getOrDefault(m.frame(), List.of())) {
+                    if (f.name().equals(DRAW_NUMBER) || f.name().equals(SHOWED)) {
+                        m = m.with(f.name(), f.value(), false);
+                    }
+                }
             }
             if (lane == main && m.frame() > 0) {
                 // A pass: what was said of it before its own row, and nothing older than a few passes before it.
@@ -604,7 +686,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     private static void walk(List<Hop> next, Row r, String says) {
         // In the order the hops began: a zone's row (a publish, a ledger's step) is written when it ends, after what
         // it did, so it goes back by how long it took.
-        long took = r.lane().equals("layout") || r.lane().equals("frame") ? -1L : Durations.nanos(r.detail());
+        long took = r.lane().equals("layout") || r.lane().equals("frame") || r.lane().equals("draw") ? -1L
+                : Durations.nanos(r.detail());
         long began = took > 0 ? r.atNanos() - took : r.atNanos();
         boolean relays = r.kind().equals("mutation layout");
         boolean redraws = r.kind().equals("mutation draw");
@@ -616,7 +699,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (before != null && before.says().equals(says) && before.thread().equals(r.thread())) {
             next.set(at - 1, before.again(relays, redraws));
         } else {
-            next.add(at, new Hop(says, r.thread(), began, 1, relays ? 1 : 0, redraws ? 1 : 0));
+            next.add(at, new Hop(says, r.thread(), began, 1, relays ? 1 : 0, redraws ? 1 : 0, r, ""));
         }
     }
 
@@ -637,25 +720,71 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (!origin.isEmpty()) {
             said.add(origin);
         }
-        List<Hop> hops = new ArrayList<>();
-        if (!m.cause().isEmpty()) {
-            // A minute of rows, most of them another cause's: a string's hash is kept once worked out, so it tells most apart.
-            int hash = m.cause().hashCode();
-            for (Row r : rows) {
-                String says = r.cause().hashCode() == hash && r.cause().equals(m.cause()) ? hopOf(r) : null;
-                if (says != null) {
-                    walk(hops, r, says);
-                }
-            }
+        List<Hop> hops = hopsOf(m.cause(), rows);
+        for (int i = 0; i < hops.size(); i++) {
+            Hop h = hops.get(i);
+            // How long after the hop before it this one began: the time a click's answer took, a hop at a time.
+            said.add(h.said() + (i == 0 ? "" : String.format(Locale.ROOT, " +%.2f ms",
+                    (h.atNanos() - hops.get(i - 1).atNanos()) / 1e6)));
         }
-        for (Hop h : hops) {
-            said.add(h.said());
-        }
-        boolean woke = said.contains("woke pass #" + m.frame());
+        boolean woke = hops.stream().anyMatch(h -> h.says().equals("woke pass #" + m.frame()));
         if (m.kind().equals(PASS) && m.frame() > 0 && !woke) {
             said.add("pass #" + m.frame());
         }
         return String.join(" → ", said);
+    }
+
+    /**
+     * The hops cause {@code cause} took through {@code rows}, in the order they began: every row in it that is a hop
+     * ({@link #hopOf}), each placed in the numbered tick on its thread whose zone it fell in, and each draw that says
+     * it showed changes made in the cause ({@code draw.ran}), which runs in its pass's cause and not this one: a click
+     * moves the pointer there, redrawing a hover on the way, before the draw that shows what it did. Empty for no
+     * cause.
+     *
+     * @param rows the rows to read the hops from, in the order they were folded: the tape's
+     */
+    public static List<Hop> hopsOf(String cause, Iterable<Row> rows) {
+        List<Hop> hops = new ArrayList<>();
+        if (cause.isEmpty()) {
+            return hops;
+        }
+        // Each thread's numbered ticks, from the zone and the row after it: {from, to} by number.
+        Map<String, long[]> zone = new HashMap<>();
+        Map<String, List<Map.Entry<String, long[]>>> ticks = new HashMap<>();
+        // A minute of rows, most of them another cause's: a string's hash is kept once worked out, so it tells most apart.
+        int hash = cause.hashCode();
+        for (Row r : rows) {
+            // Not main's: under --logic=main the logic's ticks and the widgets' are both there, each numbered by its
+            // own count, and a number would name either (FN-16).
+            if (r.lane().equals("bus") && r.kind().equals(TICK) && !r.thread().equals("main")) {
+                long took = Durations.nanos(r.detail());
+                if (took >= 0) {
+                    zone.put(r.thread(), new long[]{r.atNanos() - took, r.atNanos()});
+                }
+            } else if (r.lane().equals("bus") && r.kind().equals(TICK_RAN)) {
+                long[] z = zone.remove(r.thread());
+                if (z != null) {
+                    ticks.computeIfAbsent(r.thread(), t -> new ArrayList<>()).add(Map.entry(numberOf(r), z));
+                }
+            } else if (isDraw(r) && shownBy(r).contains(cause)) {
+                walk(hops, r, "shown by draw " + numberOf(r));
+                continue;
+            }
+            String says = r.cause().hashCode() == hash && r.cause().equals(cause) ? hopOf(r) : null;
+            if (says != null) {
+                walk(hops, r, says);
+            }
+        }
+        for (int i = 0; i < hops.size(); i++) {
+            Hop h = hops.get(i);
+            for (Map.Entry<String, long[]> t : ticks.getOrDefault(h.thread(), List.of())) {
+                if (h.atNanos() >= t.getValue()[0] && h.atNanos() <= t.getValue()[1]) {
+                    hops.set(i, h.in(t.getKey()));
+                    break;
+                }
+            }
+        }
+        return hops;
     }
 
     /** What {@link #DREW} says of a pass that did not draw because it did not need to, or could not. */
@@ -716,6 +845,52 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             }
         }
         return false;
+    }
+
+    /**
+     * Set what a {@code tick.ran} row says on the newest tick of lane {@code lane} on its thread, which is its own: the
+     * zone is written as the tick ends, just before it. Nothing when that tick has already been let go, or numbered.
+     */
+    private static void setOnTick(List<Appended<Mark>> held, List<List<Mark>> added, boolean[] changed, int lane,
+                                  Row r) {
+        List<Mark> fresh = added.get(lane) == null ? List.of() : added.get(lane);
+        Appended<Mark> marks = held.get(lane);
+        for (int i = fresh.size() + marks.size() - 1; i >= 0; i--) {
+            boolean isFresh = i >= marks.size();
+            Mark m = isFresh ? fresh.get(i - marks.size()) : marks.get(i);
+            if (!m.thread().equals(r.thread())) {
+                continue;
+            }
+            if (!m.kind().equals(TICK) || !m.field(TICK_NUMBER).isEmpty()) {
+                return;
+            }
+            // "#12 2 rounds 5 delivered", and "carried" when its deadline cut it short.
+            String[] w = r.detail().split(" ");
+            Mark set = m.with(TICK_NUMBER, numberOf(r), false)
+                    .with(ROUNDS, w.length > 1 ? w[1] : "", false)
+                    .with(DELIVERED, w.length > 3 ? w[3] : "", false)
+                    .with(CARRIED, r.detail().endsWith(" carried") ? "yes, its deadline came first" : "", false);
+            if (isFresh) {
+                fresh.set(i - marks.size(), set);
+            } else {
+                held.set(lane, marks.with(i, set));
+            }
+            changed[lane] = true;
+            return;
+        }
+    }
+
+    /** What set off the changes a draw's row says it showed, in words, {@code ; } apart, and how many more there were. */
+    private static String showed(Row r, Map<String, String> names) {
+        List<String> said = new ArrayList<>();
+        for (String c : shownBy(r)) {
+            said.add(causeOf(c, names));
+        }
+        int more = r.detail().lastIndexOf(" +");
+        if (more > 0) {
+            said.add("and " + r.detail().substring(more + 2) + " more");
+        }
+        return String.join("; ", said);
     }
 
     /** {@code names} with what an {@code app} row names, if it names a source or an automation command. */

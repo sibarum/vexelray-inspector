@@ -114,7 +114,7 @@ does not record has its name dimmed and the status line names it with how to sta
 Still a trap for any other pom that forks the JVM: a `-D` the forked command line does not name is silently dropped.
 
 **Replaced by one setting 2026-10-31**, ruled by the author: four more traps were found under this one. The plug's
-*Restart in debug mode* took the pom's blank `-Dprobe=` for a chosen probe and armed nothing, so Pix restarted with
+*Restart in debug mode* took the pom's blank `-Dprobe=` for a chosen probe and armed nothing, so Rasterware restarted with
 automation's four lanes. Its own lanes left out `gpu` and `state` anyway. `-Dprobe=all` without `-Dprobe.format=csv`
 traced nothing, and only traced rows reach the link. And `VEXELRAY_AUTOMATION` opened the sockets in a run whose probe
 was off. Now the diagnostics socket asked for at launch is the whole setting: atchung's `LogConfig.inspected` makes

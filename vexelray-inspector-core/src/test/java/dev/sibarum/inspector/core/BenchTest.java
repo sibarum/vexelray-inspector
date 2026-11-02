@@ -698,6 +698,7 @@ class BenchTest {
         rows.add(row(11, 91 * MS, "main", "input", "edges", "2"));
         rows.add(row(12, 92 * MS, "main", "input", "snapshot", "4.0us"));
         rows.add(row(13, 93 * MS, "vexelray-automation-1", "input", "key", "SPACE"));
+        rows.add(row(17, 94 * MS, "vexelray-automation-1", "input", "pointer.press", "LEFT"));
         rows.add(row(14, 95 * MS, "vexel-logic", "bus", "tick", "448.1us"));
         rows.add(row(15, 96 * MS, "main", "bus", "tick", "1.26ms"));
         rows.add(row(16, 120 * MS, "main", "frame", "draw held for the GPU", "1"));
@@ -705,8 +706,9 @@ class BenchTest {
         Timeline t = timeline();
         assertEquals(Model.LANES, t.lanes().stream().map(Messages.Lane::name).toList(), "every lane, in order");
         assertEquals(List.of(new Mark(91 * MS, 91 * MS, Model.INPUT_TAKEN, "main"),
-                new Mark(93 * MS, 93 * MS, Model.INJECTED, "vexelray-automation-1")),
-                lane(t, Model.INPUT), "a snapshot that took nothing is no input; an automation verb is told apart,"
+                new Mark(93 * MS, 93 * MS, Model.INJECTED, "vexelray-automation-1"),
+                new Mark(94 * MS, 94 * MS, Model.INJECTED, "vexelray-automation-1")),
+                lane(t, Model.INPUT), "a snapshot that took nothing is no input; an automation verb, a click's too, is told apart,"
                         + " and each says what it was");
         assertEquals(List.of(new Mark(100 * MS + 10_000 - 2_920_000, 100 * MS + 10_000, Model.PASS, "main")), passes(t));
         assertEquals(List.of(new Mark(95 * MS - 448_100, 95 * MS, Model.TICK, "vexel-logic")), lane(t, Model.LOGIC),

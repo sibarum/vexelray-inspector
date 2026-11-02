@@ -31,7 +31,8 @@ import java.util.Map;
  *
  * <ul>
  *   <li><b>Input</b>: tactroller's {@code edges} count on the {@code input} lane, when it counted any; and what an
- *       automation verb injected ({@code key}, {@code type}, ...), told apart as {@link #INJECTED}.</li>
+ *       automation verb injected ({@code key}, {@code type}, a click's {@code pointer.press}, ...), told apart as
+ *       {@link #INJECTED}.</li>
  *   <li><b>Main thread</b>: the {@code frame} zone, one a pass of the loop.</li>
  *   <li><b>Logic</b>: the {@code tick} zone on the {@code bus} lane, on any thread but {@code main}, whose own tick
  *       is the widgets'. Under {@code --logic=main} the logic's ticks are on {@code main} too and cannot be told from
@@ -164,8 +165,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /** How far back the readouts look from the model's moment. */
     static final long READOUT_NANOS = 1_000_000_000L;
 
-    /** The automation verbs that write an input row: what was injected rather than taken from a device. */
-    private static final List<String> VERBS = List.of("key", "keydown", "keyup", "type");
+    /**
+     * The automation verbs that write an input row: what was injected rather than taken from a device. The pointer's are
+     * vexelray-gui-automation's {@code Cursor}: a {@code click} is a press and a release, and getting there moves.
+     */
+    private static final List<String> VERBS = List.of("key", "keydown", "keyup", "type", "pointer.press",
+            "pointer.release", "pointer.scroll", "pointer.move");
 
     /** What the presenter waits on. */
     private static final List<String> WAITS = List.of("wait fence", "dxgi wait", "acquire image");

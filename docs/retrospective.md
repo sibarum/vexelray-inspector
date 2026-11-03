@@ -31,6 +31,47 @@ reasons and the full method.
 
 ## Milestones
 
+## R7, every thread accounts for itself · 2026-11-02
+
+The count: no new finding; four fixed. FN-8, FN-16 and FN-17 are fixed upstream, and FN-15 for jobs (a source's and a
+destination's ends still write no row). Each fix was the one its note proposed, which is what the notes are for.
+
+### The shapes
+
+| | The promise | What happened | How it looked |
+| --- | --- | --- | --- |
+| FN-15, the rest | Every end of a topic is counted | Jobs write a `receive` row now; a source's start and stop and a destination's open and write still do not | Their ends in the flows table say no count, as before |
+
+### What would stop each
+
+1. **A row wherever the framework hands a message over.** `Sources` and `Destinations` as `Jobs` now does: a
+   `receive` row naming the part, and a zone around the run, so no end is uncounted by construction.
+
+### My own mistakes
+
+- **I committed both slices before running `BenchMeasureTest`**, the rule R5 wrote for exactly this, and ran it after
+  each commit. It found nothing (p50 0.07 ms, p95 0.55 ms; 610 then 670 bytes a row), which is luck, not the rule
+  kept. *Rule, again, and nearer the commit:* the commit message of a slice that changes the fold names the
+  measurement it ran.
+- **Two more perl substitutions failed silently** (the named tick, and a test), after R6 said to grep each one.
+  *Rule:* Java is edited with the editor; a script edits only one-line, single-match text, and is checked.
+- **I wrote a `sed` whose delimiter was in its text** (`#` in a javadoc link), and it failed before writing. It cost
+  nothing, but it was the R5 mistake with another character.
+- **I nearly showed a count no row supports.** Counting what reaches a job from its `receive` rows made an older run,
+  whose jobs write none, say 0 instead of uncounted; `FlowsTest` caught it. *Rule:* a reading that a new row makes
+  possible keeps the old answer for a run that does not write the row.
+
+### What to keep exactly as it is
+
+- **Fix the note's own proposal upstream, then read it here.** Each FN entry said what the stack could write; writing
+  exactly that kept the Inspector's side small: a filter, a lane, a held zone.
+- **Hold what the next row decides.** The main thread's tick zone waits in the model until its `tick.ran` says whose
+  it is, so a zone and its row in two batches fold the same as in one (held by a test).
+- **Old runs keep their honest answers.** A run whose park or jobs write no rows still says FN-17 and uncounted, so a
+  recording made before R7 is not misread.
+- **Leave the other session's file alone.** The widgets' tick in `Gui.java`, which another session had uncommitted
+  changes in, stayed unnamed: a named logic tick was enough to tell the two apart.
+
 ## R6, replay · 2026-11-02
 
 The count: no new finding here. What replay needed from the stack was built in the stack as part of the milestone

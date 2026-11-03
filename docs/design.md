@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 to R6 done 2026-11-02; what follows is section 10's *Later*.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 to R7 done 2026-11-02; what follows is section 10's *Later*.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -211,9 +211,9 @@ repository's TODO when this design is accepted.
 | vexelray-framework | Bus graph version 2: topic kind and key filters, `Inbox` receivers, a job's request side, ledger steps, timers, views as their own kind, real lane names, no invented overflow | the declared graph (R2) |
 | vexelray-framework | The logic mode and the lane-to-thread map in `hello` (and the discovery file) | the Run panel saying which mode it shows |
 | vexelray-framework | ~~An input recorder and a replay driver~~ Done for R6: `--replayable` keeps what the logic tick takes in (atchung `2581268`, `Tick.Recorder`), and `replay` on the automation socket runs it again on fresh components and lists the sends that differ (vexelray-framework `8145095`, vexelray-gui `74f3c4f`); what it does not do yet is the framework's `docs/TODO.md`, *Found by building replay* | R6, and ROADMAP §5 item 5 |
-| vexelray-framework, -shell | Rows from `Timer`, `Jobs`, `Logic` and `Crew` | the job tray; declared lanes |
+| vexelray-framework, -shell | ~~Rows from `Timer`, `Jobs`, `Logic`~~ Done for R7: a `timer` row as a timer fires, a job's `receive` row and `job <name>` zone (`0cbb1f4`), the logic's park and wake and its named tick (`e4e4f55`, atchung `480953a`); still to do: `Crew` | the Jobs lane; the threads panel's logic and jobs lines; declared lanes |
 | vexelray-present-dxgi | A row when the ready thread waits and wakes | the timeline's GPU lane |
-| vexelray-framework | A row for the logic lane's park (an idle zone) and for the unpark that ends it (framework-notes FN-17) | the threads panel's logic rest and wakes |
+| vexelray-framework | ~~A row for the logic lane's park (an idle zone) and for the unpark that ends it (framework-notes FN-17)~~ Done for R7 (`e4e4f55`) | the threads panel's logic rest and wakes |
 | vexelray-framework | **Sources** (ruled, 9.2): a part that keeps producing from outside for as long as it runs, with its own thread, named in the wiring, started after its listeners and stopped before them | reading the link, a recording and a launched child (R1); netcode and every other client of a stream |
 
 ## 8. How it is put together on 0.2
@@ -675,6 +675,28 @@ Each step ends with something to watch or something an agent can ask, and lands 
   tick cannot be gone to under `--logic=main`, where ticks are unnumbered (FN-16); the recorded send's value is not
   kept, only its fingerprint, so a difference shows what the replay sent; the rest is the framework's TODO.
   **R6 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R6 section.
+- **R7, every thread accounts for itself**: rows from the framework's own threads, then what they let the Inspector
+  show. **Done 2026-11-02, as proposed to and ruled by the author that day.** *Slice 1, the logic lane:* atchung's
+  `Tick.named` (`480953a`) puts a tick's name after its number in `tick.ran`, and the framework names the logic's
+  `logic`; its thread parks inside an idle zone, `logic park`, and the arrival that ends a park writes one `wake`,
+  `message on logic` (vexelray-framework `e4e4f55`). Here (`397f9b2`): the threads panel's logic line has its rest,
+  wakes and how long a wake took to run the next tick, as the main thread's has, and a run whose park writes no row
+  keeps FN-17's note; under `--logic=main` the main thread's tick zone is held (`Model.mainTick`) until the `tick.ran`
+  after it says whose it is, so the Logic lane, its numbers, a path's ticks and Run again's differences are the
+  logic's in both modes, and the run panel says the logic is on the main thread. FN-8, FN-16 and FN-17 are fixed.
+  *Slice 2, jobs and timers:* a job's request writes a `receive` row and its run a `job <name>` zone, and a timer a
+  `timer` row naming its topic as it fires (vexelray-framework `0cbb1f4`; `-core`'s `Timer` imports `sibarum.probe`,
+  which `atchung-core` brings). Here (`448ead2`): a **Jobs** lane under GPU, a job's run a mark named for it; the jobs
+  line, the job the cursor is in, working for its zone and resting until the next, by rule as drawing's is; a timer a
+  moment on the Input lane; and what reaches a job counted in the flows table, in a run whose jobs write rows. FN-15
+  is fixed for jobs. *Seen:* W2 in both modes, the logic line resting 292.00 of a 292.43 ms tick, its one wake run in
+  0.07 ms, and under `--logic=main` its ticks numbered on the Logic lane; an Inspector watched by another, `ListRuns`
+  on the Jobs lane every 2 s with its timer on Input, the jobs line 3.06 ms working and 1,997.99 ms resting, FindRuns
+  delivered to `ListRuns` 8 times. *Measured:* the bench, p50 0.07 ms and p95 0.55 ms a batch as before, 670 bytes a row
+  against 610, the seventh lane; a watched Inspector's ticks p50 0.41 to 0.49 ms and p95 1.05 to 1.54 ms, as without
+  the rows. *Not done:* the Jobs lane is the job's run, not request to reply; a source's and a destination's ends,
+  `Crew`'s rows, and the job lane's rest by row (`TODO.md`).
+  **R7 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R7 section.
 - **Later**, as 0.1 planned them: time (kronometer) where a view still has motion, GPU and present, the JVM, the
   tree, diagnosis rules, history by build, the command menu.
 

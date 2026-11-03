@@ -36,7 +36,8 @@ import java.util.List;
  * {@code wake}, so its rest and its wakes are read as the main thread's are; a run built before the framework wrote
  * them leaves the rest unaccounted and says so (framework-notes FN-17). Under {@code --logic=main} its ticks are the
  * main thread's that their {@code tick.ran} row names the logic's (FN-16), and the rest of each turn is the main
- * thread's. A job writes no rows at all (FN-15), and says so rather than show a turn of nothing.
+ * thread's. A job's turn is its {@code job <name>} zone and the time to the next job, rest by rule, as drawing's is;
+ * a run whose jobs write no rows (FN-15) says so rather than show a turn of nothing.
  *
  * <p>Of the working, <b>recording</b> is the {@code emit canvas} zone, the draw's commands recorded on the CPU: fork 8
  * left it on the thread, to be measured before any render-thread talk, and this is that measurement.

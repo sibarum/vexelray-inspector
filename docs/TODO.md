@@ -8,8 +8,15 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] Run again's difference cannot be gone to under `--logic=main`: the logic's ticks are not numbered there (FN-16),
-      so `GoToTick` finds none. A tick that names itself upstream would fix both.
+- [ ] The Jobs lane shows a job's run, from its request reaching it to its reply sent, not from the request sent to
+      the reply delivered, which design.md section 3 asks for: the send and the tick that took the reply are on other
+      lanes, and the path already links them, so mark the span on the lane or leave it to the path.
+- [ ] The jobs line's rest is by rule, as drawing's: the job lane's threads wait in the executor with no row. A
+      `Crew` or executor row would make it measured, and the lane's threads busy at once could be counted.
+- [ ] A source's start and stop and a destination's open and write still write no row (FN-15's rest), so their
+      ends in the flows table stay uncounted.
+- [ ] A declared lane's (`Crew`) own rows: its work shows inside the tick, as W2's worker's does, but its thread's
+      rest and wakes are not read.
 - [ ] Run again shows what the replay sent where the run's send differs, not what the run sent: the framework keeps
       only a fingerprint of each recorded send (its TODO, *Found by building replay*).
 - [ ] Recording doubles the watched Inspector's tick (p50 0.4 to about 1 ms, p95 1.3 to 2 to 5 ms) because each
@@ -26,8 +33,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] The GPU lane does not read `wait image` (`Model.WAITS`), which Vulkan's windowed presenter waits in; the
       ledger does.
 - [ ] A long note is clipped in the threads panel, as a long detail is in the rows panel.
-- [ ] FN-17 upstream, a row for the logic lane's park and its unpark; then read its rest and wakes as the main
-      thread's are.
 
 - [ ] The rows panel shows eleven rows whatever its height (`Bench.AROUND`); it could show as many as fit, the view
       telling the bench how many.
@@ -73,7 +78,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       arrows on a path. Upstream FN-14 (a publish naming its sender) would tell them apart.
 - [ ] A recording's draws and ticks: the CSV has no `frame` column, so `draw.ran` cannot be put on its draw by pass
       and a replay's draws stay unnumbered; read it by thread and order instead, as a tick's is.
-- [ ] FN-16 upstream: a tick that names itself, so ticks on `main` under `--logic=main` can be numbered too.
 - [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state
       topic) for each position; the view turns a pixel into a moment as a click does.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the

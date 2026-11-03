@@ -91,7 +91,7 @@ nothing of this. Every part that slides a picture through a view (a scrolling ch
 javadoc could say it, or a picture could be drawn unclipped inside a clipping parent, its marks culled by the
 parent's clip rather than the node's box.
 
-## FN-8 · Under `--logic=main`, a logic tick cannot be told from the widgets' 🔬
+## FN-8 · Under `--logic=main`, a logic tick cannot be told from the widgets' 🔬 (fixed upstream)
 
 The timeline's Logic lane is atchung's `tick` zone (`Tick.java`, `Lane.BUS`), and the GUI's widget tick writes the same
 zone on `main`. On a logic lane the thread tells them apart (`vexel-logic` against `main`), so `Model` takes every
@@ -100,6 +100,8 @@ link's `Row` has no cause, and the zone's detail is only its length), so the Log
 empty there rather than wrong. Seen in a traced run (2026-10-30): `vexel-logic` and `main` each write about 100 `tick`
 rows a second. A tick's own row, numbered and named for its `Tick` (design.md 7½, the row per tick), would close it; so
 would the zone naming its tick (`tick logic`, `tick widgets`). The mode itself is also not said (design.md section 7).
+Fixed upstream 2026-11-02 (R7), by FN-16's fix: the logic's `tick.ran` row names its tick, and `Model` holds a tick
+zone on `main` until that row says whose it is, so the Logic lane is the logic's in both modes.
 
 ## FN-9 · Automation alone records no ticks and no GPU, and the template's pom dropped `-Dprobe` 🔬 (fixed upstream)
 
@@ -200,7 +202,7 @@ timer's `vexel-timer`, a view's the main thread. It holds while those names do, 
 a thread kind (two components that take the timer). The publish row could say who published it, as `send` does, when
 the sender knows (`Sender.outside` is built for one part, `Sources.sender(shell, "<part>", topic)`).
 
-## FN-15 · What reaches a job, a source or a destination writes no row 🔬
+## FN-15 · What reaches a job, a source or a destination writes no row 🔬 (fixed upstream for jobs)
 
 A tick's delivery to a mailbox or an inbox is a `receive` row, so the flows panel can say how many of a topic's
 messages each receiver was handed. A job's request, a source's start and stop, and a destination's open and write are
@@ -208,9 +210,12 @@ handed over by the framework (`Jobs`, `Sources`, `Destinations`), which writes n
 Worked around by saying none (`End.UNCOUNTED`, shown as the part's name alone, and no delivered count for a topic
 heard only that way) rather than 0, which would claim nothing arrived. The framework could write a `receive` row
 there too, naming the part as bus graph 2 does (`<topic> to <part> <hops>`), which would also put those hops on a
-cause's path.
+cause's path. Fixed upstream for jobs 2026-11-02 (R7, vexelray-framework `0cbb1f4`): `Jobs` writes that `receive` row
+as a request reaches a job (its hops 0, since an async subscriber is handed none) and a `job <name>` zone around its
+run, so a job's deliveries are counted and its runs are the Jobs lane. A source's start and stop and a destination's
+open and write still write none.
 
-## FN-16 · A tick's row says its number but not whose tick it is 🔬
+## FN-16 · A tick's row says its number but not whose tick it is 🔬 (fixed upstream)
 
 atchung's `tick.ran` row (added for R3) numbers each `Tick`'s runs from one, and a `Tick` has no name. The framework
 makes several: the logic lane's (`Logic`), the widgets' (`Gui`), and `Senders`'. Off the main thread that is no
@@ -219,9 +224,11 @@ the widgets' run on `main`, both write `tick #1`, `tick #2`, ... by their own co
 tick a number is, the same fact as FN-8 from the other side. Worked around by reading tick numbers only off `main`
 (`Model.setOnTick`, `Model.hopsOf`), so under `--logic=main` the Logic lane stays empty and a path's hops on `main`
 name no tick. `Atchung.tick(name, arrival)` could take a name and write it in the row (`#12 logic 2 rounds ...`);
-the framework would name its own (`logic`, `widgets`, `senders`), and FN-8 would go with it.
+the framework would name its own (`logic`, `widgets`, `senders`), and FN-8 would go with it. Fixed upstream
+2026-11-02 (R7): atchung's `Tick.named` (`480953a`) puts the name after the number, and the framework names the
+logic's tick `logic` (`e4e4f55`). The widgets' stays unnamed, which is enough to tell the two apart.
 
-## FN-17 · The logic lane's thread parks between ticks without a row 🔬
+## FN-17 · The logic lane's thread parks between ticks without a row 🔬 (fixed upstream)
 
 The threads panel (R5) cuts each clock's turn into working, waiting, resting and unaccounted by its thread's rows.
 The main loop's park is a row, `wait for events` (an idle zone), so the main thread's rest is measured. The logic
@@ -231,4 +238,6 @@ turn is its `tick` zone and then a gap that could be rest, a stall or the schedu
 cannot be read. Worked around by calling that gap unaccounted, never resting, with the note "its park writes no row
 (FN-17)", and by leaving the logic lane's wakes blank. The park could be `Probe.idleZone(Lane.BUS, "logic park")`
 around the `parkNanos`, as the loop's is, and `arrived` a `wake` mark naming the thread it unparked; the ledger would
-then read the logic lane's rest and wakes exactly as it reads the main thread's.
+then read the logic lane's rest and wakes exactly as it reads the main thread's. Fixed upstream 2026-11-02 (R7,
+vexelray-framework `e4e4f55`), as proposed: the park is that idle zone, and the arrival that ends one writes a single
+`wake`, `message on logic`, on the thread that ended it.

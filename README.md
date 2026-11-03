@@ -175,11 +175,13 @@ message is in one file. Read these in this order.
 | `Appended.java` | the immutable list the lanes and the tape's seconds are kept in: a batch adds to it without copying what it holds, so a fold costs about its own rows. |
 | `Declared.java` | what a run declares about its messages: its bus graph, version 2 ([bus-graph.md](docs/bus-graph.md)), read from the row `LinkRows` adds on attaching. |
 | `ListRuns.java` | the job that reads the discovery folder: which applications are running with a link, this one left out. |
+| `Rerun.java` | Run again (R6): a component apart from the bench, which keeps which run is attached from the run panel, asks it to replay when the button is pressed, and turns its answer into the replay panel's report. A pure `report` reads the answer. |
+| `AskReplay.java` | the job that asks a run to `replay` over a connection of its own to its link, and replies with what it answered. |
 | `LinkRows.java` | the source that reads one run's rows over its link for as long as it is attached, setting each row on the machine's clock as it crosses. |
 | `RecordingRows.java` | the source that plays a probe recording back at its recorded pace, its rows sent as a run's, on the machine's clock as of when it started. |
-| `Child.java` | the source that starts `--launch`'s command with its automation on, logs its output, chooses it once its discovery file appears, and ends it when stopped. |
+| `Child.java` | the source that starts `--launch`'s command with its automation on and a recording kept for Run again, logs its output, chooses it once its discovery file appears, and ends it when stopped. |
 | `Durations.java` | a probe row's duration (`51.68ms`) read back into nanoseconds: a pure function a step may call. |
-| `Core.java` | the list of this module's component, job and sources. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
+| `Core.java` | the list of this module's components, jobs and sources. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
 
 **`vexelray-inspector-gui`, the view and the framework integration.**
 
@@ -190,7 +192,7 @@ message is in one file. Read these in this order.
 | `Diagram.java` | the graph panel's picture: the declared parts in tiers by where they run, an arrow a pair of parts, faint until a message crosses it, and the arrows a selected event's path crossed in the path's colour. Pure, so a test reads it as marks. |
 | `Glide.java` | **how the timeline moves**: smooth paths of time, and handovers between them that are smooth in every derivative and land exactly. Pure functions; its constants were set by eye, and say why. |
 | `Keys.java` | what a key chord sends the view. |
-| `Ui.java` | the window: the title bar, the timeline's lanes, the details, rows and threads panels, the graph and flows panels and the status line. Holds no state; it shows what the view hands it. |
+| `Ui.java` | the window: the title bar, the timeline's lanes, the details, rows and threads panels, the replay panel, the graph and flows panels and the status line. Holds no state; it shows what the view hands it. |
 
 `Inspector.java` is the entry point and the constants, and nothing else. The application edge — input, the
 clipboard, window memory, the clock, the frame loop with its wakes and its pacing, the dialogs, the command line and

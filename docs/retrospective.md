@@ -31,6 +31,61 @@ reasons and the full method.
 
 ## Milestones
 
+## R6, replay · 2026-11-02
+
+The count: no new finding here. What replay needed from the stack was built in the stack as part of the milestone
+(atchung `2581268`, vexelray-framework `8145095`, vexelray-gui `74f3c4f`), and what it does not do yet is written in
+the framework's `docs/TODO.md`, *Found by building replay*, not here. FN-16 came up again: under `--logic=main` the
+logic's ticks are unnumbered, so a difference cannot be gone to.
+
+### The shapes
+
+| | The promise | What happened | How it looked |
+| --- | --- | --- | --- |
+| FN-16, again | A tick can be named | The replay names a difference by its tick's number, and under `--logic=main` the Inspector numbers no tick | Run again lists the difference; clicking it goes nowhere |
+| (the framework's TODO) | Recording is cheap enough to leave on | Each send's fingerprint is its `hashCode`, taken on the tick, and the Inspector's sends are large records | A watched Inspector's tick from p50 0.4 ms to about 1 ms, p95 from 1.3 to 2 to 5 ms |
+
+### What would stop each
+
+1. **A tick that names itself** (FN-16 upstream), as a draw does with `draw.ran`: then a tick on `main` is numbered,
+   and so is every difference.
+2. **The fingerprint off the tick.** Messages are immutable, so the tick keeps the reference and the hash is taken
+   later; keeping the reference also gives what the run sent beside what the replay did.
+
+### My own mistakes
+
+- **I ran one test class with `-Dtest` and read the failure as mine.** `aTickAllocatesNothingOnceWarm` failed in
+  atchung's probe execution, which `-Dtest=TickTest` had dragged it into; it fails at the commit before mine too, and
+  the full build, which runs only `MailboxRowsTest` there, passes. *Rule:* a failure under `-Dtest` is checked in the
+  full build before it is called anything.
+- **I ran Maven `-q` when the result mattered.** A processor refusal (a debug print in a step) went unseen, the test
+  ran the classes before it, and I chased a stale result. *Rule:* no `-q` on a build whose outcome decides the next
+  step.
+- **I suspected the code before reading the test's helper.** `BenchTest.details()` strips an event's fields on
+  purpose (`bare`); I spent half an hour proving the bench kept them. *Rule:* read what a test's helper does to what
+  it returns before debugging what it returned.
+- **I looked at a window built before my last edit.** The first screenshot of the fixed replay panel was of the old
+  classes. *Rule:* build, then launch, then look; never launch from what the last build left.
+- **I wrote a limit down without reading the code it was about.** A TODO entry said a chain's timer message carries
+  its run in its payload; it carries a token counted per inbox, which replays as it is. Caught before the commit.
+  *Rule:* a limit written into a TODO cites the line that makes it true.
+- **Two perl substitutions did not apply**, `Wiring.again` and the verb's dispatch, and only the compiler and a grep
+  said so. *Rule:* after a scripted edit, grep for each change it was meant to make, as R5 said of counting them.
+
+### What to keep exactly as it is
+
+- **Record at the one place a tick takes in.** Staging is where everything from outside enters the logic, input, job
+  replies, sources, timers, the window, so one hook on `Tick` records all of it, and nothing an application writes.
+- **Replay in the process, from launch.** The messages need no encoding and a fingerprint compares, and a fresh set
+  of components from the generated wiring starts from where the run did, so nothing has to be snapshotted.
+- **A part apart from the bench for a feature that does not need the tape.** `Rerun` hears the run panel, so the
+  bench's fifteen-field state did not change, and the bench gained one step, `GoToTick`.
+- **The verb declared by the framework as the bus graph is**, so vexelray-gui answers `replay` without knowing the
+  framework, and a run that cannot replay says why.
+- **Another session's uncommitted work left alone.** Both vexelray-framework and vexelray-gui had someone else's
+  changes in the tree; commits named their paths, and the automation module was installed from a clean worktree of
+  the commit.
+
 ## R5, the ledger per clock · 2026-11-02
 
 The count: one finding (FN-17), not architectural: the logic lane's thread parks between ticks without a row. FN-8,

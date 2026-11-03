@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 to R5 done 2026-11-02, R6 next (section 10).** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 to R6 done 2026-11-02; what follows is section 10's *Later*.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -188,7 +188,8 @@ thread's rows, so a tick on the logic lane is invisible to them, and they read `
 `Snap` or the log. It can only be inferred from the thread the `tick` zone ran on.
 
 **Replay does not exist.** Nothing records input messages to play them again. The nearest is
-`LogicTest.theSameInputsGiveTheSameDeliveriesWithTheTicksOnTheirThreadOrOnTheMainThread`, in-process.
+`LogicTest.theSameInputsGiveTheSameDeliveriesWithTheTicksOnTheirThreadOrOnTheMainThread`, in-process. *(Built for R6,
+section 10: a run launched `--replayable` keeps what its logic takes in, and `replay` runs it again.)*
 
 So R1's timeline can be built from today's rows, with ticks and draws counted by the Inspector itself and labelled
 as such; everything past it needs section 7½'s upstream work first.
@@ -209,7 +210,7 @@ repository's TODO when this design is accepted.
 | vexelray-gui | `frames` and `why` rebuilt on the three clocks: logic rows counted, held draws read | agent first: the timeline's facts askable |
 | vexelray-framework | Bus graph version 2: topic kind and key filters, `Inbox` receivers, a job's request side, ledger steps, timers, views as their own kind, real lane names, no invented overflow | the declared graph (R2) |
 | vexelray-framework | The logic mode and the lane-to-thread map in `hello` (and the discovery file) | the Run panel saying which mode it shows |
-| vexelray-framework | An input recorder and a replay driver | R6, and ROADMAP §5 item 5 |
+| vexelray-framework | ~~An input recorder and a replay driver~~ Done for R6: `--replayable` keeps what the logic tick takes in (atchung `2581268`, `Tick.Recorder`), and `replay` on the automation socket runs it again on fresh components and lists the sends that differ (vexelray-framework `8145095`, vexelray-gui `74f3c4f`); what it does not do yet is the framework's `docs/TODO.md`, *Found by building replay* | R6, and ROADMAP §5 item 5 |
 | vexelray-framework, -shell | Rows from `Timer`, `Jobs`, `Logic` and `Crew` | the job tray; declared lanes |
 | vexelray-present-dxgi | A row when the ready thread waits and wakes | the timeline's GPU lane |
 | vexelray-framework | A row for the logic lane's park (an idle zone) and for the unpark that ends it (framework-notes FN-17) | the threads panel's logic rest and wakes |
@@ -649,6 +650,31 @@ Each step ends with something to watch or something an agent can ask, and lands 
   after it; idle, 200 ms passes resting 99%. Under `--logic=main` the same, the logic line saying why it is empty.
   **R5 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R5 section.
 - **R6, replay**: run the same inputs again and show which widget writes differ.
+  **Done 2026-11-02, as proposed to and ruled by the author that day:** in-process, from launch, the framework's part
+  first. *Upstream:* atchung's `Tick.Recorder` (`2581268`) is told each message a run takes in, by its inbox's place and
+  its subscription's, with its chain run; each send of the tick's components as the outboxes empty; and where each
+  run stopped, so `restage` and `runFor(rounds)` run a recorded tick again on a fresh set of the same inboxes and stop
+  at the same round whatever the time. vexelray-framework (`8145095`): a run launched `--replayable` (or with
+  `VEXELRAY_REPLAYABLE`) keeps that from its first tick, each send as a fingerprint (its `hashCode`, which compares
+  within the process), bounded at 2^18 messages either way; `replay` builds the components again from
+  `Wiring.again()` (the processor generates it) on a shell of their own, its CONFIG and MODEL only, with a silent
+  timer and no jobs or sources, whose answers are among what arrived, maps chain runs by the sends that carry them,
+  and answers `ok replay ticks= sends= differ=` and a line for each of the first 16 differences, or why it cannot. A
+  verb of vexelray-gui's port (`74f3c4f`), declared by the framework's driver as the bus graph is. *Here* (`1ec11cb`):
+  **Run again** beside Detach; `Rerun`, a component apart from the bench, which keeps which run is attached and its
+  link from the run panel, so the bench's state did not change; `AskReplay`, a job with a connection of its own; the
+  replay panel over the graph, hidden until the button is pressed, its table only when something differs, and a
+  difference clicked going to its tick (`GoToTick`, the bench's one new step). A launched run is always replayable.
+  *Seen:* W2, seven clicks (a job and a declared lane among them), `ok replay ticks=6 sends=6 differ=0` in both logic
+  modes on its port, and the same through Run again; an Inspector replaying the 13.7 s recording (262,758 rows), run
+  again from the one watching it: 4,442 ticks and 68,387 sends, all the same, answered in about 5 s. A difference was
+  seen only in tests (`ReplayTest`, a count kept outside the components: `#1 0 test.replay.answered ... a #4`, and the
+  panel's cells in `ViewTest`), since no run to hand differs. *Measured:* recording costs the watched Inspector's
+  ticks p50 0.7 to 1.2 ms and p95 2.3 to 5.2 ms, against 0.40 to 0.45 and 1.1 to 1.4 without, growing with its state:
+  the fingerprint walks each large state record as it is sent. W2's ticks do not notice. *Not done:* a difference's
+  tick cannot be gone to under `--logic=main`, where ticks are unnumbered (FN-16); the recorded send's value is not
+  kept, only its fingerprint, so a difference shows what the replay sent; the rest is the framework's TODO.
+  **R6 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R6 section.
 - **Later**, as 0.1 planned them: time (kronometer) where a view still has motion, GPU and present, the JVM, the
   tree, diagnosis rules, history by build, the command menu.
 

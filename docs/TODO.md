@@ -8,6 +8,15 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
+- [ ] Run again's difference cannot be gone to under `--logic=main`: the logic's ticks are not numbered there (FN-16),
+      so `GoToTick` finds none. A tick that names itself upstream would fix both.
+- [ ] Run again shows what the replay sent where the run's send differs, not what the run sent: the framework keeps
+      only a fingerprint of each recorded send (its TODO, *Found by building replay*).
+- [ ] Recording doubles the watched Inspector's tick (p50 0.4 to about 1 ms, p95 1.3 to 2 to 5 ms) because each
+      send is fingerprinted as it is sent; a launched run is always recorded, so a heavy one pays it. Upstream first;
+      until then a launch could ask for it only when Run again is wanted.
+- [ ] Run again on a recording (`--replay=<csv>`) says it cannot: a probe recording holds rows, not the messages the
+      logic took in.
 - [ ] The threads panel is numbers only: a bar per clock, split into its four states against the turn's width, with
       the wakes as ticks on it.
 - [ ] Following, the ledger reads the newest rows again on every batch (p95 about 0.5 ms, 200 bytes a row more than

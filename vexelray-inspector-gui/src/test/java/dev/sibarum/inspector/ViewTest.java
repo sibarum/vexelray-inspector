@@ -218,6 +218,19 @@ class ViewTest {
     }
 
     @Test
+    void theReplayPanelIsHiddenUntilRunAgainSaysSomethingThenListsEachDifference() throws InterruptedException {
+        assertEquals("", wiring.ui().replayLine());
+        Messages.ReplayReport r = new Messages.ReplayReport("run", "Ran 3 ticks of its logic again: 1 of 6 sends differ",
+                false, List.of(new Messages.Difference(2, 1, "app.Answered", "5e1", "5e4", "a #4"),
+                new Messages.Difference(3, -1, "", "", "", "the replay threw boom")));
+        assertEquals(List.of(List.of("#2", "1", "app.Answered", "5e1", "5e4", "a #4"),
+                List.of("#3", "", "", "", "", "the replay threw boom")), View.replayCells(r));
+        shell.bus().publish(Messages.REPLAY_REPORT_TOPIC, r);
+        eventually("the report shown", () -> wiring.ui().replayLine().equals(r.said())
+                && wiring.ui().replayCells(1).equals(View.replayCells(r).get(1)));
+    }
+
+    @Test
     void onARowTheDetailsSayTheRowAndItsThread() {
         Messages.Row r = new Messages.Row(42, 1_000L, 0L, 3L, "vexel-logic", "bus", "tick.ran", "#5 1 rounds 2 delivered",
                 "c1.i01.1");

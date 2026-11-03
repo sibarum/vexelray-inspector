@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
  * its own. {@code --launch="<command>"} (vexelray-inspector's {@code docs/design.md} section 10, slice 5).
  *
  * <p><b>Started, its output read, and chosen once it can be inspected.</b> The command is started with its automation
- * on ({@link #AUTOMATION}, a free port), which opens its link and records every lane its link asks for. Its output,
+ * on ({@link #AUTOMATION}, a free port), which opens its link and records every lane its link asks for. It keeps what
+ * its logic takes in too ({@link #REPLAYABLE}), so Run again can replay it. Its output,
  * stdout and stderr together, is logged a line at a time. Once a discovery file names its process or one of its
  * descendants (a {@code mvn} wrapper's JVM is a grandchild) and has a link, it is sent as a {@link Choose}, so the
  * bench attaches to it and stays with it.
@@ -49,6 +50,13 @@ public final class Child {
      */
     static final String AUTOMATION = "VEXELRAY_AUTOMATION";
 
+    /**
+     * The environment variable that has a VexelRay application keep what its logic takes in, so that Run again can
+     * replay it (vexelray-framework's {@code Shell.replayable}): a launched run is one this Inspector is there to
+     * inspect, so it is always kept, at the memory that costs the run.
+     */
+    static final String REPLAYABLE = "VEXELRAY_REPLAYABLE";
+
     /** How long the run waits between looks at the command's output. */
     private static final long LOOK_MS = 50;
 
@@ -70,6 +78,7 @@ public final class Child {
         try {
             ProcessBuilder b = new ProcessBuilder(argv).redirectErrorStream(true);
             b.environment().put(AUTOMATION, "0");
+            b.environment().put(REPLAYABLE, "1");
             p = b.start();
         } catch (IOException | RuntimeException e) {
             return new ChildExited(request.command(), "it could not be started: " + e.getMessage());

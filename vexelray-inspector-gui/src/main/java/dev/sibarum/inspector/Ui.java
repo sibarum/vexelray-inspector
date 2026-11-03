@@ -69,6 +69,12 @@ import java.util.Objects;
  * working, waiting, resting and unaccounted, with recording's share and the wakes ({@link #threads}). Changed in
  * place, as the rows panel is.
  *
+ * <h2>The replay panel</h2>
+ *
+ * <p>Over the graph and flows, once Run again has been pressed: what running the run again found, in words, and a place
+ * for each send that differs, with its tick, which a click goes to ({@link #replay}). Hidden until then, so a run
+ * never replayed shows nothing of it. Changed in place, as the rows panel is.
+ *
  * <h2>The readouts</h2>
  *
  * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
@@ -112,6 +118,13 @@ final class Ui {
             Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(5f),
             Length.rem(7.5f), Length.grow(1f));
 
+    /** The replay panel's column widths, in {@link View#REPLAY_COLUMNS}' order: what was sent takes what is left. */
+    private static final List<Length> REPLAY_WIDTHS = List.of(Length.rem(5f), Length.rem(4.5f), Length.rem(18f),
+            Length.rem(6.5f), Length.rem(6.5f), Length.grow(1f));
+
+    /** How many places the replay panel shows before it scrolls. */
+    private static final int REPLAY_SHOWN = 5;
+
     /** The flows table's column widths, in {@link View#FLOW_COLUMNS}' order: the names share what is left. */
     private static final List<Length> FLOW_WIDTHS = List.of(Length.grow(2f), Length.rem(5.5f), Length.grow(2f),
             Length.grow(3f), Length.rem(6.5f), Length.rem(6.5f), Length.rem(7f));
@@ -132,6 +145,14 @@ final class Ui {
     private final Node runText;
     private final Select<Run> runs;
     private final Button detach;
+    private final Button runAgain;
+    private final Node replay;
+    private final Node replayText;
+    private final Table<Integer> replayTable;
+    /** What each of the replay panel's places says, a cell a column, as {@link #replay} last set them. */
+    private List<List<String>> replayTexts = List.of();
+    private final Map<Integer, Node[]> replayNodes = new HashMap<>();
+    private String replaySaid = "";
     private final Table<String> flows;
     private final Node flowsWhy;
     private final Node graph;
@@ -268,8 +289,11 @@ final class Ui {
         detach = new Button(gui, "Detach").name(Landmarks.DETACH).enabled(false);
         gui.focusable(detach.node(), false);
         gui.landmark(Landmarks.DETACH, detach.node());
+        runAgain = new Button(gui, "Run again").name(Landmarks.RUN_AGAIN).enabled(false);
+        gui.focusable(runAgain.node(), false);
+        gui.landmark(Landmarks.RUN_AGAIN, runAgain.node());
         Node runPanel = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
-                .children(runText, runs.node(), detach.node());
+                .children(runText, runs.node(), runAgain.node(), detach.node());
         gui.landmark(Landmarks.RUN, runPanel);
 
         List<Table.Column<String>> columns = new ArrayList<>();
@@ -299,8 +323,32 @@ final class Ui {
         Node panels = gui.row().width(Length.FILL).height(Length.grow(1f)).gap(Type.TIGHT)
                 .children(graph, flowsPanel);
 
+        replayText = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.INK));
+        gui.landmark(Landmarks.REPLAY_TEXT, replayText);
+        List<Table.Column<Integer>> replayColumns = new ArrayList<>();
+        for (int i = 0; i < View.REPLAY_COLUMNS.size(); i++) {
+            int at = i;
+            replayColumns.add(Table.Column.of(View.REPLAY_COLUMNS.get(i), REPLAY_WIDTHS.get(i), (nodes, place) -> {
+                Node text = nodes.text(cell(replayTexts, place, at)).textSize(Type.SMALL)
+                        .textColor(gui.theme().color(at == View.REPLAY_COLUMNS.size() - 1 ? Role.INK : Role.DIM));
+                replayNodes.computeIfAbsent(place, p -> new Node[View.REPLAY_COLUMNS.size()])[at] = text;
+                return text;
+            }));
+        }
+        replayTable = new Table<>(gui, ROW_REM, replayColumns).name(Landmarks.REPLAY);
+        replayTable.rows().name(Landmarks.REPLAY_BODY);
+        // Never focused, as the rows panel is not (FN-11).
+        gui.focusable(replayTable.rows().node(), false);
+        replayTable.headers(Type.UI, Type.SMALL, Role.DIM);
+        replayTable.node().width(Length.FILL).height(Length.rem(ROW_REM * (REPLAY_SHOWN + 1) + 0.75f));
+        replayTable.items(java.util.stream.IntStream.range(0, View.REPLAY_LISTED).boxed().toList());
+        replayTable.node().visible(false);
+        replay = gui.column().width(Length.FILL).gap(Type.TIGHT).children(replayText, replayTable.node());
+        replay.visible(false);
+        gui.landmark(Landmarks.REPLAY, replay);
+
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(runPanel, warning, lanes, cursorPanels, threads.node(), readoutRow, panels);
+                .children(runPanel, warning, lanes, cursorPanels, threads.node(), readoutRow, replay, panels);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -473,6 +521,50 @@ final class Ui {
         }
     }
 
+    /**
+     * What the replay panel says: {@code said}, what running again found, and a place for each difference, each cell's
+     * text as {@code texts} gives it; hidden while {@code said} is empty, and the table while nothing differs. In
+     * place, as the rows panel's.
+     */
+    void replay(String said, List<List<String>> texts) {
+        if (!said.equals(replaySaid)) {
+            replaySaid = said;
+            replayText.text(said);
+            replay.visible(!said.isEmpty());
+        }
+        List<List<String>> was = replayTexts;
+        replayTexts = List.copyOf(texts);
+        replayTable.node().visible(!texts.isEmpty());
+        for (Map.Entry<Integer, Node[]> e : replayNodes.entrySet()) {
+            for (int i = 0; i < e.getValue().length; i++) {
+                String now = cell(replayTexts, e.getKey(), i);
+                if (e.getValue()[i] != null && !now.equals(cell(was, e.getKey(), i))) {
+                    e.getValue()[i].text(now);
+                }
+            }
+        }
+    }
+
+    /** What the replay panel's line last said; empty while it is hidden. */
+    String replayLine() {
+        return replaySaid;
+    }
+
+    /** What the replay panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */
+    List<String> replayCells(int place) {
+        return place < replayTexts.size() ? replayTexts.get(place) : List.of();
+    }
+
+    /** Where the replay panel's body is on the bus: what its clicks carry. */
+    String replayAddress() {
+        return replayTable.rows().address();
+    }
+
+    /** The address the Run again button presses with. */
+    String runAgainAddress() {
+        return runAgain.address();
+    }
+
     /** What the threads panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */
     List<String> threadCells(int place) {
         return place < threadTexts.size() ? threadTexts.get(place) : List.of();
@@ -586,6 +678,7 @@ final class Ui {
             runs.show(shown);
         }
         detach.enabled(canDetach);
+        runAgain.enabled(canDetach);
     }
 
     /** What the run panel's line last said: what is inspected and from where. */

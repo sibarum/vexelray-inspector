@@ -12,6 +12,7 @@ import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Account;
 import dev.sibarum.inspector.core.Messages.Choose;
 import dev.sibarum.inspector.core.Messages.Crossed;
+import dev.sibarum.inspector.core.Messages.Difference;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.End;
 import dev.sibarum.inspector.core.Messages.Field;
@@ -21,15 +22,18 @@ import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.GoToRow;
+import dev.sibarum.inspector.core.Messages.GoToTick;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.LedgerAt;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
 import dev.sibarum.inspector.core.Messages.Readouts;
+import dev.sibarum.inspector.core.Messages.ReplayReport;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.RowsAround;
 import dev.sibarum.inspector.core.Messages.Run;
+import dev.sibarum.inspector.core.Messages.RunAgain;
 import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Seek;
 import dev.sibarum.inspector.core.Messages.Step;
@@ -214,6 +218,8 @@ final class View {
     private final Sender<Seek> seek;
     private final Sender<Choose> choose;
     private final Sender<Leave> leave;
+    private final Sender<RunAgain> runAgain;
+    private final Sender<GoToTick> goToTick;
 
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
@@ -240,7 +246,8 @@ final class View {
     View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey, Sender<EventKey> eventKey,
          Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
          Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
-         Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow) {
+         Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
+         Sender<RunAgain> runAgain, Sender<GoToTick> goToTick) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -253,6 +260,8 @@ final class View {
         this.seek = seek;
         this.choose = choose;
         this.leave = leave;
+        this.runAgain = runAgain;
+        this.goToTick = goToTick;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
                 gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
                 gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
@@ -311,6 +320,8 @@ final class View {
             followed();
         } else if (p.button().equals(ui.detachAddress())) {
             leave.send(new Leave());
+        } else if (p.button().equals(ui.runAgainAddress())) {
+            runAgain.send(new RunAgain());
         }
     }
 
@@ -366,6 +377,12 @@ final class View {
             pressedAt = System.nanoTime();
             pressWindow = -1L;
             goToRow.send(new GoToRow(rowsAround.rows().get(place)));
+        }
+        if (c.list().equals(ui.replayAddress()) && c.item() instanceof Integer place
+                && place < replayReport.differences().size()) {
+            pressedAt = System.nanoTime();
+            pressWindow = -1L;
+            goToTick.send(new GoToTick(replayReport.differences().get(place).tick()));
         }
     }
 
@@ -1295,6 +1312,38 @@ final class View {
     private static String share(long nanos, long length) {
         return nanos < 0 || length <= 0 ? ""
                 : String.format(Locale.ROOT, "%.2f ms %3d%%", nanos / 1e6, Math.round(100.0 * nanos / length));
+    }
+
+    // ------------------------------------------------------------------ the replay panel
+
+    /** The replay panel's columns, in order. */
+    static final List<String> REPLAY_COLUMNS = List.of("Tick", "Send", "Topic", "Recorded", "Replayed",
+            "Sent when run again");
+
+    /** How many differences the replay panel has places for: as many as a run lists (the framework's 16). */
+    static final int REPLAY_LISTED = 16;
+
+    /** What running again last found, for a click on a difference to find its tick. */
+    private ReplayReport replayReport = ReplayReport.NONE;
+
+    /** What running again found, into the replay panel. */
+    @Subscribe
+    public void replayed(ReplayReport r) {
+        replayReport = r;
+        ui.replay(r.said(), replayCells(r));
+    }
+
+    /**
+     * What the replay panel says, a difference a place, a cell for each of {@link #REPLAY_COLUMNS}: its tick, which of
+     * the tick's sends, its topic, the two fingerprints, and what was sent when run again. Pure, for a test.
+     */
+    static List<List<String>> replayCells(ReplayReport r) {
+        List<List<String>> cells = new ArrayList<>(r.differences().size());
+        for (Difference d : r.differences()) {
+            cells.add(List.of("#" + d.tick(), d.send() < 0 ? "" : Integer.toString(d.send()), d.topic(),
+                    d.recorded(), d.replayed(), d.what()));
+        }
+        return cells;
     }
 
     /** The flows table's columns, in order. */

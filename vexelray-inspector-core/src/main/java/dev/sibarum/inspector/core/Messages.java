@@ -641,4 +641,62 @@ public final class Messages {
         /** The count of an end no row counts: what reached a job, a source or a destination. */
         public static final long UNCOUNTED = -1L;
     }
+
+    // ------------------------------------------------------------------ running again (R6)
+
+    /**
+     * The Run again button: replay the run attached, what its logic took in since launch run again on a fresh set of
+     * its components, and say which of their sends differ ({@link Rerun}).
+     */
+    public static final Topic<RunAgain> RUN_AGAIN_TOPIC = Topic.edge(RunAgain.class);
+
+    public record RunAgain() {
+    }
+
+    /** Ask {@code run}'s link at {@code stream} to {@code replay} ({@link AskReplay}). */
+    public static final Topic<AskReplay> ASK_REPLAY_TOPIC = Topic.edge(AskReplay.class);
+
+    public record AskReplay(String run, String stream) {
+    }
+
+    /** What {@code run} answered to {@code replay}, as its text: {@code ok replay ...} and its lines, or why not. */
+    public static final Topic<Replayed> REPLAYED_TOPIC = Topic.edge(Replayed.class);
+
+    public record Replayed(String run, String answer) {
+    }
+
+    /**
+     * What running again found, for the replay panel: what was run and how it compared, in words, and each send that
+     * differs; {@link #NONE} until the button is pressed, and while nothing is attached.
+     *
+     * @param asking whether the run has been asked and has not answered yet
+     */
+    public static final Topic<ReplayReport> REPLAY_REPORT_TOPIC = Topic.state(ReplayReport.class);
+
+    public record ReplayReport(String run, String said, boolean asking, List<Difference> differences) {
+        public ReplayReport {
+            differences = List.copyOf(differences);
+        }
+
+        public static final ReplayReport NONE = new ReplayReport("", "", false, List.of());
+    }
+
+    /**
+     * One send that differs when the run is run again.
+     *
+     * @param tick     the logic tick it was sent in, by its number ({@code tick.ran}), counting from launch
+     * @param send     which of that tick's sends, from zero
+     * @param topic    what it was sent on
+     * @param recorded the run's send's fingerprint, or {@code none} when the run sent nothing there
+     * @param replayed the replay's, or {@code none}
+     * @param what     what the replay sent there, or what happened instead
+     */
+    public record Difference(long tick, int send, String topic, String recorded, String replayed, String what) {
+    }
+
+    /** Put the cursor on the logic tick numbered {@code number}, if the tape still holds it: a difference clicked. */
+    public static final Topic<GoToTick> GO_TO_TICK_TOPIC = Topic.edge(GoToTick.class);
+
+    public record GoToTick(long number) {
+    }
 }

@@ -343,6 +343,24 @@ class BenchTest {
     }
 
     @Test
+    void aDifferenceClickedPutsTheCursorOnTheTickItNamesIfTheTapeHoldsIt() {
+        attached(ONE);
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(
+                row(1, 100 * MS, "vexel-logic", "bus", "tick", "1ms"),
+                row(2, 100 * MS + 10_000, "vexel-logic", "bus", "tick.ran", "#5 1 rounds 2 delivered"),
+                row(3, 150 * MS, "vexel-logic", "bus", "tick", "0.5ms"),
+                row(4, 150 * MS + 10_000, "vexel-logic", "bus", "tick.ran", "#6 2 rounds 3 delivered"),
+                pass(5, 200 * MS, "1ms"))));
+        tell(Messages.GO_TO_TICK_TOPIC, new Messages.GoToTick(6));
+        Details d = took(Details.class).getLast();
+        assertEquals(Model.LOGIC, d.on().orElseThrow().lane());
+        assertEquals("#6", d.on().get().mark().field(Model.TICK_NUMBER), "as a click on tick #6 would");
+        int said = sent.size();
+        tell(Messages.GO_TO_TICK_TOPIC, new Messages.GoToTick(99));
+        assertEquals(said, sent.size(), "a tick not on the tape: the cursor stays");
+    }
+
+    @Test
     void theRunPanelSaysTheRunHowItWasReachedAndTheChoices() {
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
         RunPanel p = took(RunPanel.class).getLast();

@@ -34,6 +34,12 @@ final class Landmarks {
 
     /** The threads panel: a line a clock, the turn of it the cursor is in, cut into the four states. */
     static final String THREADS = "threads";
+    /** The Run again button, beside Detach (R6). */
+    static final String RUN_AGAIN = "run.again";
+    /** The replay panel: what running again found, and the table of the sends that differ. */
+    static final String REPLAY = "replay";
+    static final String REPLAY_TEXT = "replay.text";
+    static final String REPLAY_BODY = "replay.body";
     static final String FLOWS_WHY = "flows.why";
 
     /** The graph panel: the declared parts and the arrows between them, drawn. */

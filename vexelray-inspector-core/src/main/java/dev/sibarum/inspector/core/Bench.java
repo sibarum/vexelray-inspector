@@ -12,6 +12,7 @@ import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.GoToRow;
+import dev.sibarum.inspector.core.Messages.GoToTick;
 import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
@@ -82,7 +83,8 @@ import java.util.Optional;
  */
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
-        Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class})
+        Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class,
+        GoToTick.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
         Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class})
 public final class Bench {
@@ -446,6 +448,7 @@ public final class Bench {
                 .on(Messages.GO_TO_TOPIC, b.step("go to", Bench::goTo))
                 .on(Messages.STEP_ROW_TOPIC, b.step("step row", Bench::stepRow))
                 .on(Messages.GO_TO_ROW_TOPIC, b.step("go to row", Bench::goToRow))
+                .on(Messages.GO_TO_TICK_TOPIC, b.step("go to tick", Bench::goToTick))
                 .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek));
         ledger = b.build(inbox, "bench", CAPACITY);
         timer.every(LOOK_AGAIN, Messages.FIND_RUNS_TOPIC, new FindRuns());
@@ -691,6 +694,20 @@ public final class Bench {
         for (Mark kept : island.kept().lane(e.lane()).marks()) {
             if (kept.fromNanos() == m.fromNanos() && kept.toNanos() == m.toNanos() && kept.kind().equals(m.kind())) {
                 return say(on(s, island, new Event(e.lane(), kept)), out);
+            }
+        }
+        return s;
+    }
+
+    /**
+     * A difference clicked in the replay panel: the cursor onto the logic tick it names, as a click on it would put it
+     * there. A tick no longer on the tape, or never numbered, leaves the cursor where it is.
+     */
+    static State goToTick(State s, GoToTick g, Out out) {
+        String number = "#" + g.number();
+        for (Mark m : s.kept().lane(Model.LOGIC).marks()) {
+            if (m.kind().equals(Model.TICK) && m.field(Model.TICK_NUMBER).equals(number)) {
+                return goTo(s, new GoTo(new Event(Model.LOGIC, m)), out);
             }
         }
         return s;

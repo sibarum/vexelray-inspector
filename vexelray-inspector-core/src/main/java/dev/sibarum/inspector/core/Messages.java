@@ -690,8 +690,10 @@ public final class Messages {
      * @param recorded the run's send's fingerprint, or {@code none} when the run sent nothing there
      * @param replayed the replay's, or {@code none}
      * @param what     what the replay sent there, or what happened instead
+     * @param was      what the run sent there, when it kept its sends ({@code --replayable=values}); empty otherwise
      */
-    public record Difference(long tick, int send, String topic, String recorded, String replayed, String what) {
+    public record Difference(long tick, int send, String topic, String recorded, String replayed, String what,
+                             String was) {
     }
 
     /** Put the cursor on the logic tick numbered {@code number}, if the tape still holds it: a difference clicked. */

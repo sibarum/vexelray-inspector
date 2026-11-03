@@ -221,10 +221,13 @@ class ViewTest {
     void theReplayPanelIsHiddenUntilRunAgainSaysSomethingThenListsEachDifference() throws InterruptedException {
         assertEquals("", wiring.ui().replayLine());
         Messages.ReplayReport r = new Messages.ReplayReport("run", "Ran 3 ticks of its logic again: 1 of 6 sends differ",
-                false, List.of(new Messages.Difference(2, 1, "app.Answered", "5e1", "5e4", "a #4"),
-                new Messages.Difference(3, -1, "", "", "", "the replay threw boom")));
-        assertEquals(List.of(List.of("#2", "1", "app.Answered", "5e1", "5e4", "a #4"),
-                List.of("#3", "", "", "", "", "the replay threw boom")), View.replayCells(r));
+                false, List.of(new Messages.Difference(2, 1, "app.Answered", "5e1", "5e4", "a #4", "a #1"),
+                new Messages.Difference(2, 2, "app.Reported", "6f", "70", "A #4", ""),
+                new Messages.Difference(3, -1, "", "", "", "the replay threw boom", "")));
+        assertEquals(List.of(List.of("#2", "1", "app.Answered", "a #1", "a #4"),
+                List.of("#2", "2", "app.Reported", "fingerprint 6f (its value not kept)", "A #4"),
+                List.of("#3", "", "", "", "the replay threw boom")), View.replayCells(r),
+                "what the run sent when it kept it, its fingerprint when it did not");
         shell.bus().publish(Messages.REPLAY_REPORT_TOPIC, r);
         eventually("the report shown", () -> wiring.ui().replayLine().equals(r.said())
                 && wiring.ui().replayCells(1).equals(View.replayCells(r).get(1)));

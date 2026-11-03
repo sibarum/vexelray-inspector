@@ -1042,6 +1042,16 @@ class BenchTest {
     }
 
     @Test
+    void aReplaysRowsAreLeftOutAsTheyCrossSinceTheyAreNotTheRuns() {
+        Rows r = LinkRows.rows("run", 1_000L, new dev.vexelray.gui.inspector.link.RowBatch(0, -1, List.of(
+                new dev.vexelray.gui.inspector.link.Row(10, 50L, 0L, 1L, "vexel-logic", "bus", "receive",
+                        "a.Beat to a.Drift 0", ""),
+                new dev.vexelray.gui.inspector.link.Row(11, 60L, 0L, 1L, LinkRows.REPLAY_THREAD, "bus", "receive",
+                        "a.Beat to a.Drift 0", ""))));
+        assertEquals(List.of(10L), r.rows().stream().map(Row::seq).toList(), "the run's delivery, not the replay's");
+    }
+
+    @Test
     void aRunOfAnotherLinkVersionIsShownUnderAWarning() {
         int ours = dev.vexelray.gui.inspector.link.InspectorLink.VERSION;
         assertEquals("", LinkRows.versionWarning(Optional.of(ours)), "the same version sends everything read here");

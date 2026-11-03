@@ -106,6 +106,9 @@ public final class Rerun {
     private static final Pattern LINE = Pattern.compile(
             "#(\\d+) (\\d+) (\\S+) recorded=(\\S+) replayed=(\\S+) ?(.*)");
     private static final Pattern THREW = Pattern.compile("#(\\d+) threw (.*)");
+    /** The lines under a difference: what the replay sent there, and what the run sent, when it kept its sends. */
+    private static final String NOW = "  now ";
+    private static final String WAS = "  was ";
 
     /**
      * What {@code answer}, a run's reply to {@code replay}, says, in words, and each difference it lists. Pure, for a
@@ -130,10 +133,17 @@ public final class Rerun {
             Matcher threw = THREW.matcher(lines[i]);
             if (m.matches()) {
                 differences.add(new Difference(Long.parseLong(m.group(1)), Integer.parseInt(m.group(2)), m.group(3),
-                        m.group(4), m.group(5), m.group(6)));
+                        m.group(4), m.group(5), m.group(6), ""));
             } else if (threw.matches()) {
                 differences.add(new Difference(Long.parseLong(threw.group(1)), -1, "", "", "",
-                        "the replay threw " + threw.group(2)));
+                        "the replay threw " + threw.group(2), ""));
+            } else if (!differences.isEmpty() && (lines[i].startsWith(NOW) || lines[i].startsWith(WAS))) {
+                // What the replay sent, and what the run did when it kept its sends, under the difference they are of.
+                Difference d = differences.removeLast();
+                boolean now = lines[i].startsWith(NOW);
+                String said = lines[i].substring(NOW.length());
+                differences.add(new Difference(d.tick(), d.send(), d.topic(), d.recorded(), d.replayed(),
+                        now ? said : d.what(), now ? d.was() : said));
             }
         }
         String said = "Ran " + count(ticks, "tick") + " of its logic again: "

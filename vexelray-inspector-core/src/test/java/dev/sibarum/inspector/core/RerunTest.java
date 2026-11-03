@@ -86,16 +86,22 @@ class RerunTest {
     }
 
     @Test
-    void eachDifferenceIsReadWithItsTickAndWhatWasSentInstead() {
+    void eachDifferenceIsReadWithItsTickWhatTheReplaySentAndWhatTheRunDidWhenItKeptIt() {
         ReplayReport r = Rerun.report("w2-1", String.join("\n",
                 "ok replay ticks=3 sends=6 differ=17 full",
-                "#1 0 test.replay.answered recorded=5e1 replayed=5e4 a #4",
-                "#2 1 test.replay.reported recorded=none replayed=1f sent test.replay.reported instead: BB",
+                "#1 0 test.replay.answered recorded=5e1 replayed=5e4",
+                "  now a #4",
+                "  was a #1",
+                "#2 1 test.replay.reported recorded=none replayed=1f",
+                "  now BB",
                 "#3 threw java.lang.IllegalStateException: boom"));
-        assertEquals(List.of(new Difference(1, 0, "test.replay.answered", "5e1", "5e4", "a #4"),
-                new Difference(2, 1, "test.replay.reported", "none", "1f", "sent test.replay.reported instead: BB"),
-                new Difference(3, -1, "", "", "", "the replay threw java.lang.IllegalStateException: boom")),
+        assertEquals(List.of(new Difference(1, 0, "test.replay.answered", "5e1", "5e4", "a #4", "a #1"),
+                new Difference(2, 1, "test.replay.reported", "none", "1f", "BB", ""),
+                new Difference(3, -1, "", "", "", "the replay threw java.lang.IllegalStateException: boom", "")),
                 r.differences());
+        assertEquals(List.of(new Difference(1, 0, "t", "5e1", "5e4", "a #4", "")), Rerun.report("w2-1",
+                "ok replay ticks=1 sends=1 differ=1\n#1 0 t recorded=5e1 replayed=5e4 a #4").differences(),
+                "a run of R6's framework says what the replay sent on the difference's own line");
         assertEquals("Ran 3 ticks of its logic again: 17 of 6 sends differ, the first in tick #1 (3 listed); its"
                 + " recording is full, so only the ticks to there", r.said());
         assertEquals("Could not run it again: this run keeps no recording; launch it --replayable",

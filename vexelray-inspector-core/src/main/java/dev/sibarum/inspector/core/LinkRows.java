@@ -59,6 +59,12 @@ public final class LinkRows {
     static final List<String> LANES = List.of("input", "frame", "bus", "gpu", "state", "layout", "draw",
             Model.APP_LANE);
 
+    /**
+     * The thread a run's replay runs on (vexelray-framework's {@code Shell.REPLAY_LANE}): its rows are the replay's
+     * components', which would otherwise be counted as the run's, and are left out as they cross.
+     */
+    static final String REPLAY_THREAD = "vexel-component-replay";
+
     /** The end of the link, queued after its last batch. */
     private static final RowBatch CLOSED = new RowBatch(0, 0, List.of());
 
@@ -218,6 +224,9 @@ public final class LinkRows {
                     Long.toString(b.lostTo() - b.lostFrom() + 1)));
         }
         for (dev.vexelray.gui.inspector.link.Row r : b.rows()) {
+            if (REPLAY_THREAD.equals(r.thread())) {
+                continue;   // a replay's components, run again in the run's process: their rows are not the run's
+            }
             out.add(new Row(r.seq(), origin + r.tMonoNs(), r.tWallNs(), r.frame(), r.thread(), r.lane(), r.kind(),
                     r.detail(), r.cause() == null ? "" : r.cause()));
         }

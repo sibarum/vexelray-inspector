@@ -1317,7 +1317,7 @@ final class View {
     // ------------------------------------------------------------------ the replay panel
 
     /** The replay panel's columns, in order. */
-    static final List<String> REPLAY_COLUMNS = List.of("Tick", "Send", "Topic", "Recorded", "Replayed",
+    static final List<String> REPLAY_COLUMNS = List.of("Tick", "Send", "Topic", "Sent by the run",
             "Sent when run again");
 
     /** How many differences the replay panel has places for: as many as a run lists (the framework's 16). */
@@ -1335,13 +1335,17 @@ final class View {
 
     /**
      * What the replay panel says, a difference a place, a cell for each of {@link #REPLAY_COLUMNS}: its tick, which of
-     * the tick's sends, its topic, the two fingerprints, and what was sent when run again. Pure, for a test.
+     * the tick's sends, its topic, what the run sent there, and what was sent when run again. What the run sent is its
+     * value when the run kept its sends ({@code --replayable=values}), and else only its fingerprint, which says it
+     * differs but not how. Pure, for a test.
      */
     static List<List<String>> replayCells(ReplayReport r) {
         List<List<String>> cells = new ArrayList<>(r.differences().size());
         for (Difference d : r.differences()) {
-            cells.add(List.of("#" + d.tick(), d.send() < 0 ? "" : Integer.toString(d.send()), d.topic(),
-                    d.recorded(), d.replayed(), d.what()));
+            String run = !d.was().isEmpty() ? d.was() : d.recorded().equals("none") ? "nothing"
+                    : d.recorded().isEmpty() ? "" : "fingerprint " + d.recorded() + " (its value not kept)";
+            cells.add(List.of("#" + d.tick(), d.send() < 0 ? "" : Integer.toString(d.send()), d.topic(), run,
+                    d.what()));
         }
         return cells;
     }

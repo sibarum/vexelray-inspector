@@ -118,9 +118,9 @@ final class Ui {
             Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(7f), Length.rem(5f),
             Length.rem(7.5f), Length.grow(1f));
 
-    /** The replay panel's column widths, in {@link View#REPLAY_COLUMNS}' order: what was sent takes what is left. */
+    /** The replay panel's column widths, in {@link View#REPLAY_COLUMNS}' order: the two sends share what is left. */
     private static final List<Length> REPLAY_WIDTHS = List.of(Length.rem(5f), Length.rem(4.5f), Length.rem(18f),
-            Length.rem(6.5f), Length.rem(6.5f), Length.grow(1f));
+            Length.grow(1f), Length.grow(1f));
 
     /** How many places the replay panel shows before it scrolls. */
     private static final int REPLAY_SHOWN = 5;
@@ -330,7 +330,7 @@ final class Ui {
             int at = i;
             replayColumns.add(Table.Column.of(View.REPLAY_COLUMNS.get(i), REPLAY_WIDTHS.get(i), (nodes, place) -> {
                 Node text = nodes.text(cell(replayTexts, place, at)).textSize(Type.SMALL)
-                        .textColor(gui.theme().color(at == View.REPLAY_COLUMNS.size() - 1 ? Role.INK : Role.DIM));
+                        .textColor(gui.theme().color(at >= View.REPLAY_COLUMNS.size() - 2 ? Role.INK : Role.DIM));
                 replayNodes.computeIfAbsent(place, p -> new Node[View.REPLAY_COLUMNS.size()])[at] = text;
                 return text;
             }));

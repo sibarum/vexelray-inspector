@@ -1,0 +1,30 @@
+{
+  "id": "vexelray-inspector",
+  "name": "VexelRay Inspector",
+  "publisher": "sibarum",
+  "description": "DevTools for VexelRay applications: plain panels on a timeline that can be rewound.",
+  "version": "0.2.0-SNAPSHOT",
+
+  "repo": "sibarum/vexelray-dist",
+  "branch": "main",
+  "repoPath": "apps/vexelray-inspector",
+  "releasesRepo": "sibarum/vexelray-dist",
+  "tagFormat": "vexelray-inspector-v{version}",
+
+  "windows": {
+    "binaries": [
+      {
+        "name": "vexelray-inspector",
+        "source": "vexelray-inspector-gui/target/vexelray-inspector.exe",
+        "icon": "vexelray-inspector-gui/src/main/rc/vexelray-inspector.ico",
+        "addToPath": true,
+        "shortcuts": { "desktop": true, "startMenu": true, "label": "VexelRay Inspector" }
+      },
+      {
+        "name": "vexelray-inspector-ffmpeg-record",
+        "source": "vexelray-inspector-gui/target/vexelray-inspector-ffmpeg-record-windows-x86_64.zip",
+        "dir": "ffmpeg-record"
+      }
+    ]
+  }
+}

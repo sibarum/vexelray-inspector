@@ -240,11 +240,14 @@ public final class Bench {
     }
 
     /**
-     * Where {@code kept}'s logic ticks ran, as far as its rows tell, in words; empty before any row. A tick on the main
-     * thread cannot be told from the widgets' (framework-notes FN-8), so a lane with none says what that leaves open.
+     * Where {@code kept}'s logic ticks ran, as far as its rows tell, in words; empty before any row: its own lane's
+     * thread, or the main thread, where the framework names the logic's ticks apart from the widgets' (FN-16).
      */
     static String logicOf(Model kept, boolean noRows) {
         String thread = logicThread(kept);
+        if (thread.equals("main")) {
+            return "logic on the main thread (--logic=main)";
+        }
         if (!thread.isEmpty()) {
             return "logic on its own lane, " + thread;
         }

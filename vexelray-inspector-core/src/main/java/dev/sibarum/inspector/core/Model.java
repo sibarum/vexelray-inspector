@@ -41,9 +41,9 @@ import java.util.Map;
  *       {@link #INJECTED}.</li>
  *   <li><b>Main thread</b>: the {@code frame} zone, one a pass of the loop.</li>
  *   <li><b>Logic</b>: the {@code tick} zone on the {@code bus} lane, on any thread but {@code main}, whose own tick
- *       is the widgets'. Under {@code --logic=main} the logic's ticks are on {@code main} too and cannot be told from
- *       the widgets' (framework-notes FN-8), so this lane is empty there. The {@code tick.ran} row after the zone
- *       numbers the tick and says its rounds and deliveries; on {@code main} it could be either tick's (FN-16).</li>
+ *       is the widgets'; and on {@code main}, under {@code --logic=main}, the one whose {@code tick.ran} row names it
+ *       the logic's ({@code #12 logic ...}), held until that row says so (FN-16). The {@code tick.ran} row after the
+ *       zone numbers the tick and says its rounds and deliveries.</li>
  *   <li><b>Messages</b>: a row on the {@code bus} lane whose kind is a message's type, a class name
  *       ({@code dev.sibarum.inspector.core.Messages.Rows}), as a moment on the thread that published it; not the
  *       bus's own bookkeeping ({@code tick}, {@code pump drain}, {@code vexelray.gui.main.mutations depth},
@@ -101,10 +101,13 @@ import java.util.Map;
  *                    another link version ({@link LinkRows#versionWarning}); empty when nothing has
  * @param declared    the run's bus graph, as its link said it ({@link Declared}); {@link Declared#NONE} before it has
  * @param counts      what crossed each topic, by its name, from the first row folded: see {@link Counted}
+ * @param mainTick    the main thread's last {@code tick} zone not yet claimed: under {@code --logic=main} the logic's
+ *                    and the widgets' ticks both run there, and only the {@code tick.ran} row after one says whose it
+ *                    is (FN-16); {@link #NO_TICK} when there is none
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
                     Map<Long, List<Field>> ahead, List<String> probed, String warning, Declared declared,
-                    Map<String, Counted> counts) {
+                    Map<String, Counted> counts, Row mainTick) {
 
     /**
      * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
@@ -215,6 +218,21 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         return out;
     }
 
+    /** The word a {@code tick.ran} row names its tick by, after the number; empty for an unnamed tick. */
+    static String tickNameOf(Row r) {
+        String[] w = r.detail().split(" ", 3);
+        return w.length > 1 && !w[1].isEmpty() && !Character.isDigit(w[1].charAt(0)) ? w[1] : "";
+    }
+
+    /**
+     * Whether {@code r}, a {@code tick.ran} row, is the logic lane's: every tick off the main thread is, since the
+     * logic's coordinator is the only tick on its thread; on the main thread only the one the framework names so,
+     * which under {@code --logic=main} tells it from the widgets' (FN-16).
+     */
+    static boolean isLogicTick(Row r) {
+        return !r.thread().equals("main") || tickNameOf(r).equals(LOGIC_TICK);
+    }
+
     /** The number a {@code tick.ran} or {@code draw.ran} row begins with, {@code #12}; empty when it does not. */
     static String numberOf(Row r) {
         String d = r.detail();
@@ -259,9 +277,15 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /** What the presenter waits on. */
     private static final List<String> WAITS = List.of("wait fence", "dxgi wait", "acquire image");
 
+    /** No tick zone waiting to be claimed ({@link #mainTick}). Before {@link #EMPTY}, which holds it. */
+    static final Row NO_TICK = new Row(-1, 0L, "", "", "", "");
+
+    /** What the framework names the logic lane's tick in its {@code tick.ran} rows (vexelray-framework's Logic). */
+    static final String LOGIC_TICK = "logic";
+
     /** Before any row. */
-    static final Model EMPTY = new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of(), List.of(), "", Declared.NONE, Map.of());
+    static final Model EMPTY =new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
+            Map.of(), Map.of(), List.of(), "", Declared.NONE, Map.of(), NO_TICK);
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
@@ -298,7 +322,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** This model warning of {@code warning} instead; empty to warn of nothing. */
     Model withWarning(String warning) {
-        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning, declared, counts);
+        return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning, declared, counts,
+                mainTick);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -330,6 +355,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         List<String> probe = probed;
         String warned = warning;
         Declared graph = declared;
+        Row onMain = mainTick;
         // What this batch counted, by topic: merged onto the counts once, at the end, rather than copied for each row.
         HashMap<String, Tally> tallies = null;
         // Each lane's events as they were, replaced only where a row changes one, and what this batch adds to them.
@@ -401,11 +427,26 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             }
             if (r.kind().equals(TICK_RAN) && r.lane().equals("bus")) {
                 // After the tick's zone, on its thread: the newest tick there is its own. Under --logic=main the
-                // logic's ticks and the widgets' are both on main and both numbered, each by its own count, so
-                // neither is (FN-8, FN-16).
-                if (!r.thread().equals("main")) {
-                    setOnTick(held, added, changed, LANES.indexOf(LOGIC), r);
+                // logic's ticks and the widgets' are both on main, and only the name in this row says which this is
+                // (FN-16): the logic's zone, held until now, goes on the lane; the widgets' is let go.
+                int logic = LANES.indexOf(LOGIC);
+                if (r.thread().equals("main")) {
+                    Mark zone = onMain == NO_TICK ? null : markOf(onMain);
+                    onMain = NO_TICK;
+                    if (zone == null || !isLogicTick(r)) {
+                        continue;
+                    }
+                    if (added.get(logic) == null) {
+                        added.set(logic, new ArrayList<>());
+                    }
+                    added.get(logic).add(zone);
+                    changed[logic] = true;
                 }
+                setOnTick(held, added, changed, logic, r);
+                continue;
+            }
+            if (r.lane().equals("bus") && r.kind().equals(TICK) && r.thread().equals("main")) {
+                onMain = r;
                 continue;
             }
             Field about = r.frame() > 0 ? aboutPass(r) : null;
@@ -480,7 +521,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     : lanes.get(i));
         }
         Map<String, Counted> counted = tallies == null ? counts : merged(counts, tallies);
-        return new Model(newest, out, lostNow, offset, named, told, probe, warned, graph, counted);
+        return new Model(newest, out, lostNow, offset, named, told, probe, warned, graph, counted, onMain);
     }
 
     /** The sender named for writes from outside a tick that more than one declared part could have made. */
@@ -834,16 +875,16 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         // A minute of rows, most of them another cause's: a string's hash is kept once worked out, so it tells most apart.
         int hash = cause.hashCode();
         for (Row r : rows) {
-            // Not main's: under --logic=main the logic's ticks and the widgets' are both there, each numbered by its
-            // own count, and a number would name either (FN-16).
-            if (r.lane().equals("bus") && r.kind().equals(TICK) && !r.thread().equals("main")) {
+            // On main, only the logic's: under --logic=main the logic's ticks and the widgets' are both there, each
+            // numbered by its own count, and only the logic's row names it (FN-16).
+            if (r.lane().equals("bus") && r.kind().equals(TICK)) {
                 long took = Durations.nanos(r.detail());
                 if (took >= 0) {
                     zone.put(r.thread(), new long[]{r.atNanos() - took, r.atNanos()});
                 }
             } else if (r.lane().equals("bus") && r.kind().equals(TICK_RAN)) {
                 long[] z = zone.remove(r.thread());
-                if (z != null) {
+                if (z != null && isLogicTick(r)) {
                     ticks.computeIfAbsent(r.thread(), t -> new ArrayList<>()).add(Map.entry(numberOf(r), z));
                 }
             } else if (isDraw(r) && shownBy(r).contains(cause)) {
@@ -945,10 +986,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 return;
             }
             // "#12 2 rounds 5 delivered", and "carried" when its deadline cut it short.
+            // "#12 logic 2 rounds 5 delivered" when the tick is named: its figures one word on.
             String[] w = r.detail().split(" ");
+            int at = tickNameOf(r).isEmpty() ? 1 : 2;
             Mark set = m.with(TICK_NUMBER, numberOf(r), false)
-                    .with(ROUNDS, w.length > 1 ? w[1] : "", false)
-                    .with(DELIVERED, w.length > 3 ? w[3] : "", false)
+                    .with(ROUNDS, w.length > at ? w[at] : "", false)
+                    .with(DELIVERED, w.length > at + 2 ? w[at + 2] : "", false)
                     .with(CARRIED, r.detail().endsWith(" carried") ? "yes, its deadline came first" : "", false);
             if (isFresh) {
                 fresh.set(i - marks.size(), set);

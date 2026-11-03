@@ -32,9 +32,11 @@ import java.util.List;
  *   <li><b>Unaccounted</b>: the rest of the turn, between rows. Shown, never shared out among the other three.</li>
  * </ul>
  *
- * <p>The logic lane's thread parks between ticks with no row (framework-notes FN-17), so all of a tick's turn but
- * the tick is unaccounted; under {@code --logic=main} its ticks cannot be told from the widgets' (FN-8), and its line
- * says so. A job writes no rows at all (FN-15), and says so rather than show a turn of nothing.
+ * <p>The logic lane's thread parks between ticks in an idle zone, {@code logic park}, and what ends the park writes a
+ * {@code wake}, so its rest and its wakes are read as the main thread's are; a run built before the framework wrote
+ * them leaves the rest unaccounted and says so (framework-notes FN-17). Under {@code --logic=main} its ticks are the
+ * main thread's that their {@code tick.ran} row names the logic's (FN-16), and the rest of each turn is the main
+ * thread's. A job writes no rows at all (FN-15), and says so rather than show a turn of nothing.
  *
  * <p>Of the working, <b>recording</b> is the {@code emit canvas} zone, the draw's commands recorded on the CPU: fork 8
  * left it on the thread, to be measured before any render-thread talk, and this is that measurement.
@@ -68,6 +70,10 @@ public final class ClockLedger {
     static final String DRAW_ZONE = "present frame";
     static final String RECORDING = "emit canvas";
     static final String TICK_ZONE = "tick";
+    /** The logic lane's park between ticks, an idle zone on the bus lane (vexelray-framework's {@code Logic.PARK}). */
+    static final String PARK = "logic park";
+    /** What the {@code wake} that ends the logic lane's park says ({@code Logic.WOKEN}). */
+    static final String LOGIC_WOKEN = "message on logic";
 
     private ClockLedger() {
     }
@@ -83,7 +89,8 @@ public final class ClockLedger {
                     || k.equals(Model.HELD_FOR_GPU);
             case "gpu" -> k.equals(DRAW_ZONE) || WAITS.contains(k);
             case "draw" -> k.equals(RECORDING) || k.equals(Model.DRAW_RAN);
-            case "bus" -> k.equals(TICK_ZONE) || k.equals(Model.TICK_RAN);
+            case "bus" -> k.equals(TICK_ZONE) || k.equals(Model.TICK_RAN) || k.equals(PARK)
+                    || k.equals(WAKE) && r.detail().equals(LOGIC_WOKEN);
             default -> false;
         };
     }
@@ -102,15 +109,19 @@ public final class ClockLedger {
     }
 
     /**
-     * The logic lane's tick {@code atNanos} is in, from its start to the next one's: the tick's zone is its work, and
-     * the rest is unaccounted, since the lane's thread parks between ticks without a row (FN-17).
+     * The logic lane's tick {@code atNanos} is in, from its start to the next one's: the tick's zone is its work, the
+     * lane's park its rest ({@link #PARK}), and a {@code wake} naming the lane ({@link #LOGIC_WOKEN}) what ended the park.
+     * A run whose park writes no row (FN-17, before the framework wrote one) leaves the rest unaccounted. Under
+     * {@code --logic=main} the ticks are the main thread's named the logic's, and the rest of the turn is the main
+     * thread's, so it is unaccounted here.
      */
     static Account logic(List<Row> rows, long atNanos, String logicThread) {
         if (logicThread.isEmpty()) {
-            return Account.none(Model.LOGIC, "no tick off the main thread in the reach: idle, or --logic=main,"
-                    + " whose ticks cannot be told from the widgets' (FN-8)");
+            return Account.none(Model.LOGIC, "no logic tick in the reach: idle, or --logic=main in a run whose ticks"
+                    + " name nobody (FN-16)");
         }
-        List<Span> ticks = spans(rows, "bus", TICK_ZONE, logicThread);
+        boolean onMain = logicThread.equals("main");
+        List<Span> ticks = logicTicks(rows, logicThread);
         int i = turn(ticks, atNanos);
         if (i < 0) {
             return Account.none(Model.LOGIC, "no whole tick within a second of the cursor: idle");
@@ -120,19 +131,81 @@ public final class ClockLedger {
         long to = ticks.get(i + 1).from();
         String number = "";
         for (Row r : rows) {
-            if (r.kind().equals(Model.TICK_RAN) && r.thread().equals(logicThread) && r.atNanos() >= tick.to()
-                    && r.atNanos() < to) {
+            if (r.kind().equals(Model.TICK_RAN) && r.thread().equals(logicThread) && Model.isLogicTick(r)
+                    && r.atNanos() >= tick.to() && r.atNanos() < to) {
                 number = Model.numberOf(r);
                 break;
             }
         }
         long working = overlap(tick, from, to);
         String note = note(ticks, i, atNanos, "tick");
-        String parks = "its park writes no row (FN-17)";
-        String over = tick.to() - tick.from() > TICK_DEADLINE ? "; over its 8 ms deadline" : "";
-        return new Account(Model.LOGIC, Model.TICK + (number.isEmpty() ? "" : " " + number), from, to, working, -1L,
-                -1L, unaccounted(from, to, working, 0L, 0L), -1L, -1, -1L,
-                (note.isEmpty() ? parks : note + "; " + parks) + over);
+        String over = tick.to() - tick.from() > TICK_DEADLINE ? "over its 8 ms deadline" : "";
+        String turn = Model.TICK + (number.isEmpty() ? "" : " " + number);
+        if (onMain) {
+            return new Account(Model.LOGIC, turn, from, to, working, -1L, -1L, unaccounted(from, to, working, 0L, 0L),
+                    -1L, -1, -1L, join(note, "on the main thread: the rest of its turn is the main thread's", over));
+        }
+        List<Span> parks = spans(rows, "bus", PARK, logicThread);
+        if (parks.isEmpty()) {
+            return new Account(Model.LOGIC, turn, from, to, working, -1L, -1L, unaccounted(from, to, working, 0L, 0L),
+                    -1L, -1, -1L, join(note, "its park writes no row (FN-17)", over));
+        }
+        long resting = within(parks, null, from, to);
+        int wakes = 0;
+        long firstWake = Long.MAX_VALUE;
+        for (Row r : rows) {
+            if (r.lane().equals("bus") && r.kind().equals(WAKE) && r.detail().equals(LOGIC_WOKEN)
+                    && r.atNanos() >= from && r.atNanos() < to) {
+                wakes++;
+                if (r.atNanos() < firstWake && resting(parks, r.atNanos())) {
+                    firstWake = r.atNanos();
+                }
+            }
+        }
+        return new Account(Model.LOGIC, turn, from, to, working, -1L, resting,
+                unaccounted(from, to, working, 0L, resting), -1L, wakes,
+                firstWake == Long.MAX_VALUE ? -1L : to - firstWake, join(note, over));
+    }
+
+    /**
+     * The logic's ticks on {@code thread}, oldest first: every tick zone there off the main thread; on it, only those
+     * whose {@code tick.ran} row, the next one after on that thread, names the tick the logic's (FN-16).
+     */
+    private static List<Span> logicTicks(List<Row> rows, String thread) {
+        List<Span> ticks = spans(rows, "bus", TICK_ZONE, thread);
+        if (!thread.equals("main")) {
+            return ticks;
+        }
+        List<Row> ran = new ArrayList<>();
+        for (Row r : rows) {
+            if (r.lane().equals("bus") && r.kind().equals(Model.TICK_RAN) && r.thread().equals(thread)) {
+                ran.add(r);
+            }
+        }
+        ran.sort(Comparator.comparingLong(Row::seq));
+        List<Span> logic = new ArrayList<>();
+        for (Span s : ticks) {
+            for (Row r : ran) {
+                if (r.seq() > s.row().seq()) {
+                    if (Model.isLogicTick(r)) {
+                        logic.add(s);
+                    }
+                    break;
+                }
+            }
+        }
+        return logic;
+    }
+
+    /** {@code parts} that say anything, a semicolon apart. */
+    private static String join(String... parts) {
+        StringBuilder b = new StringBuilder();
+        for (String p : parts) {
+            if (!p.isEmpty()) {
+                b.append(b.isEmpty() ? "" : "; ").append(p);
+            }
+        }
+        return b.toString();
     }
 
     /** The main thread's pass {@code atNanos} is in, from its start to the next one's. */

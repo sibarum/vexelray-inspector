@@ -91,6 +91,44 @@ class ClockLedgerTest {
     }
 
     @Test
+    void aTickParkedUntilAMessageRestsAndTheWakeThatEndedItSaysHowLongTheNextTickTookToRun() {
+        row(1000, 1, "vexel-logic", "bus", "tick", "1ms");
+        row(1010, 1, "vexel-logic", "bus", "tick.ran", "#5 logic 2 rounds 3 delivered");
+        row(8500, 1, "main", "bus", "wake", "message on logic");
+        row(9000, 1, "vexel-logic", "bus", "logic park", "8ms");
+        row(10000, 2, "vexel-logic", "bus", "tick", "500us");
+        row(20500, 3, "vexel-logic", "bus", "tick", "500us");
+        assertEquals(new Account(Model.LOGIC, "tick #5", B, B + 9_500 * US, 1_000 * US, -1L, 8_000 * US, 500 * US,
+                -1L, 1, 1_000 * US, ""), ClockLedger.logic(rows, B + 2_000 * US, "vexel-logic"),
+                "its park its rest, the half millisecond after it unsaid, and the wake 1 ms before the next tick began");
+    }
+
+    @Test
+    void underLogicOnMainTheTicksAreTheOnesNamedTheLogicsAndTheRestOfTheTurnIsTheMainThreads() {
+        row(1000, 1, "main", "bus", "tick", "100us");
+        row(1010, 1, "main", "bus", "tick.ran", "#1 1 rounds 1 delivered");
+        row(2000, 1, "main", "bus", "tick", "1ms");
+        row(2010, 1, "main", "bus", "tick.ran", "#1 logic 2 rounds 3 delivered");
+        row(5000, 2, "main", "bus", "tick", "100us");
+        row(5010, 2, "main", "bus", "tick.ran", "#2 1 rounds 1 delivered");
+        row(9000, 3, "main", "bus", "tick", "500us");
+        row(9010, 3, "main", "bus", "tick.ran", "#2 logic 1 rounds 1 delivered");
+        Account a = ClockLedger.logic(rows, B + 3_000 * US, "main");
+        assertEquals("tick #1", a.turn(), "the logic's, not the widgets' tick at 5 ms");
+        assertEquals(B + 1_000 * US, a.fromNanos());
+        assertEquals(B + 8_500 * US, a.toNanos());
+        assertEquals("on the main thread: the rest of its turn is the main thread's", a.note());
+
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
+        assertEquals(List.of("#1", "#2"), m.lane(Model.LOGIC).marks().stream().map(k -> k.field(Model.TICK_NUMBER))
+                .toList(), "the logic lane holds the logic's ticks on main, and not the widgets'");
+        assertEquals("2", m.lane(Model.LOGIC).marks().getFirst().field(Model.ROUNDS), "its figures read past its name");
+        Model split = Model.EMPTY.fold(rows.subList(0, 3), Long.MAX_VALUE).fold(rows.subList(3, rows.size()),
+                Long.MAX_VALUE);
+        assertEquals(m.lane(Model.LOGIC), split.lane(Model.LOGIC), "a zone and its row in two batches, the same");
+    }
+
+    @Test
     void theLedgerHasEveryClockAndJobsSayTheyWriteNoRows() {
         twoPassesAndTheirDraws();
         Messages.LedgerAt l = ClockLedger.at("run", rows, B + 5000 * US, "");

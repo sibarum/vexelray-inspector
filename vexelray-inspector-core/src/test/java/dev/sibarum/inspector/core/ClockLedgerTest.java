@@ -129,11 +129,23 @@ class ClockLedgerTest {
     }
 
     @Test
-    void theLedgerHasEveryClockAndJobsSayTheyWriteNoRows() {
+    void theLedgerHasEveryClockAndJobsWithNoneToReadSaySo() {
         twoPassesAndTheirDraws();
         Messages.LedgerAt l = ClockLedger.at("run", rows, B + 5000 * US, "");
         assertEquals(ClockLedger.CLOCKS, l.accounts().stream().map(Account::clock).toList());
-        assertEquals(Account.none(ClockLedger.JOBS, "a job writes no rows (FN-15)"), l.accounts().getLast());
+        assertEquals(Account.none(ClockLedger.JOBS, "no whole job within a second of the cursor: none asked, or a run"
+                + " whose jobs write no rows (FN-15)"), l.accounts().getLast());
+    }
+
+    @Test
+    void aJobWorksForItsZoneAndRestsUntilTheNextJobOnAnyOfTheLanesThreads() {
+        row(3000, 1, "vexel-job-1", "bus", "job ListRuns", "2ms");
+        row(9000, 1, "vexel-job-2", "bus", "job AskReplay", "4ms");
+        row(20000, 2, "vexel-job-1", "bus", "job ListRuns", "1ms");
+        assertEquals(new Account(ClockLedger.JOBS, "job ListRuns", B + 1_000 * US, B + 5_000 * US, 2_000 * US, -1L,
+                2_000 * US, 0L, -1L, -1, -1L, "on vexel-job-1; resting is between jobs"),
+                ClockLedger.jobs(rows, B + 2_000 * US));
+        assertEquals("job AskReplay", ClockLedger.jobs(rows, B + 6_000 * US).turn(), "the next, on another thread");
     }
 
     @Test

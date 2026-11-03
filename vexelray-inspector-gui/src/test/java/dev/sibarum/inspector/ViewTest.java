@@ -305,8 +305,8 @@ class ViewTest {
         assertEquals(2f, out.stretched.getLast(), 1e-5f, "twice as many pixels a nanosecond");
     }
 
-    /** Six lanes of 20 px: the main thread's band is 20 to 40. */
-    private static final float LANES_H = 120f;
+    /** A lane 20 px high: the main thread's band is 20 to 40. */
+    private static final float LANES_H = 20f * Model.LANES.size();
 
     @Test
     void aPassIsAFillAsLongAsItTookAndAOnePixelLineAtItsEnd() {
@@ -435,10 +435,11 @@ class ViewTest {
         Timeline t = new Timeline("r", "", true, at, List.of(new Lane(Model.MAIN, passes),
                 new Lane(Model.MESSAGES, messages)), Optional.empty());
         Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - 60_000 * MS, at);
-        assertTrue(p.marks().size() < 2 * 6 * LANE, "60 000 passes and as many messages over six lanes' width drew "
+        assertTrue(p.marks().size() < 2 * 6 * LANE, "60 000 passes and as many messages over the lanes' width drew "
                 + p.marks().size() + " marks");
-        assertEquals(5, p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
-                "a hairline between each two of the six lanes");
+        assertEquals(Model.LANES.size() - 1,
+                p.marks().stream().filter(m -> m instanceof Picture.Line l && l.y0() == l.y1()).count(),
+                "a hairline between each two lanes");
     }
 
     @Test

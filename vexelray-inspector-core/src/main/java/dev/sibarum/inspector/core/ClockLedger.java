@@ -49,8 +49,8 @@ public final class ClockLedger {
     /** The clocks the ledger accounts for, in the order the panel shows them. */
     public static final List<String> CLOCKS = List.of(Model.MAIN, Model.LOGIC, Model.DRAWING, ClockLedger.JOBS);
 
-    /** The job lane's clock, which has no lane on the timeline. */
-    public static final String JOBS = "Jobs";
+    /** The job lane's clock, named as its lane on the timeline is. */
+    public static final String JOBS = Model.JOBS;
 
     /** A tick's deadline: still atchung's 8 ms placeholder (ROADMAP phase 4). */
     static final long TICK_DEADLINE = 8_000_000L;
@@ -89,7 +89,7 @@ public final class ClockLedger {
                     || k.equals(Model.HELD_FOR_GPU);
             case "gpu" -> k.equals(DRAW_ZONE) || WAITS.contains(k);
             case "draw" -> k.equals(RECORDING) || k.equals(Model.DRAW_RAN);
-            case "bus" -> k.equals(TICK_ZONE) || k.equals(Model.TICK_RAN) || k.equals(PARK)
+            case "bus" -> k.equals(TICK_ZONE) || k.equals(Model.TICK_RAN) || k.equals(PARK) || k.startsWith(Model.JOB_ZONE)
                     || k.equals(WAKE) && r.detail().equals(LOGIC_WOKEN);
             default -> false;
         };
@@ -105,7 +105,35 @@ public final class ClockLedger {
      */
     static LedgerAt at(String run, List<Row> rows, long atNanos, String logicThread) {
         return new LedgerAt(run, List.of(main(rows, atNanos), logic(rows, atNanos, logicThread),
-                drawing(rows, atNanos), Account.none(JOBS, "a job writes no rows (FN-15)")));
+                drawing(rows, atNanos), jobs(rows, atNanos)));
+    }
+
+    /**
+     * The job lane's run {@code atNanos} is in, from a job's start to the next one's on any of the lane's threads: the
+     * job's zone is its work, and the time to the next job is rest, by rule, as drawing's between draws is: the lane's
+     * threads wait for a request in the executor, which writes no row. Jobs may overlap, and then there is none.
+     */
+    static Account jobs(List<Row> rows, long atNanos) {
+        List<Span> jobs = new ArrayList<>();
+        for (Span s : spans(rows, "bus", null, null)) {
+            if (s.row().kind().startsWith(Model.JOB_ZONE)) {
+                jobs.add(s);
+            }
+        }
+        int i = turn(jobs, atNanos);
+        if (i < 0) {
+            return Account.none(JOBS, "no whole job within a second of the cursor: none asked, or a run whose jobs"
+                    + " write no rows (FN-15)");
+        }
+        Span job = jobs.get(i);
+        long from = job.from();
+        long to = jobs.get(i + 1).from();
+        long working = overlap(job, from, to);
+        long resting = Math.max(0L, to - Math.min(to, job.to()));
+        String name = job.row().kind().substring(Model.JOB_ZONE.length());
+        return new Account(JOBS, Model.JOB + " " + name, from, to, working, -1L, resting,
+                unaccounted(from, to, working, 0L, resting), -1L, -1, -1L,
+                join(note(jobs, i, atNanos, "job"), "on " + job.row().thread() + "; resting is between jobs"));
     }
 
     /**

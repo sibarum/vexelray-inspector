@@ -53,6 +53,9 @@ import java.util.Map;
  *       {@code draw.ran} row, written inside the presenter's zone, numbers it and its pass, and names the causes of the
  *       changes it showed, which is how a path reaches the draw.</li>
  *   <li><b>GPU</b>: what the presenter waited on: {@code wait fence}, {@code dxgi wait}, {@code acquire image}.</li>
+ *   <li><b>Jobs</b>: each job's run on the job lane, its {@code job <name>} zone on the {@code bus} lane, from the
+ *       request reaching it to its reply sent. A timer's {@code timer} row, naming the topic it sent, is a moment on
+ *       the <b>Input</b> lane: like input, it comes from outside the logic.</li>
  * </ul>
  *
  * <h2>The event schema</h2>
@@ -248,7 +251,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String MESSAGES = "Messages";
     public static final String DRAWING = "Drawing";
     public static final String GPU = "GPU";
-    public static final List<String> LANES = List.of(INPUT, MAIN, LOGIC, MESSAGES, DRAWING, GPU);
+    public static final String JOBS = "Jobs";
+    public static final List<String> LANES = List.of(INPUT, MAIN, LOGIC, MESSAGES, DRAWING, GPU, JOBS);
 
     /** The events' kinds, in words the status line puts first. */
     public static final String INPUT_TAKEN = "input";
@@ -259,6 +263,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String HELD_FOR_CEILING = "draw held for the ceiling";
     public static final String HELD_FOR_GPU = "draw held for the GPU";
     public static final String MESSAGE = "message";
+    public static final String JOB = "job";
+    public static final String TIMER = "timer";
+
+    /** A job's zone on the bus lane, {@code job <its class's simple name>} (vexelray-framework's {@code Jobs}). */
+    static final String JOB_ZONE = "job ";
 
     /** The row {@link LinkRows} adds to a batch for the rows its link lost: its detail is how many. */
     static final String LOST_LANE = "link";
@@ -299,7 +308,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     static final String GRAPH = "bus.graph";
 
     /** The probe lane each of {@link #LANES} is read from, in that order; see the class comment. */
-    private static final List<String> PROBE_LANES = List.of("input", "frame", "bus", "bus", "gpu", "gpu");
+    private static final List<String> PROBE_LANES = List.of("input", "frame", "bus", "bus", "gpu", "gpu", "bus");
 
     /**
      * Whether a run whose probe records {@code probe} records the rows lane {@code lane} is read from; true when the
@@ -538,6 +547,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * @param overNanos how long before; 0 for no rate
      */
     Flows flows(String run, String why, Model since, long overNanos) {
+        boolean jobsWrite = !lane(JOBS).marks().isEmpty();
         java.util.TreeMap<String, String> topics = new java.util.TreeMap<>(declared.kinds());
         if (topics.isEmpty()) {
             counts.keySet().forEach(t -> topics.put(t, ""));
@@ -564,9 +574,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                         senders.add(p);
                     }
                 } else {
-                    // Only a mailbox and an inbox are delivered to by the tick, which writes a row for it; a job, a
-                    // source and a destination are handed their messages by the framework, which writes none.
-                    boolean counted = l.how().equals("mailbox") || l.how().equals("inbox");
+                    // A mailbox and an inbox are delivered to by the tick, which writes a row for it, and a job's request
+                    // by the framework, which writes one as well, in a run whose jobs are seen to write rows at all
+                    // (an older one's do not); a source and a destination are handed their messages with none (FN-15).
+                    boolean counted = l.how().equals("mailbox") || l.how().equals("inbox")
+                            || l.how().equals("request") && (c.to().containsKey(l.part()) || jobsWrite);
                     to.add(new End(l.part(), l.how(), counted ? c.to().getOrDefault(l.part(), 0L) : End.UNCOUNTED));
                 }
             }
@@ -1115,6 +1127,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (lane.equals("bus") && messageType(r) != null) {
             return LANES.indexOf(MESSAGES);
         }
+        if (lane.equals("bus") && kind.startsWith(JOB_ZONE)) {
+            return LANES.indexOf(JOBS);
+        }
+        if (lane.equals("bus") && kind.equals(TIMER)) {
+            return LANES.indexOf(INPUT);
+        }
         if ((lane.equals("gpu") && kind.equals("present frame"))
                 || (lane.equals("frame") && (kind.equals(HELD_FOR_CEILING) || kind.equals(HELD_FOR_GPU)))) {
             return LANES.indexOf(DRAWING);
@@ -1155,6 +1173,17 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         String type = r.lane().equals("bus") ? messageType(r) : null;
         if (type != null) {
             return moment(r, at, MESSAGE).with(TYPE, typeName(type), false).with(PACKAGE, typePackage(type), false);
+        }
+        if (kind.equals(TIMER)) {
+            // What a timer sent, as the moment it came due: from outside the logic, as input is.
+            return moment(r, at, TIMER).with(TYPE, typeName(r.detail()), false)
+                    .with(PACKAGE, typePackage(r.detail()), false);
+        }
+        if (kind.startsWith(JOB_ZONE)) {
+            long ran = Durations.nanos(r.detail());
+            return ran < 0 ? null : fields(new Mark(at - ran, at, JOB, r.thread(), r.frame(), r.cause(), List.of()))
+                    .with(TYPE, kind.substring(JOB_ZONE.length()), false)
+                    .with(TOOK, String.format(Locale.ROOT, "%.2f ms", ran / 1e6), false);
         }
         long took = Durations.nanos(r.detail());
         if (took < 0) {

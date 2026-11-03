@@ -123,6 +123,27 @@ class FlowsTest {
     }
 
     @Test
+    void inARunWhoseJobsWriteRowsWhatReachesAJobIsCountedAndItsRunIsOnTheJobsLane() {
+        long at = 2_000 * MS;
+        List<Row> rows = new ArrayList<>(List.of(graph(at, GRAPH)));
+        rows.add(send(1, at, "FindRuns", "dev.sibarum.inspector.core.Bench"));
+        rows.add(new Row(2, at + MS, 0L, 3L, "vexel-job-1", "bus", "receive",
+                M + "FindRuns to dev.sibarum.inspector.core.ListRuns 0", ""));
+        rows.add(new Row(3, at + 3 * MS, 0L, 3L, "vexel-job-1", "bus", "job ListRuns", "2ms", ""));
+        rows.add(new Row(4, at + 4 * MS, 0L, 3L, "vexel-timer", "bus", "timer", M + "FindRuns", ""));
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
+        Flow find = m.flows("run", "", Model.EMPTY, 0L).flows().get(1);
+        assertEquals(List.of(new End("dev.sibarum.inspector.core.ListRuns", "request", 1)), find.to(),
+                "its request's receive row counts it");
+        Messages.Mark job = m.lane(Model.JOBS).marks().getFirst();
+        assertEquals(List.of(Model.JOB, at + MS, at + 3 * MS, "ListRuns", "vexel-job-1"),
+                List.of(job.kind(), job.fromNanos(), job.toNanos(), job.field(Model.TYPE), job.thread()));
+        Messages.Mark timer = m.lane(Model.INPUT).marks().getFirst();
+        assertEquals(List.of(Model.TIMER, "Messages.FindRuns"), List.of(timer.kind(), timer.field(Model.TYPE)),
+                "what a timer sent, from outside the logic, as input is");
+    }
+
+    @Test
     void aWriteFromOutsideATickIsPutToTheSenderWhoseThreadWroteIt() {
         long at = 2_000 * MS;
         String graph = String.join("\n", "# vexelray bus graph 2",

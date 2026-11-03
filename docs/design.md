@@ -2,7 +2,7 @@
 
 What the Inspector is when it is rebuilt for VexelRay 0.2, what it draws, how it is put together on the message
 model, what it needs from the stack, and the order to build it in. **Proposed 2026-10-29; every decision in section
-9 ruled by the author 2026-10-30; R1 to R7 done 2026-11-02; what follows is section 10's *Later*.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
+9 ruled by the author 2026-10-30; R1 to R7 done 2026-11-02, R8 2026-11-03; what follows is section 10's *Later*.** It is phase 7½ of `vexelray-framework/ROADMAP.md`: the first
 application written for 0.2 from nothing, and the test of whether 0.2 is easy to use correctly.
 
 The 0.1.3 Inspector (`Documents/GitHub/vexelray-inspector`, on `develop`) is where the ideas come from, not the code.
@@ -697,6 +697,25 @@ Each step ends with something to watch or something an agent can ask, and lands 
   the rows. *Not done:* the Jobs lane is the job's run, not request to reply; a source's and a destination's ends,
   `Crew`'s rows, and the job lane's rest by row (`TODO.md`).
   **R7 done 2026-11-02.** Its retrospective is `docs/retrospective.md`'s R7 section.
+- **R8, replay finished**: recording that costs a run nothing, and a difference that says what the run sent. **Done
+  2026-11-03, as proposed to and ruled by the author that day**, the choice between keeping sends and fingerprinting
+  them behind the tick made by the author on these numbers, from an Inspector replaying the 13.7 s recording and
+  watched by another: not recording, ticks p50 0.46 to 0.52 ms, p95 1.3 to 1.6 ms, 160 MB after a full GC; hashing on
+  the tick (R6), 0.8 to 1.6 ms rising, 2.6 to 7.6 ms, 165 MB; keeping every send, 0.50 to 0.61 ms, 1.3 to 1.7 ms,
+  331 MB. *Ruled:* fingerprint behind the tick by default, keep the sends when asked. *Upstream* (vexelray-framework
+  `d4b910b`): the tick keeps each send, a thread of the recording's own (`replay-hasher`) fingerprints each whole
+  tick's behind it and lets them go, in chunks that never move so the two never share an array; measured 0.48 to
+  0.63 ms, 1.4 to 2.0 ms, 167 MB. `--replayable=values` keeps the sends, and a difference says `  now ...` and
+  `  was ...` under its line; measured 0.53 to 0.98 ms, 1.5 to 3.0 ms, 199 MB. A replay runs on a thread of its own,
+  `vexel-component-replay` (`c305588`), found needed when one replay counted its components' 56 deliveries as the
+  run's. *Here* (`17c5d47`): `Rerun` reads the two lines (and R6's one-line answer); the replay panel's columns are
+  *Sent by the run* and *Sent when run again*, the first saying the fingerprint when the run kept no values; the
+  replay's own rows are left out as they cross. *Seen:* a scratch app generated from the template with a component
+  that keeps its count outside itself, launched `--replayable=values` and attached to: `Drifted[beats=1]` sent by the
+  run, `Drifted[beats=48]` when run again, and its timer's topic written and delivered 21 times each after two
+  replays; W2 `differ=0` in both modes. *Not done:* the processor's warning on a type a replay cannot compare,
+  deferred while another session had the processor open (the framework's TODO).
+  **R8 done 2026-11-03.** Its retrospective is `docs/retrospective.md`'s R8 section.
 - **Later**, as 0.1 planned them: time (kronometer) where a view still has motion, GPU and present, the JVM, the
   tree, diagnosis rules, history by build, the command menu.
 

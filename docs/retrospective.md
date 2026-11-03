@@ -31,6 +31,38 @@ reasons and the full method.
 
 ## Milestones
 
+## R8, replay finished · 2026-11-03
+
+The count: no new FN. One defect of R6 found and fixed upstream: a replay's own rows were counted as the run's.
+
+### The shapes
+
+| | The promise | What happened | How it looked |
+| --- | --- | --- | --- |
+| R6's replay rows | Every row on the link is the run's | The replay ran its components in the run's process on the asking thread, and their deliveries were probe rows like any other | A timer's topic written 15 times and delivered 71 after one replay |
+
+### What would stop each
+
+1. **Anything the framework runs on the side runs on a lane of its own name**, so a reader can tell it from the
+   application's work by thread, as it does the logic's, the jobs' and now the replay's.
+
+### My own mistakes
+
+- **I shipped R6 knowing the replay's rows would land in the run's probe**, and wrote "acceptable" in my head rather
+  than in a note. It took a run with a real difference to show what it did to the flows table. *Rule:* a side effect
+  judged acceptable is written down where the reader will meet it, with what it does.
+- **I left a shared static counter in a test** that a new test then advanced first, so a test passed or failed by its
+  order. *Rule:* a test that keeps anything outside its objects resets it where it begins.
+
+### What to keep exactly as it is
+
+- **Measure the two designs before choosing**, and give the author the table, not a recommendation alone: a
+  temporary switch, not committed, gave the three rows in under ten minutes, and the ruling was on numbers.
+- **A scratch app from the template for the check no witness can give.** Twenty lines of a component that keeps its
+  count outside itself showed a real difference in the window, which R6 could only show in tests.
+- **Old answers still read.** `Rerun` reads R6's one-line difference as well as R8's three, so an application on the
+  older framework is still shown.
+
 ## R7, every thread accounts for itself · 2026-11-02
 
 The count: no new finding; four fixed. FN-8, FN-16 and FN-17 are fixed upstream, and FN-15 for jobs (a source's and a

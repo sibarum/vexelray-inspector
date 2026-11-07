@@ -54,6 +54,7 @@ import dev.vexelray.gui.core.input.Shortcut;
 import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
+import dev.vexelray.gui.keymap.Keymap;
 import dev.vexelray.gui.widget.Button;
 import dev.vexelray.gui.widget.ListView;
 import dev.vexelray.gui.widget.Select;
@@ -243,8 +244,8 @@ final class View {
     private long pressedAt = -1L;
     private long pressWindow = -1L;
 
-    View(Gui gui, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey, Sender<EventKey> eventKey,
-         Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
+    View(Gui gui, Keymap keys, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey,
+         Sender<EventKey> eventKey, Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
          Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
          Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
          Sender<RunAgain> runAgain, Sender<GoToTick> goToTick) {
@@ -284,16 +285,21 @@ final class View {
             show();
         });
         gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x(), click.y()));
-        gui.shortcut(Shortcut.of(Key.SPACE), pauseKey, new PauseKey());
-        gui.shortcut(Shortcut.of(Key.END), followKey, new FollowKey());
-        gui.shortcut(Shortcut.of(Key.LEFT), eventKey, new EventKey(-1));
-        gui.shortcut(Shortcut.of(Key.RIGHT), eventKey, new EventKey(1));
-        gui.shortcut(Shortcut.of(Key.LEFT, Modifier.SHIFT), stepKey, new StepKey(-1));
-        gui.shortcut(Shortcut.of(Key.RIGHT, Modifier.SHIFT), stepKey, new StepKey(1));
-        gui.shortcut(Shortcut.of(Key.UP), rowKey, new RowKey(-1));
-        gui.shortcut(Shortcut.of(Key.DOWN), rowKey, new RowKey(1));
-        gui.shortcut(Shortcut.of(Key.EQUAL), zoomKey, new ZoomKey(true));
-        gui.shortcut(Shortcut.of(Key.MINUS), zoomKey, new ZoomKey(false));
+        // Every window-wide command is the keymap's, so Key bindings… lists it and the person can change its chords.
+        // The id is what their changes are stored under, so it is the part to keep stable.
+        keys.action("timeline.pause", "Pause, or follow again", Shortcut.of(Key.SPACE))
+                .sends(pauseKey, new PauseKey());
+        keys.action("timeline.follow", "Follow the present", Shortcut.of(Key.END)).sends(followKey, new FollowKey());
+        keys.action("timeline.event-back", "Previous event", Shortcut.of(Key.LEFT)).sends(eventKey, new EventKey(-1));
+        keys.action("timeline.event-forward", "Next event", Shortcut.of(Key.RIGHT)).sends(eventKey, new EventKey(1));
+        keys.action("timeline.step-back", "Step back a tenth", Shortcut.of(Key.LEFT, Modifier.SHIFT))
+                .sends(stepKey, new StepKey(-1));
+        keys.action("timeline.step-forward", "Step on a tenth", Shortcut.of(Key.RIGHT, Modifier.SHIFT))
+                .sends(stepKey, new StepKey(1));
+        keys.action("timeline.row-back", "Previous row", Shortcut.of(Key.UP)).sends(rowKey, new RowKey(-1));
+        keys.action("timeline.row-forward", "Next row", Shortcut.of(Key.DOWN)).sends(rowKey, new RowKey(1));
+        keys.action("view.zoom-in", "Zoom in", Shortcut.of(Key.EQUAL)).sends(zoomKey, new ZoomKey(true));
+        keys.action("view.zoom-out", "Zoom out", Shortcut.of(Key.MINUS)).sends(zoomKey, new ZoomKey(false));
     }
 
     // ------------------------------------------------------------------ keys and clicks

@@ -5,9 +5,9 @@ import sibarum.atchung.Topic;
 /**
  * What a key chord asks of the {@link View}: the message the chord was declared to send.
  *
- * <p>A chord is a declaration ({@code gui.shortcut(chord, sender, message)}, threading.md T7.5): the dispatcher sends
- * this when the chord is pressed and runs nothing of the application's, and the view hears it in the frame, on the GUI
- * thread, like any other message. The keys come to the view rather than straight to the bench because what they send
+ * <p>A chord is a declaration (a keymap action's {@code sends(sender, message)}, threading.md T7.5): the dispatcher
+ * sends this when the chord is pressed and runs nothing of the application's, and the view hears it in the frame, on
+ * the GUI thread, like any other message. The keys come to the view rather than straight to the bench because what they send
  * the bench needs a moment only the view knows: where its lane comes to rest (design.md 9.8).
  */
 final class Keys {

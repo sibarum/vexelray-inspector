@@ -129,7 +129,9 @@ pauses, washes the stretch across every lane, puts the cursor at its later end, 
 with its rate and the rows lost inside it; the flows table counts what was written and delivered within it, each rate
 over its length, and says so over the table; and the threads panel sums each clock's whole turns inside it ("487
 passes"), each state's share of their length, their wakes, and the longest wake to run. All three keep counting the
-stretch while the cursor moves, until Escape lets it go or the lanes follow the present again. A stretch is measured on
+stretch while the cursor moves, until Escape lets it go or the lanes follow the present again. At the readouts line's
+right end, a button each goes to the stretch's longest main-thread pass, logic tick and draw (the draw whose recording
+took longest, as the readouts' max), keeping the stretch selected. A stretch is measured on
 the lanes as they come to rest, so one dragged while they still glide from a pause ends where it is seen to. Only what
 the tape keeps can be selected, so a drag past the newest row stops at it. A lane the run does not record, which only a run of another link version can
 leave out, has its name dimmed and the status line names it (framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they

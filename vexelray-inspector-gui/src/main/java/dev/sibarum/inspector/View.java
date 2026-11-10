@@ -351,6 +351,8 @@ final class View {
             runAgain.send(new RunAgain());
         } else if (p.button().equals(ui.openGraphAddress())) {
             windows.send(WindowCommand.show(GraphWindow.KEY));
+        } else if (ui.longestAt(p.button()) >= 0) {
+            longest(readouts).get(ui.longestAt(p.button())).ifPresent(e -> goTo.send(new GoTo(e)));
         }
     }
 
@@ -1327,7 +1329,36 @@ final class View {
 
     @Subscribe
     public void readouts(Readouts r) {
+        readouts = r;
         ui.readouts(readout(r));
+        List<Optional<Event>> events = longest(r);
+        for (int i = 0; i < LONGEST.size(); i++) {
+            boolean can = r.selected() && events.get(i).isPresent();
+            ui.longest(i, longestLabel(i, can ? longestNanos(r, i) : -1), can);
+        }
+    }
+
+    /** What the longest buttons go to, in order. */
+    static final List<String> LONGEST = List.of("pass", "tick", "draw");
+
+    /** The readouts the bench last said, for a longest button pressed to go to what they name. */
+    private Readouts readouts = new Readouts("", 0L, 0L, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+    /** The longest pass, tick and draw the readouts name, in {@link #LONGEST}'s order. */
+    static List<Optional<Event>> longest(Readouts r) {
+        return List.of(r.longestPass(), r.longestTick(), r.longestDraw());
+    }
+
+    /** How long the {@code which}th longest took: a pass or tick its length, a draw its recording. */
+    static long longestNanos(Readouts r, int which) {
+        return which == 2 ? r.recordingMaxNanos()
+                : longest(r).get(which).map(e -> e.mark().toNanos() - e.mark().fromNanos()).orElse(-1L);
+    }
+
+    /** The {@code which}th longest button's label: with how long it took, or without when {@code nanos} is negative. */
+    static String longestLabel(int which, long nanos) {
+        String name = "Longest " + LONGEST.get(which);
+        return nanos < 0 ? name : String.format(Locale.ROOT, "%s %.2f ms", name, nanos / 1e6);
     }
 
     // ------------------------------------------------------------------ the rows panel

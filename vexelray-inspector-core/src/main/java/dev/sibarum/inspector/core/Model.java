@@ -2,6 +2,7 @@ package dev.sibarum.inspector.core;
 
 import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.End;
+import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Flow;
 import dev.sibarum.inspector.core.Messages.Flows;
@@ -1315,7 +1316,29 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         Arrays.sort(ticks);
         return new Readouts(run, from, to, selected, draws, ceiling, gpu, percentile(recordings, 0.50),
                 percentile(recordings, 0.95), percentile(recordings, 1.0), ticks.length, percentile(ticks, 0.50),
-                percentile(ticks, 0.95), percentile(ticks, 1.0), rowsLost);
+                percentile(ticks, 0.95), percentile(ticks, 1.0), rowsLost, longest(MAIN, PASS, from, to, false),
+                longest(LOGIC, "", from, to, false), longest(DRAWING, DRAW, from, to, true));
+    }
+
+    /**
+     * The event on {@code lane} ending after {@code from} and at or before {@code to} that took longest, the first of
+     * equals: of {@code kind}, or of any kind when it is empty; by its recording when {@code byRecording}, else by its
+     * length. Empty when none is in the stretch.
+     */
+    private Optional<Event> longest(String lane, String kind, long from, long to, boolean byRecording) {
+        Mark best = null;
+        long most = -1;
+        for (Mark m : lane(lane).marks()) {
+            if (m.toNanos() <= from || m.toNanos() > to || !(kind.isEmpty() || m.kind().equals(kind))) {
+                continue;
+            }
+            long n = byRecording ? Durations.nanos(m.field(RECORDING)) : m.toNanos() - m.fromNanos();
+            if (n > most) {
+                best = m;
+                most = n;
+            }
+        }
+        return best == null ? Optional.empty() : Optional.of(new Event(lane, best));
     }
 
     /** The {@code p} percentile of {@code sorted}, nearest rank; 0 when empty. */

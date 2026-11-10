@@ -75,6 +75,14 @@ final class Landmarks {
     /** The readouts line, over the second before the cursor, or over the stretch selected ("Selected ..."). */
     static final String READOUTS = "readouts";
 
+    /**
+     * The buttons at the readouts line's right end that go to a stretch's longest main-thread pass, logic tick and draw
+     * (by its recording); enabled while a stretch is selected.
+     */
+    static final String LONGEST_PASS = "longest.pass";
+    static final String LONGEST_TICK = "longest.tick";
+    static final String LONGEST_DRAW = "longest.draw";
+
     /** The button at the focused lane's right end that follows the present again, as End does. */
     static final String FOLLOW = "follow";
 

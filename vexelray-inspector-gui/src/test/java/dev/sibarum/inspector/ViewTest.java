@@ -655,6 +655,21 @@ class ViewTest {
     }
 
     @Test
+    void theLongestButtonsSayHowLongEachTookAPassOrTickByItsLengthADrawByItsRecording() {
+        Event pass = new Event(Model.MAIN, new Mark(1_000_000L, 13_400_000L, Model.PASS, "main"));
+        Event tick = new Event(Model.LOGIC, new Mark(2_000_000L, 6_100_000L, Model.TICK, "vexel-logic"));
+        Event draw = new Event(Model.DRAWING, new Mark(3_000_000L, 9_000_000L, Model.DRAW, "main"));
+        Readouts r = new Readouts("r", 0L, 1_000_000_000L, true, 1, 0, 0, 900_000, 900_000, 2_300_000, 1, 0, 0,
+                4_100_000, 0, Optional.of(pass), Optional.of(tick), Optional.of(draw));
+        assertEquals(List.of(Optional.of(pass), Optional.of(tick), Optional.of(draw)), View.longest(r));
+        assertEquals("Longest pass 12.40 ms", View.longestLabel(0, View.longestNanos(r, 0)));
+        assertEquals("Longest tick 4.10 ms", View.longestLabel(1, View.longestNanos(r, 1)));
+        assertEquals("Longest draw 2.30 ms", View.longestLabel(2, View.longestNanos(r, 2)),
+                "the draw's recording, as the readouts' max, not its length");
+        assertEquals("Longest draw", View.longestLabel(2, -1), "nothing selected: no time");
+    }
+
+    @Test
     void aStretchSelectedIsWashedAcrossEveryLaneUnderTheMarks() {
         long at = 10 * View.SPAN_NANOS;
         Timeline t = new Timeline("r", "", false, at, main(pass(at - 2_000_000_000L, at - 1_000_000_000L)),

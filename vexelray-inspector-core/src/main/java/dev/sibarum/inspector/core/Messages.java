@@ -433,12 +433,25 @@ public final class Messages {
      * @param tickP95Nanos   the 95th percentile; 0 with none
      * @param tickMaxNanos   the longest; 0 with none
      * @param rowsLost       rows the link lost: from the first row read to the cursor, or within a stretch selected
+     * @param longestPass    the main thread's longest pass in it, for a click to go to; empty with none
+     * @param longestTick    the logic tick whose length is {@code tickMaxNanos}; empty with none
+     * @param longestDraw    the draw whose recording is {@code recordingMaxNanos}; empty with none
      */
     public static final Topic<Readouts> READOUTS_TOPIC = Topic.state(Readouts.class);
 
     public record Readouts(String run, long fromNanos, long toNanos, boolean selected, int draws, int heldForCeiling,
                            int heldForGpu, long recordingP50Nanos, long recordingP95Nanos, long recordingMaxNanos,
-                           int ticks, long tickP50Nanos, long tickP95Nanos, long tickMaxNanos, long rowsLost) {
+                           int ticks, long tickP50Nanos, long tickP95Nanos, long tickMaxNanos, long rowsLost,
+                           Optional<Event> longestPass, Optional<Event> longestTick, Optional<Event> longestDraw) {
+
+        /** Readouts that name no longest event. */
+        public Readouts(String run, long fromNanos, long toNanos, boolean selected, int draws, int heldForCeiling,
+                        int heldForGpu, long recordingP50Nanos, long recordingP95Nanos, long recordingMaxNanos,
+                        int ticks, long tickP50Nanos, long tickP95Nanos, long tickMaxNanos, long rowsLost) {
+            this(run, fromNanos, toNanos, selected, draws, heldForCeiling, heldForGpu, recordingP50Nanos,
+                    recordingP95Nanos, recordingMaxNanos, ticks, tickP50Nanos, tickP95Nanos, tickMaxNanos, rowsLost,
+                    Optional.empty(), Optional.empty(), Optional.empty());
+        }
 
         /** How long the stretch counted is. */
         public long nanos() {

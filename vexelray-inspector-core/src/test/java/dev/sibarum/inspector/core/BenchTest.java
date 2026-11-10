@@ -135,6 +135,14 @@ class BenchTest {
 
     /** The last readouts sent, keeping the rest of what was sent. */
     private Readouts readouts() {
+        Readouts r = longestRead();
+        return new Readouts(r.run(), r.fromNanos(), r.toNanos(), r.selected(), r.draws(), r.heldForCeiling(),
+                r.heldForGpu(), r.recordingP50Nanos(), r.recordingP95Nanos(), r.recordingMaxNanos(), r.ticks(),
+                r.tickP50Nanos(), r.tickP95Nanos(), r.tickMaxNanos(), r.rowsLost());
+    }
+
+    /** The last readouts sent, the longest events they name kept. */
+    private Readouts longestRead() {
         return sent.stream().filter(Readouts.class::isInstance).map(Readouts.class::cast).toList().getLast();
     }
 
@@ -949,6 +957,43 @@ class BenchTest {
         tell(Messages.FOLLOW_TOPIC, new Follow());
         assertFalse(readouts().selected(), "following lets the stretch go with the island");
         assertEquals(Optional.empty(), timeline().selected());
+    }
+
+    @Test
+    void aStretchsLongestPassTickAndDrawAreNamedAndAClickGoesToEachKeepingTheStretch() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            rows.addAll(aDraw(10L * i, 100 * MS * (i + 1)));
+            rows.add(row(10L * i + 8, 100 * MS * (i + 1) + 5 * MS, "vexel-logic", "bus", "tick", (i + 1) + "00us"));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(pass(300, 2_100 * MS, "1ms"))));
+        tell(Messages.SELECT_RANGE_TOPIC, new SelectRange(250 * MS, 1_450 * MS));
+
+        Readouts r = longestRead();
+        Event tick = r.longestTick().orElseThrow();
+        assertEquals(Model.LOGIC, tick.lane());
+        assertEquals(1_405 * MS, tick.mark().toNanos(), "the slowest tick ending inside it, 1.4 ms");
+        assertEquals(r.tickMaxNanos(), tick.mark().toNanos() - tick.mark().fromNanos());
+        Event pass = r.longestPass().orElseThrow();
+        assertEquals(Model.MAIN, pass.lane());
+        assertEquals(Model.PASS, pass.mark().kind());
+        assertEquals(300 * MS + 10_000, pass.mark().toNanos(), "passes alike: the first ending inside it");
+        Event draw = r.longestDraw().orElseThrow();
+        assertEquals(Model.DRAWING, draw.lane());
+        assertEquals(Model.DRAW, draw.mark().kind());
+        assertTrue(draw.mark().toNanos() > 250 * MS && draw.mark().toNanos() <= 1_450 * MS, "a draw inside it");
+
+        sent.clear();
+        tell(Messages.GO_TO_TOPIC, new GoTo(tick));
+        assertTrue(readouts().selected(), "still what the readouts count");
+        Timeline t = timeline();
+        assertEquals(Optional.of(bare(tick.mark())), t.on().map(Event::mark), "the cursor on the slowest tick");
+        assertEquals(Optional.of(new Range(250 * MS, 1_450 * MS)), t.selected(), "the stretch still selected");
+
+        tell(Messages.CLEAR_RANGE_TOPIC, new ClearRange());
+        assertTrue(longestRead().longestTick().isPresent(), "the second before the cursor names its longest too");
     }
 
     @Test

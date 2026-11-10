@@ -77,7 +77,8 @@ import java.util.Objects;
  *
  * <h2>The readouts</h2>
  *
- * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}).
+ * <p>One line of numbers under the timeline, over the second before the cursor ({@link #readouts}), and at its right
+ * end a button each for a selected stretch's longest pass, tick and draw ({@link #longest}).
  *
  * <h2>It holds no state</h2>
  *
@@ -135,6 +136,8 @@ final class Ui {
     private final Node strip;
     private final Node[] names;
     private final Node readouts;
+    /** The buttons that go to the stretch's longest pass, tick and draw, in {@link View#LONGEST}'s order. */
+    private final Button[] longest;
     private final IconButton follow;
     /** The space over the follow button, a lane high for each lane above the focused one. */
     private final Node above;
@@ -216,8 +219,20 @@ final class Ui {
 
         readouts = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         gui.landmark(Landmarks.READOUTS, readouts);
+        longest = new Button[View.LONGEST.size()];
+        Node[] readoutNodes = new Node[1 + longest.length];
+        readoutNodes[0] = readouts;
+        for (int i = 0; i < longest.length; i++) {
+            String landmark = LONGEST_LANDMARKS.get(i);
+            longest[i] = new Button(gui, View.longestLabel(i, -1)).kind(Button.Kind.GHOST).name(landmark)
+                    .enabled(false);
+            // Never focused, as the follow button is: a focused button claims Space, and Space pauses here (FN-11).
+            gui.focusable(longest[i].node(), false);
+            gui.landmark(landmark, longest[i].node());
+            readoutNodes[1 + i] = longest[i].node();
+        }
         Node readoutRow = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
-                .children(readouts);
+                .children(readoutNodes);
 
         details = new Node[View.DETAILS.size()];
         detailRows = new Node[details.length];
@@ -610,6 +625,26 @@ final class Ui {
     /** What the readouts line says. */
     void readouts(String line) {
         readouts.text(line);
+    }
+
+    /** The landmarks of the longest buttons, in {@link View#LONGEST}'s order. */
+    private static final List<String> LONGEST_LANDMARKS = List.of(Landmarks.LONGEST_PASS, Landmarks.LONGEST_TICK,
+            Landmarks.LONGEST_DRAW);
+
+    /** The {@code which}th longest button's label, and whether it can be pressed. */
+    void longest(int which, String label, boolean can) {
+        longest[which].label(label).enabled(can);
+        gui.focusable(longest[which].node(), false);
+    }
+
+    /** Which longest button presses with {@code address}, in {@link View#LONGEST}'s order; -1 for none of them. */
+    int longestAt(String address) {
+        for (int i = 0; i < longest.length; i++) {
+            if (longest[i].address().equals(address)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** Whether the follow button can be pressed: while the cursor is stopped. */

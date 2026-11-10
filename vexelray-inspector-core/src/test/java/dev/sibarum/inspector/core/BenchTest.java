@@ -292,6 +292,37 @@ class BenchTest {
     }
 
     @Test
+    void overAStretchSelectedTheFlowsAreWhatCrossedWithinItWhereverTheCursorGoes() {
+        tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE), ""));
+        long at = 2_000 * MS;
+        String m = "dev.sibarum.inspector.core.Messages.";
+        String graph = "# vexelray bus graph 2\npart component dev.example.Bench lane=logic\n"
+                + "sends dev.example.Bench topic=" + m + "Timeline\ntopic " + m + "Timeline kind=state";
+        List<Row> rows = new ArrayList<>(List.of(new Row(-1, at, "", Model.APP_LANE, Model.GRAPH, graph)));
+        for (int i = 0; i < 40; i++) {
+            rows.add(new Row(1 + i, at + 100 * MS * i, 0L, 3L, "vexel-logic", "bus", "send",
+                    m + "Timeline from dev.example.Bench 1", ""));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        sent.clear();
+
+        tell(Messages.SELECT_RANGE_TOPIC, new SelectRange(at + 1_050 * MS, at + 2_050 * MS));
+        Flows f = took(Flows.class).getLast();
+        assertEquals(Optional.of(new Range(at + 1_050 * MS, at + 2_050 * MS)), f.selected());
+        assertEquals(10, f.flows().getFirst().written(), "the ten sends from 1.1 s to 2.0 s, and none before");
+        assertEquals(10.0, f.flows().getFirst().perSecond(), 1e-9, "ten over its second");
+
+        tell(Messages.STEP_TOPIC, new Step(-500 * MS, 0L));
+        assertEquals(10, took(Flows.class).getLast().flows().getFirst().written(),
+                "the cursor moved inside it: still what crossed within the stretch");
+
+        tell(Messages.CLEAR_RANGE_TOPIC, new ClearRange());
+        Flows cleared = took(Flows.class).getLast();
+        assertEquals(Optional.empty(), cleared.selected());
+        assertEquals(16, cleared.flows().getFirst().written(), "Escape: from the first row to the cursor, at 1.55 s");
+    }
+
+    @Test
     void aRecordingSaysItDeclaresNoGraphAndShowsTheTopicsItsRowsCounted() {
         build("", "C:/runs/run.csv", "");
         tell(WindowOpened.TOPIC, new WindowOpened("main"));

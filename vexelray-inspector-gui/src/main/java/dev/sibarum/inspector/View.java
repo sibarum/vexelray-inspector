@@ -1436,9 +1436,19 @@ final class View {
             topics.add(flow.topic());
             cells.put(flow.topic(), flowCells(flow));
         }
-        ui.flows(f.why(), topics, cells);
+        ui.flows(flowsNote(f), topics, cells);
         lastFlows = f;
         ui.graph().picture(Diagram.draw(f, traced, graphW, graphH, diagramInks));
+    }
+
+    /**
+     * What the flows panel says over its table: over a stretch selected, that its counts are of it alone; and why there
+     * is no graph, if there is none. Empty when there is nothing to say. Pure, for a test.
+     */
+    static String flowsNote(Flows f) {
+        String over = f.selected().map(r -> String.format(Locale.ROOT,
+                "Counted within the %.3f s selected, each rate over its length", r.nanos() / 1e9)).orElse("");
+        return over.isEmpty() || f.why().isEmpty() ? over + f.why() : over + ". " + f.why();
     }
 
     /** The graph panel's colours, and its size and what it last showed, for a resize to draw it again. */

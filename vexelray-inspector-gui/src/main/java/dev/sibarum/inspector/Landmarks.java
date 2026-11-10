@@ -25,7 +25,10 @@ final class Landmarks {
     static final String RUNS = "runs";
     static final String DETACH = "detach";
 
-    /** The flows table, a row a topic, and the line over it that says why there is no graph when there is none. */
+    /**
+     * The flows table, a row a topic, and the line over it that says when it counts a stretch selected, and why there
+     * is no graph when there is none.
+     */
     static final String FLOWS = "flows";
 
     /** The rows panel: the raw rows around the cursor, the cursor's row in the accent. */

@@ -8,6 +8,7 @@ import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Part;
+import dev.sibarum.inspector.core.Messages.Range;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.Traced;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * What the panels show at one moment of a run (vexelray-inspector's {@code docs/design.md} section 8): the newest
@@ -159,6 +161,21 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         public Counted {
             by = Map.copyOf(by);
             to = Map.copyOf(to);
+        }
+
+        /** What was counted after {@code before}, the same topic's counts as of an earlier moment; this, with none. */
+        Counted less(Counted before) {
+            if (before == null) {
+                return this;
+            }
+            return new Counted(written - before.written, delivered - before.delivered, less(by, before.by),
+                    less(to, before.to));
+        }
+
+        private static Map<String, Long> less(Map<String, Long> now, Map<String, Long> then) {
+            Map<String, Long> out = new HashMap<>(now.size());
+            now.forEach((who, n) -> out.put(who, n - then.getOrDefault(who, 0L)));
+            return out;
         }
     }
 
@@ -547,6 +564,25 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * @param overNanos how long before; 0 for no rate
      */
     Flows flows(String run, String why, Model since, long overNanos) {
+        return flows(run, why, counts, since.counts, overNanos, Optional.empty());
+    }
+
+    /**
+     * As {@link #flows(String, String, Model, long)}, over the stretch {@code selected} only: every count less
+     * {@code from}'s, the model as of its earlier end, this model being as of its later; the rate over its length.
+     */
+    Flows flowsOver(String run, String why, Model from, Range selected) {
+        Map<String, Counted> within = new HashMap<>(counts.size());
+        counts.forEach((topic, c) -> within.put(topic, c.less(from.counts.get(topic))));
+        return flows(run, why, within, Map.of(), selected.nanos(), Optional.of(selected));
+    }
+
+    /**
+     * The flows from {@code counts}, the rate their written less {@code rateFrom}'s over {@code overNanos}, said to
+     * be over {@code selected} when it is given.
+     */
+    private Flows flows(String run, String why, Map<String, Counted> counts, Map<String, Counted> rateFrom,
+                        long overNanos, Optional<Range> selected) {
         boolean jobsWrite = !lane(JOBS).marks().isEmpty();
         java.util.TreeMap<String, String> topics = new java.util.TreeMap<>(declared.kinds());
         if (topics.isEmpty()) {
@@ -605,11 +641,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     to.add(new End(who, "", n));
                 }
             });
-            long before = since.counts.getOrDefault(t.getKey(), none).written();
+            long before = rateFrom.getOrDefault(t.getKey(), none).written();
             double perSecond = overNanos <= 0 ? 0.0 : (c.written() - before) * 1e9 / overNanos;
             flows.add(new Flow(t.getKey(), t.getValue(), from, to, c.written(), c.delivered(), perSecond));
         }
-        return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows);
+        return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows, selected);
     }
 
     /**

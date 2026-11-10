@@ -220,4 +220,28 @@ class FlowsTest {
         assertEquals(35, timeline.written());
         assertEquals(20.0, timeline.perSecond(), 1e-9, "30 written over a second and a half");
     }
+
+    @Test
+    void overAStretchEveryCountIsWhatCrossedWithinItAndTheRateIsOverItsLength() {
+        long at = 2_000 * MS;
+        List<Row> first = new ArrayList<>(List.of(graph(at, GRAPH)));
+        for (int i = 0; i < 5; i++) {
+            first.add(send(i, at + i * MS, "Timeline", "dev.sibarum.inspector.core.Bench"));
+        }
+        Model before = Model.EMPTY.fold(first, Long.MAX_VALUE);
+        List<Row> more = new ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            more.add(send(10 + i, at + 500 * MS + i * MS, "Timeline", "dev.sibarum.inspector.core.Bench"));
+        }
+        Model after = before.fold(more, Long.MAX_VALUE);
+        Messages.Range stretch = new Messages.Range(at + 100 * MS, at + 2_100 * MS);
+        Flows f = after.flowsOver("run", "", before, stretch);
+        Flow timeline = f.flows().getLast();
+        assertEquals(30, timeline.written(), "the five written before it are not in it");
+        assertEquals(30, timeline.from().stream().filter(e -> e.part().equals("dev.sibarum.inspector.core.Bench"))
+                .mapToLong(End::count).sum(), "and nor are they in its sender's count");
+        assertEquals(15.0, timeline.perSecond(), 1e-9, "30 over the stretch's two seconds");
+        assertEquals(java.util.Optional.of(stretch), f.selected());
+        assertEquals(java.util.Optional.empty(), after.flows("run", "", before, 1_500 * MS).selected());
+    }
 }

@@ -126,7 +126,9 @@ receivers and how the message travelled are not recorded yet (framework-notes FN
 The readouts count the second before the cursor: draws, draws held by reason, ticks and their median, 95th
 percentile and longest, and the rows the link lost. Shift and a drag across the lanes selects a stretch instead: it
 pauses, washes the stretch across every lane, puts the cursor at its later end, and the readouts count it, each count
-with its rate and the rows lost inside it, until Escape lets it go or the lanes follow the present again. Only what
+with its rate and the rows lost inside it; the flows table counts what was written and delivered within it, each rate
+over its length, and says so over the table. Both keep counting the stretch while the cursor moves, until Escape lets
+it go or the lanes follow the present again. Only what
 the tape keeps can be selected, so a drag past the newest row stops at it. A lane the run does not record, which only a run of another link version can
 leave out, has its name dimmed and the status line names it (framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they
 stop where they were, and the status line says what happened.

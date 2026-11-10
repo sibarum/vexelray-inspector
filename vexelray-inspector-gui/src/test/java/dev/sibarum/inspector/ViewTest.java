@@ -623,6 +623,17 @@ class ViewTest {
     }
 
     @Test
+    void theFlowsPanelSaysWhenItCountsAStretchSelected() {
+        Optional<Messages.Range> stretch = Optional.of(new Messages.Range(1_000_000_000L, 3_500_000_000L));
+        assertEquals("Counted within the 2.500 s selected, each rate over its length",
+                View.flowsNote(new Messages.Flows("r", "", List.of(), List.of(), stretch)));
+        assertEquals("Counted within the 2.500 s selected, each rate over its length. a recording declares no bus graph",
+                View.flowsNote(new Messages.Flows("r", "a recording declares no bus graph", List.of(), List.of(),
+                        stretch)));
+        assertEquals("", View.flowsNote(new Messages.Flows("r", "", List.of(), List.of())), "nothing selected");
+    }
+
+    @Test
     void overAStretchSelectedTheReadoutsSayHowLongAndEachCountWithItsRate() {
         assertEquals("Selected 2.500 s:   Draws 150 (60.0/s), held 3 for the ceiling and 0 for the GPU, recording"
                         + " p50 0.50 ms, p95 0.62 ms, max 0.90 ms   Ticks 300 (120.0/s), p50 0.45 ms, p95 1.20 ms,"

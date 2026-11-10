@@ -125,9 +125,10 @@ public final class Bench {
      * @param tape     the rows, with their checkpoints
      * @param kept     every event the lanes show
      * @param endNanos its newest end: the newest row when it was frozen, or where the cursor stopped if that was later
-     * @param selected the stretch of it selected ({@link SelectRange}), which the readouts count over; let go with it
+     * @param selection the stretch of it selected ({@link SelectRange}), which the readouts and flows count over; let go
+     *                  with it
      */
-    public record Island(Tape tape, Model kept, long endNanos, Optional<Range> selected) {
+    public record Island(Tape tape, Model kept, long endNanos, Optional<Selection> selection) {
 
         /** None: following. */
         static final Island NONE = new Island(Tape.EMPTY, Model.EMPTY, 0L, Optional.empty());
@@ -137,9 +138,17 @@ public final class Bench {
             return new Island(s.tape(), s.kept(), Math.max(s.now().newestNanos(), atNanos), Optional.empty());
         }
 
-        /** This island with {@code selected} as its stretch selected, or none. */
+        /** The stretch selected, if any. */
+        Optional<Range> selected() {
+            return selection.map(Selection::range);
+        }
+
+        /** This island with {@code selected} as its stretch selected, or none; its ends' models folded once, here. */
         Island selecting(Optional<Range> selected) {
-            return selected.equals(this.selected) ? this : new Island(tape, kept, endNanos, selected);
+            if (selected.equals(selected())) {
+                return this;
+            }
+            return new Island(tape, kept, endNanos, selected.map(r -> Selection.of(tape, r)));
         }
 
         /** Its oldest end: as far back as the cursor can go. */
@@ -163,8 +172,22 @@ public final class Bench {
             if (inside.isEmpty()) {
                 return this;
             }
-            return new Island(tape.add(inside, endNanos, FOREVER), kept.fold(inside, endNanos, FOREVER), endNanos,
-                    selected);
+            Tape more = tape.add(inside, endNanos, FOREVER);
+            // A late row inside the stretch changes what it counted: its ends are folded again from the fuller tape.
+            Optional<Selection> again = selection.map(s -> inside.stream()
+                    .anyMatch(r -> r.atNanos() <= s.range().toNanos()) ? Selection.of(more, s.range()) : s);
+            return new Island(more, kept.fold(inside, endNanos, FOREVER), endNanos, again);
+        }
+    }
+
+    /**
+     * A stretch selected, and the model as of each of its ends: what the readouts' lost rows and every flow are
+     * counted between. Folded from the tape when it is selected rather than for each message after.
+     */
+    public record Selection(Range range, Model from, Model to) {
+
+        static Selection of(Tape tape, Range r) {
+            return new Selection(r, tape.asOf(r.fromNanos()), tape.asOf(r.toNanos()));
         }
     }
 
@@ -332,11 +355,12 @@ public final class Bench {
          * else over the second before the cursor, {@code at} the model there.
          */
         Readouts readouts(Model at) {
-            if (!paused || island.selected().isEmpty()) {
+            if (!paused || island.selection().isEmpty()) {
                 return at.readouts(run);
             }
-            Range r = island.selected().get();
-            long lost = island.tape().asOf(r.toNanos()).lost() - island.tape().asOf(r.fromNanos()).lost();
+            Selection s = island.selection().get();
+            Range r = s.range();
+            long lost = s.to().lost() - s.from().lost();
             return island.kept().readouts(run, r.fromNanos(), r.toNanos(), true, Math.max(0L, lost));
         }
 
@@ -347,14 +371,20 @@ public final class Bench {
 
         /**
          * The declared graph and what crossed it as of the cursor, {@code at} the model there: written a second taken
-         * from the tape's checkpoint a second or two before. A recording declares no graph, and says so.
+         * from the tape's checkpoint a second or two before. Over a stretch selected, what crossed within it instead,
+         * whatever the cursor. A recording declares no graph, and says so.
          */
         Flows flows(Model at) {
+            boolean recording = run.startsWith(REPLAY);
+            Optional<Selection> over = paused ? island.selection() : Optional.empty();
+            Model end = over.map(Selection::to).orElse(at);
+            String why = run.isEmpty() || end.declared().said() ? ""
+                    : recording ? "a recording declares no bus graph: the topics its rows counted" : "";
+            if (over.isPresent()) {
+                return end.flowsOver(run, why, over.get().from(), over.get().range());
+            }
             long moment = paused ? cursor : now.newestNanos();
             Tape.Second back = (paused ? island.tape() : tape).secondAt(moment - Tape.SECOND);
-            boolean recording = run.startsWith(REPLAY);
-            String why = run.isEmpty() || at.declared().said() ? ""
-                    : recording ? "a recording declares no bus graph: the topics its rows counted" : "";
             return back == null ? at.flows(run, why, Model.EMPTY, 0L)
                     : at.flows(run, why, back.start(), moment - back.fromNanos());
         }

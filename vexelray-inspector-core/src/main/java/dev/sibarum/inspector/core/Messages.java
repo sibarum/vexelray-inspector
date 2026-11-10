@@ -629,14 +629,21 @@ public final class Messages {
      * @param why   why there is no graph, in words: a recording has none, or the run declared none; empty when there
      *              is one
      * @param parts every part the run declares, in its graph's order
-     * @param flows every topic its graph names, by name
+     * @param flows    every topic its graph names, by name
+     * @param selected the stretch selected, when every count is of what crossed within it and each rate is over its
+     *                 length; empty when they are counted from the run's first row read to the cursor
      */
     public static final Topic<Flows> FLOWS_TOPIC = Topic.state(Flows.class);
 
-    public record Flows(String run, String why, List<Part> parts, List<Flow> flows) {
+    public record Flows(String run, String why, List<Part> parts, List<Flow> flows, Optional<Range> selected) {
         public Flows {
             parts = List.copyOf(parts);
             flows = List.copyOf(flows);
+        }
+
+        /** Counted from the run's first row read to the cursor. */
+        public Flows(String run, String why, List<Part> parts, List<Flow> flows) {
+            this(run, why, parts, flows, Optional.empty());
         }
     }
 
@@ -661,9 +668,10 @@ public final class Messages {
      * @param from      who sends it: each declared sender with what it wrote, and the framework for what no declared
      *                  part wrote
      * @param to        who hears it: each declared receiver with what was delivered to it, and how it hears
-     * @param written   messages written on it, from the run's first row read to the cursor
+     * @param written   messages written on it, from the run's first row read to the cursor, or within the stretch
+     *                  selected ({@link Flows#selected})
      * @param delivered deliveries of it, to every receiver together, over the same
-     * @param perSecond written a second, over the second or two before the cursor
+     * @param perSecond written a second, over the second or two before the cursor, or over the stretch selected
      */
     public record Flow(String topic, String kind, List<End> from, List<End> to, long written, long delivered,
                        double perSecond) {

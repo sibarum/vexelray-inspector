@@ -68,9 +68,14 @@ final class Diagram {
 
     /**
      * An arrow: from one part to another, the topics it carries, and what the sender wrote on them; {@code lit} when
-     * that is more than nothing.
+     * that is more than nothing. What it wrote a second on them together, and the moment of its newest write on any
+     * of them, 0 for none.
      */
-    record Arrow(String from, String to, List<String> topics, long written) {
+    record Arrow(String from, String to, List<String> topics, long written, double perSecond, long lastNanos) {
+
+        Arrow(String from, String to, List<String> topics, long written) {
+            this(from, to, topics, written, 0.0, 0L);
+        }
 
         boolean lit() {
             return written > 0;
@@ -79,6 +84,17 @@ final class Diagram {
 
     /** Where everything goes: the boxes, by part, and the arrows between them. */
     record Layout(Map<String, Box> boxes, List<Arrow> arrows) {
+    }
+
+    /**
+     * The line a lit arrow is drawn along, from where it begins to where it lands, and what its sender writes on it a
+     * second: what the dots run along ({@link Dots}).
+     */
+    record Track(float x0, float y0, float x1, float y1, double perSecond) {
+
+        float length() {
+            return (float) Math.hypot(x1 - x0, y1 - y0);
+        }
     }
 
     private Diagram() {
@@ -132,7 +148,9 @@ final class Diagram {
                         topics.add(topic);
                     }
                     long written = (before == null ? 0L : before.written()) + Math.max(0L, from.count());
-                    arrows.put(key, new Arrow(sender, receiver, List.copyOf(topics), written));
+                    double perSecond = (before == null ? 0.0 : before.perSecond()) + from.perSecond();
+                    long last = Math.max(before == null ? 0L : before.lastNanos(), from.lastNanos());
+                    arrows.put(key, new Arrow(sender, receiver, List.copyOf(topics), written, perSecond, last));
                 }
             }
         }
@@ -207,28 +225,24 @@ final class Diagram {
         ordered.sort(java.util.Comparator.comparingInt(a -> onPath(a, l, t) ? 2 : a.lit() ? 1 : 0));
         for (Arrow a : ordered) {
             boolean path = onPath(a, l, t);
-            Box from = l.boxes().get(a.from());
-            Box to = l.boxes().get(a.to());
-            if (from == null || to == null) {
+            float[] line = line(a, l);
+            if (line == null) {
                 continue;
             }
-            float[] ends = ends(from, to);
-            // Two arrows between the same pair, one each way, sit a little apart, each on its own side.
-            boolean back = a.from().compareTo(a.to()) > 0;
-            float dx = from.y() == to.y() ? 0f : back ? -APART : APART;
-            float dy = from.y() == to.y() ? (back ? -APART : APART) : 0f;
-            float x0 = ends[0] + dx;
-            float y0 = ends[1] + dy;
-            float x1 = ends[2] + dx;
-            float y1 = ends[3] + dy;
+            float x0 = line[0];
+            float y0 = line[1];
+            float x1 = line[2];
+            float y1 = line[3];
+            float dx = line[4];
             Color ink = path ? inks.path() : a.lit() ? inks.lit() : inks.faint();
             float thick = (a.lit() ? (float) Math.min(4.0, 1.0 + Math.log10(1.0 + a.written())) : 1f)
                     + (path ? 1f : 0f);
             s.line(x0, y0, x1, y1, thick, ink);
             head(s, x0, y0, x1, y1, thick, ink);
             if (a.lit() || path) {
-                String said = a.topics().size() <= 2 ? String.join(", ", a.topics())
-                        : a.topics().get(0) + ", " + a.topics().get(1) + " +" + (a.topics().size() - 2);
+                String said = (a.topics().size() <= 2 ? String.join(", ", a.topics())
+                        : a.topics().get(0) + ", " + a.topics().get(1) + " +" + (a.topics().size() - 2))
+                        + measured(a, f.atNanos());
                 // A third of the way along, beside the line on its own side.
                 float lx = x0 + (x1 - x0) * 0.35f + (dx < 0 ? -said.length() * TEXT_PX * 0.47f - 4f : 4f);
                 float ly = y0 + (y1 - y0) * 0.35f + TEXT_PX * 0.3f;
@@ -240,6 +254,69 @@ final class Diagram {
             s.text(fit(b.label(), b.w()), b.x() + 8f, b.midY() + TEXT_PX * 0.35f, TEXT_PX, inks.name());
         }
         return s.picture();
+    }
+
+    /**
+     * Where arrow {@code a} of layout {@code l} is drawn: from {@code x0, y0} to {@code x1, y1}, and how far it is set
+     * off across, {@code dx}, as {@code {x0, y0, x1, y1, dx}}; null when one of its parts has no box. Two arrows between
+     * the same pair, one each way, sit a little apart, each on its own side.
+     */
+    static float[] line(Arrow a, Layout l) {
+        Box from = l.boxes().get(a.from());
+        Box to = l.boxes().get(a.to());
+        if (from == null || to == null) {
+            return null;
+        }
+        float[] ends = ends(from, to);
+        boolean back = a.from().compareTo(a.to()) > 0;
+        float dx = from.y() == to.y() ? 0f : back ? -APART : APART;
+        float dy = from.y() == to.y() ? (back ? -APART : APART) : 0f;
+        return new float[]{ends[0] + dx, ends[1] + dy, ends[2] + dx, ends[3] + dy, dx};
+    }
+
+    /**
+     * What the sender of arrow {@code a} writes on it a second, and how long before {@code atNanos} it last did, in
+     * words after its topics: {@code " · 42/s · 0.3 s ago"}. Each is left out when it is not known: no rate, or no
+     * write, or no moment the flows are as of.
+     */
+    static String measured(Arrow a, long atNanos) {
+        StringBuilder said = new StringBuilder();
+        if (a.perSecond() > 0.0) {
+            said.append(" · ").append(a.perSecond() >= 10.0 ? String.format(java.util.Locale.ROOT, "%.0f/s",
+                    a.perSecond()) : String.format(java.util.Locale.ROOT, "%.1f/s", a.perSecond()));
+        }
+        if (a.lastNanos() > 0L && atNanos > 0L) {
+            said.append(" · ").append(ago(Math.max(0L, atNanos - a.lastNanos())));
+        }
+        return said.toString();
+    }
+
+    /** {@code nanos} as how long ago: in ms under a second, in tenths of a second under a minute, else whole seconds. */
+    static String ago(long nanos) {
+        if (nanos < 1_000_000_000L) {
+            return nanos / 1_000_000L + " ms ago";
+        }
+        return nanos < 60_000_000_000L ? String.format(java.util.Locale.ROOT, "%.1f s ago", nanos / 1e9)
+                : nanos / 1_000_000_000L + " s ago";
+    }
+
+    /**
+     * The lines of {@code f}'s arrows that something is being written on, laid out in a panel {@code w} by {@code h}
+     * px, and the rate on each: where {@link Dots} run.
+     */
+    static List<Track> tracks(Flows f, float w, float h) {
+        if (w <= 0f || h <= 0f) {
+            return List.of();
+        }
+        Layout l = lay(f, w, h);
+        List<Track> out = new ArrayList<>();
+        for (Arrow a : l.arrows()) {
+            float[] line = a.perSecond() > 0.0 ? line(a, l) : null;
+            if (line != null) {
+                out.add(new Track(line[0], line[1], line[2], line[3], a.perSecond()));
+            }
+        }
+        return out;
     }
 
     /** Where an arrow from {@code from} to {@code to} begins and lands: the edges of their boxes that face. */

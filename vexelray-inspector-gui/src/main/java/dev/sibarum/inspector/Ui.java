@@ -338,7 +338,7 @@ final class Ui {
         Node flowsPanel = gui.column().width(Length.grow(1.4f)).height(Length.FILL).gap(Type.TIGHT)
                 .children(flowsWhy, flows.node());
         // The graph beside its flows: the same topics, drawn between the parts, the counts in the table.
-        graph = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false)
+        graph = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false).childMotion(false)
                 .background(gui.theme().color(Role.PANEL));
         gui.landmark(Landmarks.GRAPH, graph);
         // Over the graph, at its right: the button that gives it a window of its own to be looked around in.

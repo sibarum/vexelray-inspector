@@ -645,18 +645,22 @@ public final class Messages {
      * @param flows    every topic its graph names, by name
      * @param selected the stretch selected, when every count is of what crossed within it and each rate is over its
      *                 length; empty when they are counted from the run's first row read to the cursor
+     * @param atNanos  the moment the counts are as of, on the rows' clock: the cursor, the newest row while following,
+     *                 or the later end of the stretch selected. How long ago an end last wrote is this less its
+     *                 {@link End#lastNanos}. 0 when it is no moment
      */
     public static final Topic<Flows> FLOWS_TOPIC = Topic.state(Flows.class);
 
-    public record Flows(String run, String why, List<Part> parts, List<Flow> flows, Optional<Range> selected) {
+    public record Flows(String run, String why, List<Part> parts, List<Flow> flows, Optional<Range> selected,
+                        long atNanos) {
         public Flows {
             parts = List.copyOf(parts);
             flows = List.copyOf(flows);
         }
 
-        /** Counted from the run's first row read to the cursor. */
+        /** Counted from the run's first row read to the cursor, as of no moment. */
         public Flows(String run, String why, List<Part> parts, List<Flow> flows) {
-            this(run, why, parts, flows, Optional.empty());
+            this(run, why, parts, flows, Optional.empty(), 0L);
         }
     }
 
@@ -700,10 +704,18 @@ public final class Messages {
      * @param part  the part's name, or {@link #FRAMEWORK} for what no declared part sent
      * @param how   {@code sends}, or how the part hears it: {@code mailbox}, {@code inbox}, {@code request},
      *              {@code start}, {@code stop}, {@code open}, {@code write}
-     * @param count messages written by it, or delivered to it; {@link #UNCOUNTED} for a job, a source or a destination
-     *              hearing, which no row counts
+     * @param count     messages written by it, or delivered to it; {@link #UNCOUNTED} for a job, a source or a
+     *                  destination hearing, which no row counts
+     * @param perSecond what it wrote a second, over what {@link Flow#perSecond} is over; 0 for a receiver
+     * @param lastNanos the moment of its newest write within what {@code count} counts, on the rows' clock; 0 when it
+     *                  wrote none there, and for a receiver
      */
-    public record End(String part, String how, long count) {
+    public record End(String part, String how, long count, double perSecond, long lastNanos) {
+
+        /** An end with no rate and no last write: a receiver, or a sender not measured. */
+        public End(String part, String how, long count) {
+            this(part, how, count, 0.0, 0L);
+        }
 
         /** The part named for writes no declared part made: a widget's, the window's, input's, automation's. */
         public static final String FRAMEWORK = "the framework";

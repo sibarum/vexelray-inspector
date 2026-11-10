@@ -183,12 +183,19 @@ final class View {
      * @param reach        how many of it the strip reaches past the lane each side, {@link #SLIDE_LANES} or more
      * @param edge         where the lane's right edge is, a moment, as a function of the present
      * @param zoom         how much time the lane spans, as its natural logarithm, so that each doubling takes as long
+     * @param dots         the dots running along the graph panel's lit arrows ({@link Dots})
      */
-    record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, int reach, Motion edge, Motion zoom) {
+    record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, int reach, Motion edge, Motion zoom,
+                 Dots dots) {
 
-        /** A strip at the least reach. */
+        /** A strip at the least reach, with no dots. */
         Strip(Node strip, long edgeNanos, float pictureScale, float laneW, Motion edge, Motion zoom) {
-            this(strip, edgeNanos, pictureScale, laneW, SLIDE_LANES, edge, zoom);
+            this(strip, edgeNanos, pictureScale, laneW, SLIDE_LANES, edge, zoom, Dots.NONE);
+        }
+
+        /** This strip, the graph's dots {@code next}. */
+        Strip with(Dots next) {
+            return new Strip(strip, edgeNanos, pictureScale, laneW, reach, edge, zoom, next);
         }
     }
 
@@ -282,10 +289,12 @@ final class View {
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
         this.diagramInks = Diagram.Inks.of(gui);
+        this.graphDots = new Dots.Pool(gui, ui.graph(), diagramInks.name());
         gui.hear(ui.graph(), NodeEvent.RESIZE, layout -> {
             graphW = layout.rect().w();
             graphH = layout.rect().h();
             ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
+            layDots();
         });
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneX = layout.rect().x();
@@ -440,7 +449,7 @@ final class View {
             }
         }
         state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.reach(), edge,
-                zoom);
+                zoom, state.dots());
         show();
     }
 
@@ -596,7 +605,7 @@ final class View {
         pressWindow = -1L;
         last = t;
         state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.reach(), edge,
-                state.zoom().settled(now));
+                state.zoom().settled(now), state.dots().following(t.live(), now));
         ui.status(t.status());
         ui.warning(t.warning());
         ui.canFollow(!t.live());
@@ -706,7 +715,7 @@ final class View {
         Fit fit = fit(last, traced, laneW, laneH, scale, inks, lo - widest, hi, reach, rests);
         ui.strip().picture(fit.picture());
         tell(fit, malformed(last));
-        state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, reach, edge, state.zoom());
+        state = new Strip(ui.strip(), last.edgeNanos(), scale, laneW, reach, edge, state.zoom(), state.dots());
     }
 
     /**
@@ -1492,6 +1501,20 @@ final class View {
         ui.flows(flowsNote(f), topics, cells);
         lastFlows = f;
         ui.graph().picture(Diagram.draw(f, traced, graphW, graphH, diagramInks));
+        layDots();
+    }
+
+    /**
+     * The graph panel's dots laid out again on the arrows of the flows last told, at the panel's size: kept as they
+     * are when that changes no dot, so a rate that stays in its step leaves them running where they were.
+     */
+    private void layDots() {
+        List<Diagram.Track> tracks = Diagram.tracks(lastFlows, graphW, graphH);
+        if (tracks.equals(dotTracks)) {
+            return;
+        }
+        dotTracks = tracks;
+        state = state.with(graphDots.dots(state.dots(), tracks, 0f, 0f));
     }
 
     /**
@@ -1506,6 +1529,9 @@ final class View {
 
     /** The graph panel's colours, and its size and what it last showed, for a resize to draw it again. */
     private final Diagram.Inks diagramInks;
+    /** The graph panel's dot nodes, and the tracks they were last laid out on. */
+    private final Dots.Pool graphDots;
+    private List<Diagram.Track> dotTracks = List.of();
     private float graphW;
     private float graphH;
     private Flows lastFlows = new Flows("", "", List.of(), List.of());
@@ -1557,7 +1583,7 @@ final class View {
     /**
      * The asked half: where the motions put the right edge and the zoom at the frame's present; the picture stretched
      * from the scale it was built at to the zoom's, about the edge moment; and the strip slid by how far the right
-     * edge is from that moment. Due again while either moves.
+     * edge is from that moment; and the graph's dots where they run to ({@link Dots#place}). Due again while any moves.
      */
     @Draw
     static long draw(Strip s, Frame frame, Drawn out) {
@@ -1568,6 +1594,8 @@ final class View {
         float stretch = s.pictureScale() > 0f ? (float) (scale / s.pictureScale()) : 1f;
         out.stretch(s.strip(), stretch, s.laneW() * (1 + s.reach()));
         out.offset(s.strip(), -s.reach() * s.laneW() + (float) ((s.edgeNanos() - edge) * scale), 0f);
-        return s.edge().moving(t) || s.zoom().moving(t) ? frame.presentNanos() : Frame.NEVER;
+        Dots.place(s.dots(), t, still, out);
+        return s.edge().moving(t) || s.zoom().moving(t) || !still && s.dots().moving() ? frame.presentNanos()
+                : Frame.NEVER;
     }
 }

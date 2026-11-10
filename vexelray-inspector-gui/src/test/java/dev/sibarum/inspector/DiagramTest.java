@@ -100,4 +100,34 @@ class DiagramTest {
         assertEquals(6, p.marks().stream().filter(m -> m instanceof Picture.Line line && line.color().equals(PATH))
                 .count(), "two arrows, each a line and a head of two strokes");
     }
+
+    @Test
+    void anArrowSaysWhatItsSenderWritesASecondAndHowLongAgoItLastDidAndOnlyABusyOneHasATrack() {
+        long at = 10_000_000_000L;
+        Flows f = new Flows("run", "", FLOWS.parts(), List.of(
+                new Flow(P + "Rows", "edge", List.of(new End(P + "LinkRows", "sends", 40, 25.0, at - 300_000_000L)),
+                        List.of(new End(P + "Bench", "inbox", 40)), 40, 40, 25.0),
+                new Flow(P + "Timeline", "state", List.of(new End(P + "Bench", "sends", 30, 2.5, at - 2_500_000_000L)),
+                        List.of(new End(P + "View#timeline", "mailbox", 10)), 30, 10, 2.5),
+                new Flow(P + "Details", "state", List.of(new End(P + "Bench", "sends", 30, 0.0, at - 4_000_000_000L)),
+                        List.of(new End(P + "View#details", "mailbox", 10)), 30, 10, 0.0)),
+                java.util.Optional.empty(), at);
+        Diagram.Layout l = Diagram.lay(f, 600f, 600f);
+        Diagram.Arrow toView = l.arrows().stream().filter(a -> a.to().equals(P + "View")).findFirst().orElseThrow();
+        assertEquals(2.5, toView.perSecond(), 1e-9, "the topics' rates on one arrow together");
+        assertEquals(at - 2_500_000_000L, toView.lastNanos(), "and the newest of their last writes");
+
+        List<String> texts = Diagram.draw(f, 600f, 600f, INKS).marks().stream()
+                .filter(m -> m instanceof Picture.Text).map(m -> ((Picture.Text) m).text()).toList();
+        assertTrue(texts.contains("Rows · 25/s · 300 ms ago"), texts.toString());
+        assertTrue(texts.contains("Timeline, Details · 2.5/s · 2.5 s ago"), texts.toString());
+        assertEquals("", Diagram.measured(new Diagram.Arrow("a", "b", List.of("T"), 3), 0L),
+                "nothing said that is not known");
+        assertEquals("75 s ago", Diagram.ago(75_400_000_000L));
+
+        List<Diagram.Track> tracks = Diagram.tracks(f, 600f, 600f);
+        assertEquals(List.of(25.0, 2.5), tracks.stream().map(Diagram.Track::perSecond).sorted(
+                java.util.Comparator.reverseOrder()).toList(), "an arrow nothing is being written on has no dots");
+        assertEquals(List.of(), Diagram.tracks(f, 0f, 0f));
+    }
 }

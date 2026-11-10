@@ -43,8 +43,13 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       window spreads them apart, but the fitted graph still overlaps. Nothing on either can be clicked: a part or an
       arrow chosen should filter the flows table to its topics, and the graph window is the place to start.
 - [ ] The graph window's zoom lands in one step: easing it, as Pix's `Lens` does, needs a `@Draw` for a second
-      window's view, which nothing here has tried. Its pinch and double-click are not yet seen with `ottermate`; the
-      wheel and the drag are.
+      window's view, which is asked by the main window's tree and so places nothing (FN-18). Its pinch and
+      double-click are not yet seen with `ottermate`; the wheel and the drag are.
+- [ ] The graph window has no dots on its arrows, only their rate and age in words (FN-18). Once a satellite's
+      `@Draw` is asked by its own tree, give `GraphView` a `Dots` state and a `Dots.Pool` on its stage, laid out at the
+      lens's zoom and moved by its `x`, `y` (`Pool.dots` takes them).
+- [ ] An arrow's label now says its rate and age as well as its topics, so where labels already overlap (above) they
+      overlap more; the rate and age could go beside the arrow's head instead, or only on the arrow the pointer is on.
 - [ ] "The framework" is one box: a widget's, the window's, input's and automation's messages cannot be told apart, as
       the bus graph names none of them. Name them as parts upstream, or tell them apart by topic package here.
 - [ ] A recording has no graph: the probe could write the bus graph as a row when it starts, so a replay is drawn

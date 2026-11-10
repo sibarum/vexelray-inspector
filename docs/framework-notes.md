@@ -241,3 +241,18 @@ around the `parkNanos`, as the loop's is, and `arrived` a `wake` mark naming the
 then read the logic lane's rest and wakes exactly as it reads the main thread's. Fixed upstream 2026-11-02 (R7,
 vexelray-framework `e4e4f55`), as proposed: the park is that idle zone, and the arrival that ends one writes a single
 `wake`, `message on logic`, on the thread that ended it.
+
+## FN-18 · A satellite window's view has its `@Draw` asked by the main window's tree 🔬
+
+The graph panel's dots (moving along each busy arrow, as many a second as its sender writes) run from `View`'s
+`@Draw`, offsetting and fading a floating node a dot. The graph window's `GraphView` is a `@View` of its own over the
+satellite's tree, so it was given the same: a `Dots` state field and a `@Draw` placing nodes on its stage. The processor
+accepted it, but the generated wiring registers it as `Views.draw(shell.gui(), ...)`, the main window's tree, whatever
+window the view's nodes are in. Measured with `ottermate --window graph shot` (2026-11-10): every dot stood at the
+stage's top left, where `floatAt(0, 0)` put it, in two shots a second apart; the main window's dots moved. The main
+tree's `Drawn` ignores a node that is not in it, as its javadoc says, so nothing set them. Worked around by leaving the
+graph window without dots: its arrows still say their rate and how long ago they were last written. The wiring could
+register a view's `@Draw` with the tree of the window its constructor's window parameter is (the satellite's
+`Window.gui()`), as it already knows which `GraphWindow` it builds the view from; or the processor could refuse a
+`@Draw` on a view whose nodes it cannot place, rather than accept one that is never seen. This is also what TODO's
+"easing the graph window's zoom needs a `@Draw` for a second window's view" will meet.

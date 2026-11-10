@@ -152,25 +152,39 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * {@code receive} row, naming the mailbox ({@code class#method}) or else the inbox it reached.
      *
      * @param by what each sender wrote, by its name, or by {@link #OUTSIDE} and its thread's
-     * @param to what was delivered to each receiver, by its name
+     * @param to   what was delivered to each receiver, by its name
+     * @param last the moment of each sender's newest write, by the same names as {@code by}
      */
-    public record Counted(long written, long delivered, Map<String, Long> by, Map<String, Long> to) {
+    public record Counted(long written, long delivered, Map<String, Long> by, Map<String, Long> to,
+                          Map<String, Long> last) {
 
         /** What a write from outside a tick is counted by, before its thread's name: the row names no sender. */
         public static final String OUTSIDE = "@";
 
+        static final Counted NONE = new Counted(0L, 0L, Map.of(), Map.of(), Map.of());
+
         public Counted {
             by = Map.copyOf(by);
             to = Map.copyOf(to);
+            last = Map.copyOf(last);
         }
 
-        /** What was counted after {@code before}, the same topic's counts as of an earlier moment; this, with none. */
+        /**
+         * What was counted after {@code before}, the same topic's counts as of an earlier moment; this, with none. A
+         * sender's newest write is kept only where it wrote after {@code before}: else it wrote none within.
+         */
         Counted less(Counted before) {
             if (before == null) {
                 return this;
             }
+            Map<String, Long> within = new HashMap<>(last.size());
+            last.forEach((who, at) -> {
+                if (by.getOrDefault(who, 0L) > before.by.getOrDefault(who, 0L)) {
+                    within.put(who, at);
+                }
+            });
             return new Counted(written - before.written, delivered - before.delivered, less(by, before.by),
-                    less(to, before.to));
+                    less(to, before.to), within);
         }
 
         private static Map<String, Long> less(Map<String, Long> now, Map<String, Long> then) {
@@ -565,7 +579,12 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
      * @param overNanos how long before; 0 for no rate
      */
     Flows flows(String run, String why, Model since, long overNanos) {
-        return flows(run, why, counts, since.counts, overNanos, Optional.empty());
+        return flows(run, why, since, overNanos, newestNanos());
+    }
+
+    /** As {@link #flows(String, String, Model, long)}, said to be as of {@code atNanos}: the cursor, when paused. */
+    Flows flows(String run, String why, Model since, long overNanos, long atNanos) {
+        return flows(run, why, counts, since.counts, overNanos, Optional.empty(), atNanos);
     }
 
     /**
@@ -575,15 +594,16 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     Flows flowsOver(String run, String why, Model from, Range selected) {
         Map<String, Counted> within = new HashMap<>(counts.size());
         counts.forEach((topic, c) -> within.put(topic, c.less(from.counts.get(topic))));
-        return flows(run, why, within, Map.of(), selected.nanos(), Optional.of(selected));
+        return flows(run, why, within, Map.of(), selected.nanos(), Optional.of(selected), selected.toNanos());
     }
 
     /**
      * The flows from {@code counts}, the rate their written less {@code rateFrom}'s over {@code overNanos}, said to
-     * be over {@code selected} when it is given.
+     * be over {@code selected} when it is given, and as of {@code atNanos}. Each sender's rate is taken the same way,
+     * from what it wrote, and its newest write is the newest of the writers it is put together from.
      */
     private Flows flows(String run, String why, Map<String, Counted> counts, Map<String, Counted> rateFrom,
-                        long overNanos, Optional<Range> selected) {
+                        long overNanos, Optional<Range> selected, long atNanos) {
         boolean jobsWrite = !lane(JOBS).marks().isEmpty();
         java.util.TreeMap<String, String> topics = new java.util.TreeMap<>(declared.kinds());
         if (topics.isEmpty()) {
@@ -592,9 +612,13 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         Map<String, Part> parts = new HashMap<>();
         declared.parts().forEach(p -> parts.put(p.name(), p));
         List<Flow> flows = new ArrayList<>(topics.size());
-        Counted none = new Counted(0L, 0L, Map.of(), Map.of());
+        Counted none = Counted.NONE;
         for (Map.Entry<String, String> t : topics.entrySet()) {
             Counted c = counts.getOrDefault(t.getKey(), none);
+            Counted then = rateFrom.getOrDefault(t.getKey(), none);
+            // What sender (by its name in the counts) wrote a second, over the same as the topic's rate.
+            java.util.function.ToDoubleFunction<String> rate = who -> overNanos <= 0 ? 0.0
+                    : (c.by().getOrDefault(who, 0L) - then.by().getOrDefault(who, 0L)) * 1e9 / overNanos;
             List<End> from = new ArrayList<>();
             List<End> to = new ArrayList<>();
             List<Part> senders = new ArrayList<>();
@@ -605,7 +629,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 }
                 named.add(l.part());
                 if (l.sends()) {
-                    from.add(new End(l.part(), l.how(), c.by().getOrDefault(l.part(), 0L)));
+                    from.add(new End(l.part(), l.how(), c.by().getOrDefault(l.part(), 0L), rate.applyAsDouble(l.part()),
+                            c.last().getOrDefault(l.part(), 0L)));
                     Part p = parts.get(l.part());
                     if (p != null) {
                         senders.add(p);
@@ -626,15 +651,19 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     // With no graph there is no part to put it to: the thread is all that is known.
                     String part = parts.isEmpty() ? "on " + thread : could.size() == 1 ? could.getFirst().name()
                             : could.isEmpty() ? End.FRAMEWORK : OUTSIDE_A_TICK;
+                    double perSecond = rate.applyAsDouble(who);
+                    long last = c.last().getOrDefault(who, 0L);
                     int at = indexOf(from, part);
                     if (at >= 0) {
                         End e = from.get(at);
-                        from.set(at, new End(e.part(), e.how(), e.count() + n));
+                        from.set(at, new End(e.part(), e.how(), e.count() + n, e.perSecond() + perSecond,
+                                Math.max(e.lastNanos(), last)));
                     } else {
-                        from.add(new End(part, Declared.Line.SENDS, n));
+                        from.add(new End(part, Declared.Line.SENDS, n, perSecond, last));
                     }
                 } else if (!named.contains(who)) {
-                    from.add(new End(who, Declared.Line.SENDS, n));
+                    from.add(new End(who, Declared.Line.SENDS, n, rate.applyAsDouble(who),
+                            c.last().getOrDefault(who, 0L)));
                 }
             });
             c.to().forEach((who, n) -> {
@@ -642,11 +671,10 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     to.add(new End(who, "", n));
                 }
             });
-            long before = rateFrom.getOrDefault(t.getKey(), none).written();
-            double perSecond = overNanos <= 0 ? 0.0 : (c.written() - before) * 1e9 / overNanos;
+            double perSecond = overNanos <= 0 ? 0.0 : (c.written() - then.written()) * 1e9 / overNanos;
             flows.add(new Flow(t.getKey(), t.getValue(), from, to, c.written(), c.delivered(), perSecond));
         }
-        return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows, selected);
+        return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows, selected, atNanos);
     }
 
     /**
@@ -694,6 +722,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         long delivered;
         final HashMap<String, Long> by = new HashMap<>();
         final HashMap<String, Long> to = new HashMap<>();
+        final HashMap<String, Long> last = new HashMap<>();
     }
 
     /**
@@ -710,6 +739,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         if (c.write()) {
             t.written++;
             t.by.merge(c.who(), 1L, Long::sum);
+            t.last.merge(c.who(), r.atNanos(), Math::max);
         } else {
             t.delivered++;
             t.to.merge(c.who(), 1L, Long::sum);
@@ -757,13 +787,16 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     private static Map<String, Counted> merged(Map<String, Counted> counts, HashMap<String, Tally> tallies) {
         HashMap<String, Counted> out = new HashMap<>(counts);
         for (Map.Entry<String, Tally> e : tallies.entrySet()) {
-            Counted before = out.getOrDefault(e.getKey(), new Counted(0L, 0L, Map.of(), Map.of()));
+            Counted before = out.getOrDefault(e.getKey(), Counted.NONE);
             Tally t = e.getValue();
             HashMap<String, Long> by = new HashMap<>(before.by());
             t.by.forEach((k, n) -> by.merge(k, n, Long::sum));
             HashMap<String, Long> to = new HashMap<>(before.to());
             t.to.forEach((k, n) -> to.merge(k, n, Long::sum));
-            out.put(e.getKey(), new Counted(before.written() + t.written, before.delivered() + t.delivered, by, to));
+            HashMap<String, Long> last = new HashMap<>(before.last());
+            t.last.forEach((k, at) -> last.merge(k, at, Math::max));
+            out.put(e.getKey(), new Counted(before.written() + t.written, before.delivered() + t.delivered, by, to,
+                    last));
         }
         return out;
     }

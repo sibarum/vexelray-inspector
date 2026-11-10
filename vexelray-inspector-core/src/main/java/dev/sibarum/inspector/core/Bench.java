@@ -396,8 +396,8 @@ public final class Bench {
             }
             long moment = paused ? cursor : now.newestNanos();
             Tape.Second back = (paused ? island.tape() : tape).secondAt(moment - Tape.SECOND);
-            return back == null ? at.flows(run, why, Model.EMPTY, 0L)
-                    : at.flows(run, why, back.start(), moment - back.fromNanos());
+            return back == null ? at.flows(run, why, Model.EMPTY, 0L, moment)
+                    : at.flows(run, why, back.start(), moment - back.fromNanos(), moment);
         }
 
         /**

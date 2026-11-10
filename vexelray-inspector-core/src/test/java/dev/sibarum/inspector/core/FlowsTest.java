@@ -60,6 +60,11 @@ class FlowsTest {
         return new Row(seq, at, 0L, 3L, thread, "bus", M + topic, "12us", "");
     }
 
+    /** A sender's end, with no rate measured, its newest write at {@code last}. */
+    private static End sent(String part, long count, long last) {
+        return new End(part, "sends", count, 0.0, last);
+    }
+
     @Test
     void theGraphIsReadForWhatThisVersionSaysAndALaterLineIsPassedOver() {
         Declared d = Declared.parse(GRAPH);
@@ -101,17 +106,17 @@ class FlowsTest {
         assertEquals("state", timeline.kind());
         assertEquals(10, timeline.written());
         assertEquals(4, timeline.delivered(), "a state topic written ten times and heard four");
-        assertEquals(List.of(new End("dev.sibarum.inspector.core.Bench", "sends", 10)), timeline.from());
+        assertEquals(List.of(sent("dev.sibarum.inspector.core.Bench", 10, at + 9 * MS)), timeline.from());
         assertEquals(List.of(new End("dev.sibarum.inspector.View#timeline", "mailbox", 4)), timeline.to());
 
         Flow rowsFlow = f.flows().get(2);
-        assertEquals(List.of(new End("dev.sibarum.inspector.core.LinkRows", "sends", 1)), rowsFlow.from(),
+        assertEquals(List.of(sent("dev.sibarum.inspector.core.LinkRows", 1, at + 2 * MS)), rowsFlow.from(),
                 "a source's publish names nobody, and is the source's");
         assertEquals(List.of(new End("dev.sibarum.inspector.core.Bench", "inbox", 1)), rowsFlow.to());
 
         Flow find = f.flows().get(1);
         assertEquals(2, find.written());
-        assertEquals(List.of(new End("dev.sibarum.inspector.core.Bench", "sends", 2)), find.from(),
+        assertEquals(List.of(sent("dev.sibarum.inspector.core.Bench", 2, at + 3 * MS)), find.from(),
                 "the bench's own send and its timer's, together");
         assertEquals(List.of(new End("dev.sibarum.inspector.core.ListRuns", "request", End.UNCOUNTED)), find.to(),
                 "what reaches a job is handed to it by the framework, and no row counts it");
@@ -159,11 +164,11 @@ class FlowsTest {
                 publish(4, at, "Rows", "vexel-job-1")), Long.MAX_VALUE);
         Model jobs = Model.EMPTY.fold(List.of(graph(at, GRAPH), publish(1, at, "Runs", "vexel-job-3"),
                 publish(2, at, "Runs", "vexel-job-7")), Long.MAX_VALUE);
-        assertEquals(List.of(new End("dev.sibarum.inspector.core.ListRuns", "sends", 2)),
+        assertEquals(List.of(sent("dev.sibarum.inspector.core.ListRuns", 2, at)),
                 jobs.flows("run", "", Model.EMPTY, 0L).flows().get(3).from(), "the job lane's threads are one sender");
-        assertEquals(List.of(new End("dev.sibarum.inspector.core.LinkRows", "sends", 1),
-                        new End("dev.sibarum.inspector.core.RecordingRows", "sends", 2),
-                        new End(End.FRAMEWORK, "sends", 1)),
+        assertEquals(List.of(sent("dev.sibarum.inspector.core.LinkRows", 1, at),
+                        sent("dev.sibarum.inspector.core.RecordingRows", 2, at),
+                        sent(End.FRAMEWORK, 1, at)),
                 m.flows("run", "", Model.EMPTY, 0L).flows().getFirst().from().stream()
                         .sorted(java.util.Comparator.comparing(End::part)).toList(),
                 "two sources of one topic told apart by their threads; a job's thread is neither's");
@@ -185,7 +190,7 @@ class FlowsTest {
                 new Row(3, at, 0L, 3L, "main", "bus", "receive",
                         "dev.vexelray.gui.widget.Button.Pressed to elsewhere 0", "")), Long.MAX_VALUE);
         Flow pressed = m.flows("run", "", Model.EMPTY, 0L).flows().getFirst();
-        assertEquals(List.of(new End(End.FRAMEWORK, "sends", 1)), pressed.from());
+        assertEquals(List.of(sent(End.FRAMEWORK, 1, at)), pressed.from());
         assertEquals(List.of(new End("dev.example.Screen#pressed", "mailbox", 1), new End("elsewhere", "", 1)),
                 pressed.to());
     }
@@ -199,7 +204,7 @@ class FlowsTest {
         Flows f = m.flows("run", "", Model.EMPTY, 0L);
         assertEquals("it declared no bus graph (no bus graph: none was declared)", f.why());
         assertEquals(List.of(), f.parts());
-        assertEquals(new Flow(M + "Timeline", "", List.of(new End("dev.example.Bench", "sends", 1)), List.of(), 1, 0,
+        assertEquals(new Flow(M + "Timeline", "", List.of(sent("dev.example.Bench", 1, at)), List.of(), 1, 0,
                 0.0), f.flows().getFirst());
     }
 
@@ -219,6 +224,11 @@ class FlowsTest {
         Flow timeline = after.flows("run", "", before, 1_500 * MS).flows().getLast();
         assertEquals(35, timeline.written());
         assertEquals(20.0, timeline.perSecond(), 1e-9, "30 written over a second and a half");
+        End bench = timeline.from().getFirst();
+        assertEquals(20.0, bench.perSecond(), 1e-9, "its one sender's rate is the topic's");
+        assertEquals(at + 529 * MS, bench.lastNanos(), "the moment of its newest write");
+        assertEquals(at + 900 * MS, after.flows("run", "", before, 1_500 * MS, at + 900 * MS).atNanos(),
+                "as of the moment it is asked for: the cursor");
     }
 
     @Test
@@ -242,6 +252,12 @@ class FlowsTest {
                 .mapToLong(End::count).sum(), "and nor are they in its sender's count");
         assertEquals(15.0, timeline.perSecond(), 1e-9, "30 over the stretch's two seconds");
         assertEquals(java.util.Optional.of(stretch), f.selected());
+        End bench = timeline.from().getFirst();
+        assertEquals(15.0, bench.perSecond(), 1e-9, "its sender's rate, over the same");
+        assertEquals(at + 529 * MS, bench.lastNanos());
+        assertEquals(stretch.toNanos(), f.atNanos(), "as of the stretch's later end");
+        assertEquals(0L, after.flowsOver("run", "", after, stretch).flows().getLast().from().getFirst().lastNanos(),
+                "a sender that wrote nothing within a stretch has no newest write there");
         assertEquals(java.util.Optional.empty(), after.flows("run", "", before, 1_500 * MS).selected());
     }
 }

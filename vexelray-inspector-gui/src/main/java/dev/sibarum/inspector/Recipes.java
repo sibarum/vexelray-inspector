@@ -3,6 +3,8 @@ package dev.sibarum.inspector;
 import dev.vexelray.framework.api.Configuration;
 import dev.vexelray.framework.api.Provides;
 import dev.vexelray.framework.shell.Appearance;
+import dev.vexelray.framework.shell.NamedWindow;
+import dev.vexelray.framework.shell.Windows;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.layout.Length;
 import dev.vexelray.gui.widget.TitleBar;
@@ -56,6 +58,17 @@ final class Recipes {
     @Provides
     Ui ui(Gui gui, TitleBar titleBar) {
         return new Ui(gui, titleBar);
+    }
+
+    /**
+     * The graph window: the graph panel's picture with a window to itself, to be zoomed and moved. Declared with the
+     * trees and claimed by the framework, a satellite of the main window; the view opens it with a
+     * {@code WindowCommand}, and {@link GraphView} draws in it.
+     */
+    @Provides
+    GraphWindow graphWindow(Windows windows) {
+        return new GraphWindow(windows.named(NamedWindow.of(GraphWindow.KEY, GraphWindow.TITLE, GraphWindow.W,
+                GraphWindow.H).satellite()));
     }
 
 }

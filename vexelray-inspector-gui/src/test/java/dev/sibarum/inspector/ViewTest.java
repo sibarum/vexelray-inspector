@@ -183,6 +183,14 @@ class ViewTest {
     }
 
     @Test
+    void theGraphWindowIsDeclaredWithTheTreesAndItsButtonIsOverTheGraphPanel() {
+        // Headless, a window not open is never laid out, so what it draws is seen by ottermate, not here.
+        assertTrue(wiring.graphWindow() != null && wiring.graphView() != null, "built with the trees, before a window");
+        assertEquals(GraphLens.FITTED, wiring.graphView().lens(), "a graph is first shown whole");
+        assertTrue(wiring.ui().openGraphAddress().endsWith(Landmarks.GRAPH_OPEN), wiring.ui().openGraphAddress());
+    }
+
+    @Test
     void theRowsPanelSaysEachRowFromTheCursorsAndColoursTheCursorsAndThePathsInPlace() throws InterruptedException {
         Messages.Row press = new Messages.Row(7, 1_000_000L, 0L, 3L, "main", "input", "press", "LEFT", "c1.i01.1");
         Messages.Row tick = new Messages.Row(8, 1_400_000L, 0L, 3L, "vexel-logic", "bus", "tick", "0.2ms", "");

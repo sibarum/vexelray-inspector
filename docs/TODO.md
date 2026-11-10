@@ -39,8 +39,12 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 - [ ] A state topic's last value (design.md section 4): rows carry no payload, so the flows panel shows counts only. It
       needs the publish row to carry the value, or a summary of it, upstream.
-- [ ] The graph panel's labels overlap where several lit arrows meet one part (W2's `Shown`), and nothing on it can be
-      clicked: a part or an arrow chosen should filter the flows table to its topics.
+- [ ] The graph panel's labels overlap where several lit arrows meet one part (W2's `Shown`); zooming in the graph
+      window spreads them apart, but the fitted graph still overlaps. Nothing on either can be clicked: a part or an
+      arrow chosen should filter the flows table to its topics, and the graph window is the place to start.
+- [ ] The graph window's zoom lands in one step: easing it, as Pix's `Lens` does, needs a `@Draw` for a second
+      window's view, which nothing here has tried. Its pinch and double-click are not yet seen with `ottermate`; the
+      wheel and the drag are.
 - [ ] "The framework" is one box: a widget's, the window's, input's and automation's messages cannot be told apart, as
       the bus graph names none of them. Name them as parts upstream, or tell them apart by topic package here.
 - [ ] A recording has no graph: the probe could write the bus graph as a row when it starts, so a replay is drawn

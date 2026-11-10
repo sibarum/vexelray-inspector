@@ -156,6 +156,7 @@ final class Ui {
     private final Table<String> flows;
     private final Node flowsWhy;
     private final Node graph;
+    private final IconButton openGraph;
     private final Table<Integer> rows;
     /** What each of the rows panel's places says, a cell a column, and in what ink, as {@link #rows} last set them. */
     private List<List<String>> rowTexts = List.of();
@@ -317,11 +318,20 @@ final class Ui {
         Node flowsPanel = gui.column().width(Length.grow(1.4f)).height(Length.FILL).gap(Type.TIGHT)
                 .children(flowsWhy, flows.node());
         // The graph beside its flows: the same topics, drawn between the parts, the counts in the table.
-        graph = gui.box().width(Length.grow(1f)).height(Length.FILL).clip(true).scroll(false, false)
+        graph = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false)
                 .background(gui.theme().color(Role.PANEL));
         gui.landmark(Landmarks.GRAPH, graph);
+        // Over the graph, at its right: the button that gives it a window of its own to be looked around in.
+        openGraph = new IconButton(gui, Icon.POP_OUT, "Open the graph in its own window").name(Landmarks.GRAPH_OPEN)
+                .tip("Open the graph in its own window (G)");
+        gui.landmark(Landmarks.GRAPH_OPEN, openGraph.node());
+        Node graphHead = gui.row().width(Length.FILL).alignItems(AlignItems.CENTER).gap(Type.TIGHT).children(
+                gui.text("Graph").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL),
+                openGraph.node());
+        Node graphPanel = gui.column().width(Length.grow(1f)).height(Length.FILL).gap(Type.TIGHT)
+                .children(graphHead, graph);
         Node panels = gui.row().width(Length.FILL).height(Length.grow(1f)).gap(Type.TIGHT)
-                .children(graph, flowsPanel);
+                .children(graphPanel, flowsPanel);
 
         replayText = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.INK));
         gui.landmark(Landmarks.REPLAY_TEXT, replayText);
@@ -610,6 +620,11 @@ final class Ui {
     }
 
     /** The address the follow button presses with. */
+    /** The graph panel's button that opens the graph window. */
+    String openGraphAddress() {
+        return openGraph.address();
+    }
+
     String followAddress() {
         return follow.address();
     }

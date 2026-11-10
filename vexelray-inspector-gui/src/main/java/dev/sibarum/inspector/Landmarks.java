@@ -45,6 +45,15 @@ final class Landmarks {
     /** The graph panel: the declared parts and the arrows between them, drawn. */
     static final String GRAPH = "graph";
 
+    /** Over the graph panel: opens the graph window, as G does. */
+    static final String GRAPH_OPEN = "graph.open";
+
+    /**
+     * In the graph window: the stage the graph is drawn on, zoomed and moved. A script reaches it as
+     * {@code graph.graph.stage}, the window's key before it.
+     */
+    static final String GRAPH_STAGE = "graph.stage";
+
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 

@@ -45,6 +45,7 @@ import dev.sibarum.inspector.core.Model;
 import dev.sibarum.inspector.core.Bench;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
+import dev.vexelray.framework.core.WindowCommand;
 import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.Gui;
@@ -221,6 +222,7 @@ final class View {
     private final Sender<Leave> leave;
     private final Sender<RunAgain> runAgain;
     private final Sender<GoToTick> goToTick;
+    private final Sender<WindowCommand> windows;
 
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
@@ -248,7 +250,7 @@ final class View {
          Sender<EventKey> eventKey, Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
          Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
          Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
-         Sender<RunAgain> runAgain, Sender<GoToTick> goToTick) {
+         Sender<RunAgain> runAgain, Sender<GoToTick> goToTick, Sender<WindowCommand> windows) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -263,14 +265,13 @@ final class View {
         this.leave = leave;
         this.runAgain = runAgain;
         this.goToTick = goToTick;
+        this.windows = windows;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
                 gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
                 gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
-        this.diagramInks = new Diagram.Inks(gui.theme().color(Role.LINE), gui.theme().color(Role.INK),
-                gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Role.DIM),
-                gui.theme().color(Ui.PATH));
+        this.diagramInks = Diagram.Inks.of(gui);
         gui.hear(ui.graph(), NodeEvent.RESIZE, layout -> {
             graphW = layout.rect().w();
             graphH = layout.rect().h();
@@ -300,6 +301,8 @@ final class View {
         keys.action("timeline.row-forward", "Next row", Shortcut.of(Key.DOWN)).sends(rowKey, new RowKey(1));
         keys.action("view.zoom-in", "Zoom in", Shortcut.of(Key.EQUAL)).sends(zoomKey, new ZoomKey(true));
         keys.action("view.zoom-out", "Zoom out", Shortcut.of(Key.MINUS)).sends(zoomKey, new ZoomKey(false));
+        keys.action("graph.open", "Open the graph in its own window", Shortcut.of(Key.G))
+                .sends(windows, WindowCommand.show(GraphWindow.KEY));
     }
 
     // ------------------------------------------------------------------ keys and clicks
@@ -328,6 +331,8 @@ final class View {
             leave.send(new Leave());
         } else if (p.button().equals(ui.runAgainAddress())) {
             runAgain.send(new RunAgain());
+        } else if (p.button().equals(ui.openGraphAddress())) {
+            windows.send(WindowCommand.show(GraphWindow.KEY));
         }
     }
 

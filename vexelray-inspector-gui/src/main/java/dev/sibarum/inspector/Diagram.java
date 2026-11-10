@@ -8,6 +8,8 @@ import dev.sibarum.inspector.core.Messages.Part;
 import dev.sibarum.inspector.core.Messages.Traced;
 import dev.sibarum.inspector.core.Model;
 import dev.vexelray.canvas.Color;
+import dev.vexelray.gui.core.Gui;
+import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 import dev.vexelray.gui.draw.Sketch;
 
@@ -43,6 +45,13 @@ final class Diagram {
      * the path of the event the cursor is on crossed.
      */
     record Inks(Color box, Color name, Color lit, Color faint, Color label, Color path) {
+
+        /** The graph's colours in {@code gui}'s theme: the graph panel's and the graph window's are the same. */
+        static Inks of(Gui gui) {
+            return new Inks(gui.theme().color(Role.LINE), gui.theme().color(Role.INK),
+                    gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Role.DIM),
+                    gui.theme().color(Ui.PATH));
+        }
     }
 
     /** A part's box, where it is laid out. */

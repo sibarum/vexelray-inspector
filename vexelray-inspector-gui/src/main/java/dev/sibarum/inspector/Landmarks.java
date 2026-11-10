@@ -15,6 +15,9 @@ package dev.sibarum.inspector;
  */
 final class Landmarks {
 
+    /** The title bar's wordmark: INSPECT, the gear, R ({@link Wordmark}). */
+    static final String WORDMARK = "wordmark";
+
     /**
      * The run panel over the lanes, and in it: what is inspected and from where ({@code run.text}, which says
      * {@code attached}, {@code launched} or {@code replayed} once one is), the picker of running applications, and

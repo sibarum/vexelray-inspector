@@ -87,7 +87,14 @@ only the entries that name this program.
 `vexelray-inspector-gui/src/main/rc/vexelray-inspector.ico` is the application's mark, and it is one file read three ways: the window and its
 taskbar button wear it (`@VexelApp(icon = Inspector.ICON)`; the pom puts it on the class path), and so does the
 title bar the framework draws; the `.exe` links it (`src/main/rc/vexelray-inspector.rc`), and so Explorer, a shortcut and a
-pinned button show it too. It starts as the framework's "new app" mark, whose source is `vexelray-inspector.svg` beside it.
+pinned button show it too. It is "Movement" from the suite canvas's Inspector board, a large gear meshed with a small
+one, and its source is `vexelray-inspector.svg` beside it (`-light.svg` for light taskbars). While the window is hidden
+or the program runs in the background it wears `vexelray-inspector-background.ico` instead, the same mark at 60 %
+ringed by a dashed lime rim, drawn from `vexelray-inspector-background[-24|-16].svg`; the framework finds it by name.
+
+The title bar's wordmark is "Movement" too, from the wordmark board: INSPECT and R in Cinzel's capitals with the O cut
+as the icon's gear. `src/main/rc/wordmark.svg` is the letters traced from the font, so the font is not carried, and the
+build makes it `/wordmark.sdgb`, an SDG the bar inks (`Wordmark`).
 
 A second window — a viewer, a settings window — wears the window mark, on the taskbar and in its title bar, with
 nothing to write: declare it in a recipe with `windows.named(...)`, and the framework builds its tree and claims it
@@ -96,9 +103,9 @@ a `vexelray-inspector-window.ico` sits beside it, which is then found by name an
 the mark. The VexelRay suite's applications ship one: a band of the application's colour over its glyph, so a
 second window reads as its own and is still told apart from the main one.
 
-To make it yours, draw a 64x64 SVG and render it at every size Windows asks for, 16 to 256 px, into that `.ico` —
+To change it, edit the 64x64 SVG and render it at every size Windows asks for, 16 to 256 px, into that `.ico` —
 `vex-suite-common`'s `tools/Ico.java` does exactly this, from each size's own rasterisation rather than shrinking the
-largest. Replace the file, and the window and the executable change together. An `.ico` or `.png` that is missing is
+largest (its class path needs imagelib's wrapper, `-api` and `-windows` jars). Replace the file, and the window and the executable change together. An `.ico` or `.png` that is missing is
 a compile error; one that does not decode costs the window its mark, logged, and nothing else.
 
 Run from `mvn exec:exec`, the process is `java.exe`, so the window and its taskbar button wear the mark but Windows

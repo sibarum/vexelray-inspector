@@ -27,7 +27,15 @@ Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-gree
 The fonts' glyphs are built into the program as signed-distance-field atlases, which it draws its text from. The fonts themselves are not included.
 
 ===============================================================================
-4. nativefiledialog-extended (nfd.dll)
+4. Cinzel font
+https://github.com/NDISCOVER/Cinzel
+Licence: SIL Open Font License 1.1
+Copyright 2020 The Cinzel Project Authors (https://github.com/NDISCOVER/Cinzel)
+
+The wordmark in the title bar is a drawing of the letters INSPECT and R traced from this font's Bold capitals, built into the program as a signed distance field. The font itself is not included.
+
+===============================================================================
+5. nativefiledialog-extended (nfd.dll)
 https://github.com/btzy/nativefiledialog-extended
 Licence: zlib License
 nativefiledialog-extended, by Bernard Teo and contributors, based on nativefiledialog by Michael Labbe.
@@ -35,7 +43,7 @@ nativefiledialog-extended, by Bernard Teo and contributors, based on nativefiled
 Shows Windows' own open and save dialogs. The DLL is stored in the program and written out next to it, or to a temporary folder, when a dialog is first opened.
 
 ===============================================================================
-5. SPIR-V grammar (Khronos SPIRV-Headers, spirv.core.grammar.json, SPIR-V 1.6 revision 4)
+6. SPIR-V grammar (Khronos SPIRV-Headers, spirv.core.grammar.json, SPIR-V 1.6 revision 4)
 https://github.com/KhronosGroup/SPIRV-Headers
 Licence: MIT License
 Copyright 2014-2024 The Khronos Group Inc.
@@ -43,7 +51,7 @@ Copyright 2014-2024 The Khronos Group Inc.
 The program's shader compiler is generated from this grammar, and the generated code is built in.
 
 ===============================================================================
-6. Apache Xerces and the W3C DOM, in the Java class library (java.xml)
+7. Apache Xerces and the W3C DOM, in the Java class library (java.xml)
 https://openjdk.org/
 
 VexelRay Inspector reads XML with the Java class library's XML parser, which is based on Apache Xerces. Oracle's notices for it follow.

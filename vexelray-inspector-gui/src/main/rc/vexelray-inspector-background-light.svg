@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="tm20" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#f8fdef"/>
+<stop offset="1" stop-color="#e2f1c9"/>
+</linearGradient>
+<linearGradient id="em20" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
+<stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+</linearGradient>
+</defs>
+<g opacity=".6">
+<rect x="2" y="2" width="60" height="60" rx="15" fill="url(#tm20)"/>
+<rect x="2" y="2" width="60" height="60" rx="15" fill="none" stroke="#b9d593" stroke-width="1"/>
+<path d="M37.22 34.83 L40.92 35.31 L40.92 38.69 L37.22 39.17 L36.53 41.74 L39.49 44.00 L37.81 46.92 L34.37 45.49 L32.49 47.37 L33.92 50.81 L31.00 52.49 L28.74 49.53 L26.17 50.22 L25.69 53.92 L22.31 53.92 L21.83 50.22 L19.26 49.53 L17.00 52.49 L14.08 50.81 L15.51 47.37 L13.63 45.49 L10.19 46.92 L8.51 44.00 L11.47 41.74 L10.78 39.17 L7.08 38.69 L7.08 35.31 L10.78 34.83 L11.47 32.26 L8.51 30.00 L10.19 27.08 L13.63 28.51 L15.51 26.63 L14.08 23.19 L17.00 21.51 L19.26 24.47 L21.83 23.78 L22.31 20.08 L25.69 20.08 L26.17 23.78 L28.74 24.47 L31.00 21.51 L33.92 23.19 L32.49 26.63 L34.37 28.51 L37.81 27.08 L39.49 30.00 L36.53 32.26 Z" fill="#4d7f12" stroke="#4d7f12" stroke-width="0.8" stroke-linejoin="round"/>
+<circle cx="24" cy="37" r="6.4" fill="#e2f1c9"/>
+<circle cx="24" cy="37" r="3.2" fill="#93c45a"/>
+<path d="M50.12 20.73 L52.50 22.06 L51.34 24.86 L48.71 24.12 L47.12 25.71 L47.86 28.34 L45.06 29.50 L43.73 27.12 L41.47 27.12 L40.14 29.50 L37.34 28.34 L38.08 25.71 L36.49 24.12 L33.86 24.86 L32.70 22.06 L35.08 20.73 L35.08 18.47 L32.70 17.14 L33.86 14.34 L36.49 15.08 L38.08 13.49 L37.34 10.86 L40.14 9.70 L41.47 12.08 L43.73 12.08 L45.06 9.70 L47.86 10.86 L47.12 13.49 L48.71 15.08 L51.34 14.34 L52.50 17.14 L50.12 18.47 Z" fill="#93c45a" stroke="#e2f1c9" stroke-width="2.4" stroke-linejoin="round"/>
+<circle cx="42.6" cy="19.6" r="2.8" fill="#e2f1c9"/>
+<rect x="2.6" y="2.6" width="58.8" height="58.8" rx="14.4" fill="none" stroke="url(#em20)" stroke-width="1.2"/>
+</g>
+<rect x="3" y="3" width="58" height="58" rx="14" fill="none" stroke="#4d7f12" stroke-width="3.2" stroke-dasharray="10.4 6.93" stroke-dashoffset="-3.47" stroke-linecap="round"/>
+</svg>

@@ -99,11 +99,13 @@
                 <directory>src/main/resources</directory>
             </resource>
             <!-- The mark, on the class path for the window: the same file src/main/rc/vexelray-inspector.rc links into the
-                 executable, so the two are one file and cannot drift. @VexelApp(icon) names it. -->
+                 executable, so the two are one file and cannot drift. @VexelApp(icon) names it. Beside it, the mark
+                 the window wears while it is hidden or runs in the background, which the framework finds by name. -->
             <resource>
                 <directory>src/main/rc</directory>
                 <includes>
                     <include>vexelray-inspector.ico</include>
+                    <include>vexelray-inspector-background.ico</include>
                 </includes>
             </resource>
         </resources>
@@ -214,6 +216,35 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- The wordmark, made from its drawing in src/main/rc at build time: /wordmark.sdgb, an SDG whose letters
+                 ('face') are in the role tint, the node's own colour, so the title bar inks them; the gear keeps the
+                 icon's lime (Wordmark). -->
+            <plugin>
+                <groupId>dev.vexelray.gui</groupId>
+                <artifactId>vexelray-gui-icons-maven-plugin</artifactId>
+                <version>${vexelray-gui.version}</version>
+                <executions>
+                    <execution>
+                        <id>wordmark</id>
+                        <goals>
+                            <goal>pair</goal>
+                        </goals>
+                        <configuration>
+                            <pairs>
+                                <pair>
+                                    <art>src/main/rc/wordmark.svg</art>
+                                    <name>wordmark</name>
+                                    <pair>false</pair>
+                                    <texels>640</texels>
+                                    <roles><role>face=tint</role></roles>
+                                </pair>
+                            </pairs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>

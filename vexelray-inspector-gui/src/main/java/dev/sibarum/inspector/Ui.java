@@ -182,6 +182,11 @@ final class Ui {
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
+        // The name as the bar's wordmark, after the mark in its lockup: the bar inks its letters as the pointer comes
+        // and goes, and the gear keeps its lime.
+        TitleBar.Wordmark wordmark = Wordmark.bar(gui);
+        titleBar.wordmark(wordmark);
+        gui.landmark(Landmarks.WORDMARK, wordmark.node());
         status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "")
                 .slot(Landmarks.STATUS_LANES, StatusBar.Side.RIGHT, "")
                 .slot(Landmarks.STATUS_DRAWING, StatusBar.Side.RIGHT, "");

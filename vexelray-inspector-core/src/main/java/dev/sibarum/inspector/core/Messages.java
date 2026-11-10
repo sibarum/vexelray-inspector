@@ -783,4 +783,31 @@ public final class Messages {
 
     public record GoToTick(long number) {
     }
+
+    // ------------------------------------------------------------------ exporting the frame
+
+    /**
+     * Export frame, view to bench: everything the panels show as of the cursor, and every row of the cursor's frame,
+     * to a file the person picks. Following, the bench pauses first, where the view's lane would come to rest from
+     * now, {@code restNanos}, as Space does.
+     */
+    public static final Topic<ExportFrame> EXPORT_FRAME_TOPIC = Topic.edge(ExportFrame.class);
+
+    public record ExportFrame(long restNanos) {
+    }
+
+    /** Bench to job: write {@code text}, the frame as CSV ({@link FrameCsv}), to {@code path}. */
+    public static final Topic<WriteExport> WRITE_EXPORT_TOPIC = Topic.edge(WriteExport.class);
+
+    public record WriteExport(String path, String text) {
+    }
+
+    /**
+     * Job to bench: the frame was written to {@code path}, which has {@code .csv} added if the person typed no
+     * extension; or it was not, and {@code problem} says why. Empty when it was.
+     */
+    public static final Topic<Exported> EXPORTED_TOPIC = Topic.edge(Exported.class);
+
+    public record Exported(String path, String problem) {
+    }
 }

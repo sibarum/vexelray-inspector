@@ -8,9 +8,10 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
-- [ ] Export frame (agreed 2026-11-10): paused, a button and Ctrl+E write one sectioned CSV of every panel as of the
-      cursor and every row of the cursor's frame, through `PickFile` and a `@Job` (`ExportFrame`, `WriteExport`,
-      `Exported`), the text built by a pure `FrameCsv` on `Csv`.
+- [ ] Export frame is not seen past its button with `ottermate`: nothing answers the save picker under automation
+      (FN-20). Once something does, a check that exports and reads the file back.
+- [ ] Export frame's rows of the frame are looked for within 2 s of the cursor (`Bench.FRAME_REACH`), so a pass longer
+      than that (an unfocused window's park) is cut; and the threads section is the panel's, not the frame's own turn.
 - [ ] Copy reads `ListView.Clicked` without its modifiers (FN-19), so `Ui.alone` infers a plain click from the
       selection; take the modifiers from the message once it carries them.
 

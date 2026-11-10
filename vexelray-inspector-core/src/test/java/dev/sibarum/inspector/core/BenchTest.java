@@ -1379,6 +1379,51 @@ class BenchTest {
         assertEquals(List.of(), took(Timeline.class), "not one on the island");
     }
 
+    @Test
+    void exportFramePausesAsksWhereAndWritesThePanelsAndTheCursorsFrame() {
+        Inbox heard = tick.inbox("export");
+        listen(heard, dev.vexelray.framework.core.PickFile.TOPIC);
+        listen(heard, Messages.WRITE_EXPORT_TOPIC);
+        tell(Messages.EXPORT_FRAME_TOPIC, new Messages.ExportFrame(0L));
+        assertEquals(List.of(), took(dev.vexelray.framework.core.PickFile.class), "nothing kept, nothing asked");
+        attached(ONE);
+        Row a = new Row(1, 100 * MS, 0L, 7L, "main", "frame", "frame.update", "#7", "");
+        Row b = new Row(2, 104 * MS, 0L, 7L, "vexel-logic", "bus", "tick", "0.2ms", "");
+        Row other = new Row(3, 120 * MS, 0L, 8L, "main", "frame", "frame.update", "#8", "");
+        Row c = new Row(4, 108 * MS, 0L, 7L, "main", "frame", "frame", "9ms", "");
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(a, b, other, c)));
+        sent.clear();
+        tell(Messages.EXPORT_FRAME_TOPIC, new Messages.ExportFrame(110 * MS));
+        assertFalse(timeline().live(), "following, it pauses first");
+        tell(Messages.SEEK_TOPIC, new Messages.Seek(108 * MS));
+        tell(Messages.EXPORT_FRAME_TOPIC, new Messages.ExportFrame(0L));
+        dev.vexelray.framework.core.PickFile pick = took(dev.vexelray.framework.core.PickFile.class).getLast();
+        assertEquals(Bench.EXPORT_PICK, pick.id());
+        assertEquals("calculator-11 frame 7.csv", pick.name(), "the run and the cursor's frame");
+        tell(dev.vexelray.framework.core.Picked.TOPIC, dev.vexelray.framework.core.Picked.cancelled(Bench.EXPORT_PICK));
+        tell(dev.vexelray.framework.core.Picked.TOPIC, new dev.vexelray.framework.core.Picked(99, "C:/x.csv"));
+        assertEquals(List.of(), took(Messages.WriteExport.class), "cancelled, or another's pick: nothing written");
+        tell(dev.vexelray.framework.core.Picked.TOPIC, new dev.vexelray.framework.core.Picked(Bench.EXPORT_PICK,
+                "C:/out/frame.csv"));
+        Messages.WriteExport w = took(Messages.WriteExport.class).getLast();
+        assertEquals("C:/out/frame.csv", w.path());
+        String rowsOfFrame = w.text().substring(w.text().indexOf("Rows of frame 7\r\n"));
+        assertEquals(List.of("Rows of frame 7", String.join(",", FrameCsv.ROW_HEADERS),
+                        "1,-8.000,0.000000,,7,main,frame,frame.update,#7,",
+                        "2,-4.000,0.004000,,7,vexel-logic,bus,tick,0.2ms,",
+                        "4,0.000,0.008000,,7,main,frame,frame,9ms,"),
+                List.of(rowsOfFrame.split("\r\n")), "the frame's rows alone, in order of time");
+        for (String section : List.of("Frame", "Details", "Readouts", "Path", "Threads", "Flows",
+                "Rows around the cursor")) {
+            assertTrue(w.text().contains("\r\n" + section + "\r\n") || w.text().startsWith(section + "\r\n"),
+                    "a section for " + section);
+        }
+        tell(Messages.EXPORTED_TOPIC, new Messages.Exported("C:/out/frame.csv", ""));
+        assertEquals("Exported the frame to C:/out/frame.csv", timeline().status());
+        tell(Messages.EXPORTED_TOPIC, new Messages.Exported("C:/out/frame.csv", "AccessDeniedException: C:/out"));
+        assertTrue(timeline().status().startsWith("Could not export the frame to C:/out/frame.csv: Access"));
+    }
+
     /** The last details sent, as sent, keeping the rest of what was sent. */
     private Details sentDetails() {
         return sent.stream().filter(Details.class::isInstance).map(Details.class::cast).toList().getLast();

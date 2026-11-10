@@ -11,7 +11,7 @@ import dev.vexelray.framework.api.Configuration;
  * here as if it were its own, and checks every message between them. A new component, job or source in this module
  * goes on this list, or nothing builds it.
  */
-@Configuration(components = {Bench.class, Rerun.class}, jobs = {ListRuns.class, AskReplay.class},
+@Configuration(components = {Bench.class, Rerun.class}, jobs = {ListRuns.class, AskReplay.class, SaveExport.class},
         sources = {LinkRows.class, RecordingRows.class, Child.class})
 public final class Core {
 }

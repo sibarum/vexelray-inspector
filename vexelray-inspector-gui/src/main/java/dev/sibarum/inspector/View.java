@@ -5,6 +5,8 @@ import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
 import dev.sibarum.inspector.Keys.CopyKey;
 import dev.sibarum.inspector.Keys.EventKey;
+import dev.sibarum.inspector.Keys.ExportKey;
+import dev.sibarum.inspector.core.Messages.ExportFrame;
 import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.RowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
@@ -239,6 +241,7 @@ final class View {
     private final Sender<GoToTick> goToTick;
     private final Sender<WindowCommand> windows;
     private final Sender<SelectRange> selectRange;
+    private final Sender<ExportFrame> exportFrame;
 
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
@@ -270,7 +273,9 @@ final class View {
          Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
          Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
          Sender<RunAgain> runAgain, Sender<GoToTick> goToTick, Sender<WindowCommand> windows,
-         Sender<SelectRange> selectRange, Sender<ClearRange> clearRange, Sender<CopyKey> copyKey) {
+         Sender<SelectRange> selectRange, Sender<ClearRange> clearRange, Sender<CopyKey> copyKey,
+         Sender<ExportKey> exportKey, Sender<ExportFrame> exportFrame) {
+        this.exportFrame = exportFrame;
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -334,6 +339,8 @@ final class View {
         keys.action("view.zoom-out", "Zoom out", Shortcut.of(Key.MINUS)).sends(zoomKey, new ZoomKey(false));
         keys.action(Landmarks.COPY, "Copy the selected rows", Shortcut.of(Key.C, Modifier.CONTROL))
                 .sends(copyKey, new CopyKey());
+        keys.action(Landmarks.EXPORT, "Export the frame to a file", Shortcut.of(Key.E, Modifier.CONTROL))
+                .sends(exportKey, new ExportKey());
         keys.action("graph.open", "Open the graph in its own window", Shortcut.of(Key.G))
                 .sends(windows, WindowCommand.show(GraphWindow.KEY));
     }
@@ -362,6 +369,8 @@ final class View {
             followed();
         } else if (p.button().equals(ui.detachAddress())) {
             leave.send(new Leave());
+        } else if (p.button().equals(ui.exportAddress())) {
+            exported();
         } else if (p.button().equals(ui.runAgainAddress())) {
             runAgain.send(new RunAgain());
         } else if (p.button().equals(ui.openGraphAddress())) {
@@ -381,6 +390,20 @@ final class View {
                 }
             }
         }
+    }
+
+    /** Ctrl+E: as the Export frame button. */
+    @Subscribe
+    public void exportKey(ExportKey key) {
+        exported();
+    }
+
+    /** Ask the bench to export the frame, with where the lane would rest if it has to pause first, as Space does. */
+    private void exported() {
+        long now = System.nanoTime();
+        pressedAt = now;
+        pressWindow = Glide.window(0.0);
+        exportFrame.send(new ExportFrame((long) state.edge().rest(now, pressWindow)));
     }
 
     private void followed() {
@@ -619,6 +642,7 @@ final class View {
         Motion edge = state.edge().settled(now);
         boolean fresh = last.lanes().stream().allMatch(l -> l.marks().isEmpty())
                 || (!t.run().isEmpty() && !t.run().equals(last.run()));
+        ui.exportable(t.lanes().stream().anyMatch(l -> !l.marks().isEmpty()));
         Path to = t.live() ? Path.following(now) : Path.stopped(stopAt(t, edge, now));
         if (fresh || gui.reducedMotion()) {
             edge = Motion.of(to);

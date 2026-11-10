@@ -57,6 +57,12 @@ final class Landmarks {
      */
     static final String COPY = "table.copy";
 
+    /**
+     * Export frame: the run panel's button, and the key binding's id (Ctrl+E), which saves the panels as of the cursor
+     * and the rows of its frame to one CSV file.
+     */
+    static final String EXPORT = "frame.export";
+
     /** The graph panel: the declared parts and the arrows between them, drawn. */
     static final String GRAPH = "graph";
 

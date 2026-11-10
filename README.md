@@ -158,8 +158,18 @@ stop where they were, and the status line says what happened.
 | Shift+click / Ctrl+click a row | choose a range of rows, or one more or fewer, in any table, to copy; in the rows panel the cursor stays where it is |
 | Ctrl+C, or Copy on a row's right-click menu | copy the chosen rows of the table last clicked as CSV, its column titles first |
 
+| Ctrl+E, or Export frame in the run panel | save the frame the cursor is in to a CSV file, pausing first if following |
+
 What is copied is what the table shows, a cell a field. The rows panel's rows can be chosen among the eleven it
 shows, and the choice is kept until the cursor moves.
+
+**Export frame** saves one CSV file, a section a panel as of the cursor, each its title on a line of its own, then its
+header line, then a blank line: the frame (its number, the cursor's time, the stretch selected), the details, the
+readouts, the path, the threads, the flows, the rows around the cursor, and every row of the cursor's frame, the main
+loop's pass its rows number (the event's the cursor is on, or its row's, or else the newest row's at or before it).
+Lengths are milliseconds and moments are milliseconds from the cursor and seconds into the run, each named in its
+header; a figure the rows could not fill is blank. A name typed with no extension gets `.csv`, and the status line
+says where it was saved or why it was not.
 
 Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
 says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click
@@ -204,6 +214,8 @@ message is in one file. Read these in this order.
 | `RecordingRows.java` | the source that plays a probe recording back at its recorded pace, its rows sent as a run's, on the machine's clock as of when it started. |
 | `Child.java` | the source that starts `--launch`'s command with its automation on and a recording kept for Run again, logs its output, chooses it once its discovery file appears, and ends it when stopped. |
 | `Csv.java` | text as comma-separated values, a header line first: what a table's chosen rows are copied as. Pure. |
+| `FrameCsv.java` | Export frame's file: a section a panel as of the cursor, and the rows of the cursor's frame. Pure; the bench's step builds it when the picker answers. |
+| `SaveExport.java` | the job that writes an exported frame where the person picked, beside first and then moved into place. |
 | `Durations.java` | a probe row's duration (`51.68ms`) read back into nanoseconds: a pure function a step may call. |
 | `Core.java` | the list of this module's components, jobs and sources. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
 

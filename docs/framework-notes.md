@@ -272,3 +272,13 @@ never does. It reads the model as it is when the view hears the message, a frame
 between would be judged by the later selection. `Clicked` could carry the click's modifiers, or which
 `SelectionModel` operation it was (`at`, `toggle`, `extendTo`), so an application that acts on a plain click alone
 asks the message, not the model.
+
+## FN-20 · Automation cannot answer a file picker, so a save is never seen end to end 🔬
+
+Export frame asks where to save with `PickFile` and writes on `Picked`. `ottermate` has no verb that answers a picker,
+and the framework's `NativeDialogs` shows the OS's own over the window, which in a background run (`CLAUDECODE`) would
+come up on the desktop of the person at it. So the export was seen in the window only as far as its button
+(2026-11-10), and its path past the picker is held by `BenchTest` (a `Picked` told by hand) and `SaveExportTest`.
+Under automation the framework could answer pickers itself: a verb (`pick <path>` or `pick cancel`) that answers the
+oldest picker waiting, with `Picked`, and a picker held rather than shown while the socket is open and the run is in
+the background, as the read-model already lists what is waiting.

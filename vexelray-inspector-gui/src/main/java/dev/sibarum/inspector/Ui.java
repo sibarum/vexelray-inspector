@@ -158,6 +158,9 @@ final class Ui {
     private final Select<Run> runs;
     private final Button detach;
     private final Button runAgain;
+    private final Button exportFrame;
+    /** Whether Export frame is enabled, as {@link #exportable} last set it. */
+    private boolean exportable;
     private final Node replay;
     private final Node replayText;
     private final Table<Integer> replayTable;
@@ -323,8 +326,11 @@ final class Ui {
         runAgain = new Button(gui, "Run again").name(Landmarks.RUN_AGAIN).enabled(false);
         gui.focusable(runAgain.node(), false);
         gui.landmark(Landmarks.RUN_AGAIN, runAgain.node());
+        exportFrame = new Button(gui, "Export frame").name(Landmarks.EXPORT).enabled(false);
+        gui.focusable(exportFrame.node(), false);
+        gui.landmark(Landmarks.EXPORT, exportFrame.node());
         Node runPanel = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
-                .children(runText, runs.node(), runAgain.node(), detach.node());
+                .children(runText, runs.node(), exportFrame.node(), runAgain.node(), detach.node());
         gui.landmark(Landmarks.RUN, runPanel);
 
         List<Table.Column<String>> columns = new ArrayList<>();
@@ -600,6 +606,19 @@ final class Ui {
     /** Where the replay panel's body is on the bus: what its clicks carry. */
     String replayAddress() {
         return replayTable.rows().address();
+    }
+
+    /** Enable Export frame while there is something kept to export. */
+    void exportable(boolean can) {
+        if (can != exportable) {
+            exportable = can;
+            exportFrame.enabled(can);
+        }
+    }
+
+    /** The address the Export frame button presses with. */
+    String exportAddress() {
+        return exportFrame.address();
     }
 
     /** The address the Run again button presses with. */

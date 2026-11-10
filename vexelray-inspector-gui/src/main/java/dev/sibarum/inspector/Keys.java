@@ -45,6 +45,11 @@ final class Keys {
         static final Topic<CopyKey> TOPIC = Topic.edge(CopyKey.class);
     }
 
+    /** Ctrl+E: export the frame the cursor is in, pausing first if following. */
+    record ExportKey() {
+        static final Topic<ExportKey> TOPIC = Topic.edge(ExportKey.class);
+    }
+
     /** An arrow: step the cursor onto the next or previous event, {@code by} of them, back when negative. */
     record EventKey(int by) {
         static final Topic<EventKey> TOPIC = Topic.edge(EventKey.class);

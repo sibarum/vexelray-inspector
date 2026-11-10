@@ -9,6 +9,9 @@ import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
+import dev.sibarum.inspector.core.Messages.ExportFrame;
+import dev.sibarum.inspector.core.Messages.Exported;
+import dev.sibarum.inspector.core.Messages.WriteExport;
 import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
@@ -39,6 +42,8 @@ import dev.vexelray.framework.api.Component;
 import dev.vexelray.framework.api.Hears;
 import dev.vexelray.framework.api.Publishes;
 import dev.vexelray.framework.api.Setting;
+import dev.vexelray.framework.core.PickFile;
+import dev.vexelray.framework.core.Picked;
 import dev.vexelray.framework.core.Timer;
 import dev.vexelray.framework.core.WindowOpened;
 import sibarum.atchung.Inbox;
@@ -87,9 +92,10 @@ import java.util.Optional;
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class,
-        GoToTick.class, SelectRange.class, ClearRange.class})
+        GoToTick.class, SelectRange.class, ClearRange.class, ExportFrame.class, Picked.class, Exported.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
-        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class})
+        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class, PickFile.class,
+        WriteExport.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -525,7 +531,10 @@ public final class Bench {
                 .on(Messages.GO_TO_TICK_TOPIC, b.step("go to tick", Bench::goToTick))
                 .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek))
                 .on(Messages.SELECT_RANGE_TOPIC, b.step("select range", Bench::selectRange))
-                .on(Messages.CLEAR_RANGE_TOPIC, b.step("clear range", Bench::clearRange));
+                .on(Messages.CLEAR_RANGE_TOPIC, b.step("clear range", Bench::clearRange))
+                .on(Messages.EXPORT_FRAME_TOPIC, b.step("export frame", Bench::exportFrame))
+                .on(Picked.TOPIC, b.step("picked", Bench::picked))
+                .on(Messages.EXPORTED_TOPIC, b.step("exported", Bench::exported));
         ledger = b.build(inbox, "bench", CAPACITY);
         timer.every(LOOK_AGAIN, Messages.FIND_RUNS_TOPIC, new FindRuns());
     }
@@ -862,6 +871,88 @@ public final class Bench {
             return s;
         }
         return say(paused(s, s.island().selecting(Optional.empty()), s.cursor(), false), out);
+    }
+
+    // ------------------------------------------------------------------ exporting the frame
+
+    /** The id the bench's save picker is asked and answered by, so another part's {@link Picked} is not taken as it. */
+    static final long EXPORT_PICK = 0x1E5_E0F7L;
+
+    /** How far either side of the cursor the frame's rows are looked for: a pass longer than this is cut. */
+    static final long FRAME_REACH = 2 * Tape.SECOND;
+
+    /**
+     * Export frame: following, pause first where the view's lane comes to rest, as Space does; then ask where to save.
+     * The frame is read when the answer comes ({@link #picked}): the picker is modal over the window, so the cursor
+     * cannot move while it is up. Nothing kept, nothing to export.
+     */
+    static State exportFrame(State s, ExportFrame e, Out out) {
+        if (s.tape().isEmpty() && s.island().tape().isEmpty()) {
+            return s;
+        }
+        State at = s;
+        if (!s.paused()) {
+            Island island = s.held(e.restNanos());
+            at = say(paused(s, island, island.clamp(e.restNanos()), false), out);
+        }
+        out.send(PickFile.TOPIC, PickFile.save(EXPORT_PICK, "", exportName(at),
+                List.of(new PickFile.Filter("CSV", List.of("csv")))));
+        return at;
+    }
+
+    /** Where to save the frame, or that the person cancelled: write it there, as of the cursor now. */
+    static State picked(State s, Picked p, Out out) {
+        if (p.id() != EXPORT_PICK || p.isCancelled()) {
+            return s;
+        }
+        out.send(Messages.WRITE_EXPORT_TOPIC, new WriteExport(p.path(), frameCsv(s)));
+        return s;
+    }
+
+    /** The frame written, or not: the status line says where, or why. */
+    static State exported(State s, Exported e, Out out) {
+        State next = s.withStatus(e.problem().isEmpty() ? "Exported the frame to " + e.path()
+                : "Could not export the frame to " + e.path() + ": " + e.problem());
+        out.send(Messages.TIMELINE_TOPIC, next.timeline());
+        return next;
+    }
+
+    /**
+     * The cursor's frame, the main loop's pass its rows number: the event's it is on, or the row's, or else the
+     * newest row's at or before it. 0 when the rows number none there.
+     */
+    static long frameOf(State s, RowsAround around) {
+        if (s.paused() && s.on().isPresent()) {
+            return s.on().get().mark().frame();
+        }
+        if (s.paused() && s.row().isPresent()) {
+            return s.row().get().frame();
+        }
+        return around.selected() < 0 ? 0L : around.rows().get(around.selected()).frame();
+    }
+
+    /** Everything the panels show as of the cursor, and every row of its frame, as {@link FrameCsv} lays it out. */
+    static String frameCsv(State s) {
+        Model at = s.atCursor();
+        List<Model.Hop> hops = s.hops();
+        Details details = s.details(hops);
+        RowsAround around = s.rowsAround();
+        long frame = frameOf(s, around);
+        List<Row> rows = new ArrayList<>();
+        if (frame > 0) {
+            Tape tape = s.paused() ? s.island().tape() : s.tape();
+            rows.addAll(tape.near(details.atNanos(), FRAME_REACH, r -> r.frame() == frame));
+            rows.sort(Tape.ORDER);
+        }
+        return FrameCsv.of(named(s.title(), s.run()), s.first(), frame, details, s.readouts(at), s.traced(hops),
+                s.ledger(), s.flows(at), around, rows);
+    }
+
+    /** What the picker offers to save as: the run and the frame, with nothing a file name cannot hold. */
+    static String exportName(State s) {
+        long frame = frameOf(s, s.rowsAround());
+        String run = s.run().isEmpty() ? "inspector" : s.run();
+        return (run + (frame > 0 ? " frame " + frame : " frame")).replaceAll("[\\\\/:*?\"<>|]", "-") + ".csv";
     }
 
     /** The event ending latest before {@code at} (or at it, unless {@code strictly}) on the island. */

@@ -206,6 +206,11 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String WAITED = "Waited";
     /** A message's: its type's package. */
     public static final String PACKAGE = "Package";
+    /**
+     * A message's: who wrote it, as the graph and flows panels name its sender ({@link #senderOf}): a part's class, the
+     * framework, or {@link #OUTSIDE_A_TICK}.
+     */
+    public static final String FROM = "From";
     /** Injected input's: the automation verb, and what it sent. */
     public static final String VERB = "Verb";
     public static final String SENT = "Sent";
@@ -227,7 +232,8 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /** Where {@link #ahead} keeps what a row with no pass said for the next draw: a recording's rows have none. */
     private static final long UNNUMBERED = 0L;
     public static final List<String> FIELDS = List.of(TYPE, PATH, PASS_NUMBER, TICK_NUMBER, DRAW_NUMBER, TOOK, THREAD,
-            DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, RECORDING, PACKAGE, VERB, SENT, EDGES, REASON);
+            DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, RECORDING, FROM, PACKAGE, VERB, SENT, EDGES,
+            REASON);
 
     /** The row a tick writes after its zone, and a draw after its own: atchung's and vexelray-gui's. */
     static final String TICK_RAN = "tick.ran";
@@ -409,6 +415,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         boolean[] changed = new boolean[lanes.size()];
         int main = LANES.indexOf(MAIN);
         int drawing = LANES.indexOf(DRAWING);
+        int messages = LANES.indexOf(MESSAGES);
         for (Row r : rows) {
             if (r.atNanos() > upToNanos) {
                 continue;
@@ -510,6 +517,13 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             Mark m = markOf(r);
             if (m == null) {
                 continue;
+            }
+            if (lane == messages) {
+                // Who wrote it, as the graph names its senders: what the graph's dots put it on.
+                Crossing c = crossing(r);
+                if (c != null && c.write()) {
+                    m = m.with(FROM, senderOf(graph, c.topic(), c.who()), false);
+                }
             }
             if (lane == drawing && m.kind().equals(DRAW) && m.frame() > 0) {
                 for (Field f : told.getOrDefault(m.frame(), List.of())) {
@@ -646,11 +660,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             }
             c.by().forEach((who, n) -> {
                 if (who.startsWith(Counted.OUTSIDE)) {
-                    String thread = who.substring(Counted.OUTSIDE.length());
-                    List<Part> could = senders.stream().filter(p -> writesOn(p, thread)).toList();
-                    // With no graph there is no part to put it to: the thread is all that is known.
-                    String part = parts.isEmpty() ? "on " + thread : could.size() == 1 ? could.getFirst().name()
-                            : could.isEmpty() ? End.FRAMEWORK : OUTSIDE_A_TICK;
+                    String part = outsider(senders, parts.isEmpty(), who.substring(Counted.OUTSIDE.length()));
                     double perSecond = rate.applyAsDouble(who);
                     long last = c.last().getOrDefault(who, 0L);
                     int at = indexOf(from, part);
@@ -675,6 +685,40 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
             flows.add(new Flow(t.getKey(), t.getValue(), from, to, c.written(), c.delivered(), perSecond));
         }
         return new Flows(run, why.isEmpty() ? declared.why() : why, declared.parts(), flows, selected, atNanos);
+    }
+
+    /**
+     * The sender a write from outside a tick on {@code thread} is put to, among {@code senders}, the parts the graph
+     * declares send its topic: the one that writes on that thread ({@link #writesOn}); the framework when none does;
+     * {@link #OUTSIDE_A_TICK} when more than one could have; and only the thread, {@code on <thread>}, with no graph.
+     */
+    static String outsider(List<Part> senders, boolean graphless, String thread) {
+        if (graphless) {
+            return "on " + thread;
+        }
+        List<Part> could = senders.stream().filter(p -> writesOn(p, thread)).toList();
+        return could.size() == 1 ? could.getFirst().name() : could.isEmpty() ? End.FRAMEWORK : OUTSIDE_A_TICK;
+    }
+
+    /**
+     * Who wrote on {@code topic}, as the graph and flows panels name its sender: {@code who} as a write's row names it,
+     * a part's class, or {@link Counted#OUTSIDE} and the thread, which is put to a part as {@link #outsider} says.
+     */
+    static String senderOf(Declared graph, String topic, String who) {
+        if (!who.startsWith(Counted.OUTSIDE)) {
+            return who;
+        }
+        List<Part> senders = new ArrayList<>();
+        for (Declared.Line l : graph.ends()) {
+            if (l.sends() && l.topic().equals(topic)) {
+                for (Part p : graph.parts()) {
+                    if (p.name().equals(l.part())) {
+                        senders.add(p);
+                    }
+                }
+            }
+        }
+        return outsider(senders, graph.parts().isEmpty(), who.substring(Counted.OUTSIDE.length()));
     }
 
     /**

@@ -87,13 +87,37 @@ final class Diagram {
     }
 
     /**
-     * The line a lit arrow is drawn along, from where it begins to where it lands, and what its sender writes on it a
-     * second: what the dots run along ({@link Dots}).
+     * The line an arrow is drawn along, from where it begins to where it lands, with whose it is and what it carries:
+     * what a message's dot runs along ({@link Dots}).
+     *
+     * @param from   the sending part, as the arrow names it: a part with a box, or the framework
+     * @param topics the topics it carries, by their names without their packages, as a message event's type is
      */
-    record Track(float x0, float y0, float x1, float y1, double perSecond) {
+    record Track(String from, List<String> topics, float x0, float y0, float x1, float y1) {
 
         float length() {
             return (float) Math.hypot(x1 - x0, y1 - y0);
+        }
+    }
+
+    /** Every arrow's track, and the parts that have a box: a sender with none is drawn as the framework. */
+    record Tracks(java.util.Set<String> parts, List<Track> all) {
+
+        static final Tracks NONE = new Tracks(java.util.Set.of(), List.of());
+
+        /**
+         * The tracks a message of type {@code type} written by {@code from} runs along: one for each part that hears
+         * it from that sender, as the arrows were drawn ({@link #lay}).
+         */
+        List<Track> carrying(String type, String from) {
+            String sender = parts.contains(from) ? from : End.FRAMEWORK;
+            List<Track> out = new ArrayList<>(2);
+            for (Track t : all) {
+                if (t.from().equals(sender) && t.topics().contains(type)) {
+                    out.add(t);
+                }
+            }
+            return out;
         }
     }
 
@@ -300,23 +324,20 @@ final class Diagram {
                 : nanos / 1_000_000_000L + " s ago";
     }
 
-    /**
-     * The lines of {@code f}'s arrows that something is being written on, laid out in a panel {@code w} by {@code h}
-     * px, and the rate on each: where {@link Dots} run.
-     */
-    static List<Track> tracks(Flows f, float w, float h) {
+    /** The lines of {@code f}'s arrows, laid out in a panel {@code w} by {@code h} px: where {@link Dots} run. */
+    static Tracks tracks(Flows f, float w, float h) {
         if (w <= 0f || h <= 0f) {
-            return List.of();
+            return Tracks.NONE;
         }
         Layout l = lay(f, w, h);
         List<Track> out = new ArrayList<>();
         for (Arrow a : l.arrows()) {
-            float[] line = a.perSecond() > 0.0 ? line(a, l) : null;
+            float[] line = line(a, l);
             if (line != null) {
-                out.add(new Track(line[0], line[1], line[2], line[3], a.perSecond()));
+                out.add(new Track(a.from(), a.topics(), line[0], line[1], line[2], line[3]));
             }
         }
-        return out;
+        return new Tracks(java.util.Set.copyOf(l.boxes().keySet()), List.copyOf(out));
     }
 
     /** Where an arrow from {@code from} to {@code to} begins and lands: the edges of their boxes that face. */

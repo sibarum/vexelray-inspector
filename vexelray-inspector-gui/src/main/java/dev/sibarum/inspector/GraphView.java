@@ -1,6 +1,7 @@
 package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.core.Messages.Flows;
+import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Messages.Traced;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
@@ -20,8 +21,9 @@ import java.util.List;
  *
  * <p>A {@code @View} of its own, keeping to its window's widgets, as Mainframe's Workspaces window's is. It decides
  * nothing: where the graph is looked at from is the person's, and kept here, as the lanes' zoom is in {@link
- * dev.sibarum.inspector.View}. Every gesture is a redraw in the told half; what moves on its own is the dots along the
- * busy arrows, as in the panel, asked by this window's tree ({@code @View(window)}: the main one would ignore them).
+ * dev.sibarum.inspector.View}. Every gesture is a redraw in the told half; what moves on its own is the dots, a message
+ * each from the timeline's Messages lane, as in the panel ({@link Dots}), asked by this window's tree
+ * ({@code @View(window)}: the main one would ignore them).
  */
 @View(window = GraphWindow.KEY)
 final class GraphView {
@@ -34,15 +36,15 @@ final class GraphView {
 
     private final GraphWindow window;
     private final Diagram.Inks inks;
-    /** The dot nodes on the stage, and the tracks and lens offset they were last laid out at. */
+    /** The dot nodes on the stage, and the arrows they run along at the lens's zoom, before it moves them. */
     private final Dots.Pool pool;
-    private List<Diagram.Track> dotTracks = List.of();
-    private float dotX = Float.NaN;
-    private float dotY = Float.NaN;
+    private Diagram.Tracks dotTracks = Diagram.Tracks.NONE;
 
-    /** The dots running along the lit arrows, where the lens has them: the asked half's state. */
+    /** The dots, a message each on its way, where the lens has them: the asked half's state. */
     Dots state = Dots.NONE;
 
+    private Timeline timeline = new Timeline("", "", true, 0L, List.of(), java.util.Optional.empty(), "",
+            java.util.Optional.empty());
     private Flows flows = new Flows("", "", List.of(), List.of());
     private Traced traced = Traced.NONE;
     private GraphLens lens = GraphLens.FITTED;
@@ -100,6 +102,13 @@ final class GraphView {
         look(lens, true);
     }
 
+    /** The lanes, whose Messages lane the dots are, and whether they follow the present or stand at the cursor. */
+    @Subscribe
+    public void timeline(Timeline t) {
+        timeline = t;
+        layDots();
+    }
+
     /** Where the graph is looked at from now. */
     GraphLens lens() {
         return lens;
@@ -112,6 +121,7 @@ final class GraphView {
     private void look(GraphLens next, boolean relay) {
         if (relay || next.zoom() != lens.zoom()) {
             laid = Diagram.draw(flows, traced, stageW * next.zoom(), stageH * next.zoom(), inks);
+            dotTracks = Diagram.tracks(flows, stageW * next.zoom(), stageH * next.zoom());
         }
         lens = next;
         shown = laid.shifted(next.x(), next.y());
@@ -120,26 +130,21 @@ final class GraphView {
     }
 
     /**
-     * The dots laid out again on the arrows at the lens's zoom and moved where it has them: kept as they are when that
-     * changes no dot, so a rate that stays in its step leaves them running where they were.
+     * The dots laid out again, a message each, from the timeline last told ({@link Dots.Pool#dots}), at the cursor the
+     * flows were last counted to, on the arrows at the lens's zoom moved where it has them.
      */
     private void layDots() {
-        List<Diagram.Track> tracks = Diagram.tracks(flows, stageW * lens.zoom(), stageH * lens.zoom());
-        if (tracks.equals(dotTracks) && lens.x() == dotX && lens.y() == dotY) {
-            return;
-        }
-        dotTracks = tracks;
-        dotX = lens.x();
-        dotY = lens.y();
-        state = pool.dots(state, tracks, lens.x(), lens.y());
+        state = pool.dots(dotTracks, timeline, flows.atNanos(), lens.x(), lens.y());
     }
 
-    /** The asked half: the dots where they run to at the frame's present ({@link Dots#place}). Due again while any move. */
+    /**
+     * The asked half: each dot where its message is at the frame's present, the lanes' right edge while following, or
+     * at the cursor ({@link Dots#place}). Due again while they move.
+     */
     @Draw
     static long draw(Dots s, Frame frame, Drawn out) {
-        boolean still = frame.reducedMotion();
-        Dots.place(s, frame.monoNanos(), still, out);
-        return !still && s.moving() ? frame.presentNanos() : Frame.NEVER;
+        Dots.place(s, s.moment(frame.monoNanos()), out);
+        return s.moving() ? frame.presentNanos() : Frame.NEVER;
     }
 
     /** What the stage was last given to show. */

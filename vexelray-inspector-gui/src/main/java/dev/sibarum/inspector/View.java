@@ -186,7 +186,7 @@ final class View {
      * @param reach        how many of it the strip reaches past the lane each side, {@link #SLIDE_LANES} or more
      * @param edge         where the lane's right edge is, a moment, as a function of the present
      * @param zoom         how much time the lane spans, as its natural logarithm, so that each doubling takes as long
-     * @param dots         the dots running along the graph panel's lit arrows ({@link Dots})
+     * @param dots         the graph panel's dots, a message each on its way along its arrow ({@link Dots})
      */
     record Strip(Node strip, long edgeNanos, float pictureScale, float laneW, int reach, Motion edge, Motion zoom,
                  Dots dots) {
@@ -303,7 +303,7 @@ final class View {
             graphW = layout.rect().w();
             graphH = layout.rect().h();
             ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
-            layDots();
+            layDots(true);
         });
         gui.hear(ui.lane(), NodeEvent.RESIZE, layout -> {
             laneX = layout.rect().x();
@@ -665,7 +665,8 @@ final class View {
         pressWindow = -1L;
         last = t;
         state = new Strip(state.strip(), state.edgeNanos(), state.pictureScale(), state.laneW(), state.reach(), edge,
-                state.zoom().settled(now), state.dots().following(t.live(), now));
+                state.zoom().settled(now), state.dots());
+        layDots(false);
         ui.status(t.status());
         ui.warning(t.warning());
         ui.canFollow(!t.live());
@@ -1561,20 +1562,19 @@ final class View {
         ui.flows(flowsNote(f), topics, cells);
         lastFlows = f;
         ui.graph().picture(Diagram.draw(f, traced, graphW, graphH, diagramInks));
-        layDots();
+        layDots(true);
     }
 
     /**
-     * The graph panel's dots laid out again on the arrows of the flows last told, at the panel's size: kept as they
-     * are when that changes no dot, so a rate that stays in its step leaves them running where they were.
+     * The graph panel's dots laid out again, a message each, from the timeline last told ({@link Dots.Pool#dots}), at
+     * the cursor the flows were last counted to; on the arrows laid out again first when {@code relay} says the flows
+     * or the panel's size changed.
      */
-    private void layDots() {
-        List<Diagram.Track> tracks = Diagram.tracks(lastFlows, graphW, graphH);
-        if (tracks.equals(dotTracks)) {
-            return;
+    private void layDots(boolean relay) {
+        if (relay) {
+            dotTracks = Diagram.tracks(lastFlows, graphW, graphH);
         }
-        dotTracks = tracks;
-        state = state.with(graphDots.dots(state.dots(), tracks, 0f, 0f));
+        state = state.with(graphDots.dots(dotTracks, last, lastFlows.atNanos(), 0f, 0f));
     }
 
     /**
@@ -1591,7 +1591,7 @@ final class View {
     private final Diagram.Inks diagramInks;
     /** The graph panel's dot nodes, and the tracks they were last laid out on. */
     private final Dots.Pool graphDots;
-    private List<Diagram.Track> dotTracks = List.of();
+    private Diagram.Tracks dotTracks = Diagram.Tracks.NONE;
     private float graphW;
     private float graphH;
     private Flows lastFlows = new Flows("", "", List.of(), List.of());
@@ -1643,7 +1643,8 @@ final class View {
     /**
      * The asked half: where the motions put the right edge and the zoom at the frame's present; the picture stretched
      * from the scale it was built at to the zoom's, about the edge moment; and the strip slid by how far the right
-     * edge is from that moment; and the graph's dots where they run to ({@link Dots#place}). Due again while any moves.
+     * edge is from that moment; and each of the graph's dots where its message is at that moment, or at the cursor
+     * when stopped ({@link Dots#place}). Due again while any moves.
      */
     @Draw
     static long draw(Strip s, Frame frame, Drawn out) {
@@ -1654,8 +1655,7 @@ final class View {
         float stretch = s.pictureScale() > 0f ? (float) (scale / s.pictureScale()) : 1f;
         out.stretch(s.strip(), stretch, s.laneW() * (1 + s.reach()));
         out.offset(s.strip(), -s.reach() * s.laneW() + (float) ((s.edgeNanos() - edge) * scale), 0f);
-        Dots.place(s.dots(), t, still, out);
-        return s.edge().moving(t) || s.zoom().moving(t) || !still && s.dots().moving() ? frame.presentNanos()
-                : Frame.NEVER;
+        Dots.place(s.dots(), s.dots().moment(edge), out);
+        return s.edge().moving(t) || s.zoom().moving(t) || s.dots().moving() ? frame.presentNanos() : Frame.NEVER;
     }
 }

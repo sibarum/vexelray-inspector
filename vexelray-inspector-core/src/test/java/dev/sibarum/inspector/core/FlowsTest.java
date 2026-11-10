@@ -260,4 +260,17 @@ class FlowsTest {
                 "a sender that wrote nothing within a stretch has no newest write there");
         assertEquals(java.util.Optional.empty(), after.flows("run", "", before, 1_500 * MS).selected());
     }
+
+    @Test
+    void aMessageOnTheMessagesLaneSaysWhoWroteItAsTheGraphNamesItsSender() {
+        long at = 2_000 * MS;
+        Model m = Model.EMPTY.fold(List.of(graph(at, GRAPH),
+                send(1, at, "Timeline", "dev.sibarum.inspector.core.Bench"),
+                publish(2, at + MS, "Rows", "vexel-source-link-rows"),
+                publish(3, at + 2 * MS, "Timeline", "main")), Long.MAX_VALUE);
+        assertEquals(List.of("dev.sibarum.inspector.core.Bench", "dev.sibarum.inspector.core.LinkRows", End.FRAMEWORK),
+                m.lane(Model.MESSAGES).marks().stream().map(e -> e.field(Model.FROM)).toList(),
+                "a component's send names it; a source's publish is put to it by its thread; one no part makes is the"
+                        + " framework's");
+    }
 }

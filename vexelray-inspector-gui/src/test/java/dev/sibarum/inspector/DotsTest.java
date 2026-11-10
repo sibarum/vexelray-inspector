@@ -1,5 +1,9 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Messages.Field;
+import dev.sibarum.inspector.core.Messages.Mark;
+import dev.sibarum.inspector.core.Messages.End;
+import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Feed;
 import dev.vexelray.gui.core.Node;
@@ -7,15 +11,16 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The graph's dots: how many a rate shows, how they are spaced, and where the asked half puts them. */
+/** The graph's dots: a message each, put on its arrow by its type and sender, and placed by when it was written. */
 class DotsTest {
 
+    private static final long MS = 1_000_000L;
     private static final long S = 1_000_000_000L;
 
     /** What the asked half set, a call at a time: the x and y of each offset, and each opacity. */
@@ -51,67 +56,77 @@ class DotsTest {
         }
     }
 
-    @Test
-    void aFewMessagesASecondAreADotEachAndMoreAreShownOnALogScaleInSteps() {
-        assertEquals(0.0, Dots.shown(0.0));
-        assertEquals(0.5, Dots.shown(0.1), "a trickle is still seen");
-        assertEquals(3.0, Dots.shown(3.1));
-        assertEquals(Dots.HONEST, Dots.shown(Dots.HONEST));
-        assertEquals(Dots.MOST_SHOWN, Dots.shown(Dots.TOP_RATE));
-        assertEquals(Dots.MOST_SHOWN, Dots.shown(50_000.0), "no more past the top");
-        assertTrue(Dots.shown(100.0) > Dots.HONEST && Dots.shown(100.0) < Dots.MOST_SHOWN);
-        assertEquals(Dots.shown(100.0), Dots.shown(103.0), "a rate wandering a little stays in its step");
+    private static Mark message(long at, String type, String from) {
+        return new Mark(at, at, Model.MESSAGE, "vexel-logic", 0L, "", List.of(new Field(Model.TYPE, type),
+                new Field(Model.FROM, from)));
     }
 
     @Test
-    void dotsComeAWholeNumberAlongATrackOrOneAPeriodLongerThanItWhenSparse() {
-        float[] busy = Dots.spacing(240f, 4.0);
-        assertEquals(10f, busy[0], "96 px/s over 4 a second is 24 px apart: ten along 240 px");
-        assertEquals(240f, busy[1]);
-        float[] sparse = Dots.spacing(100f, 0.5);
-        assertEquals(1f, sparse[0]);
-        assertEquals(192f, sparse[1], "one dot, back every two seconds though the track is shorter");
-        assertEquals(0f, Dots.spacing(100f, 0.0)[0]);
-        assertTrue(Dots.spacing(5_000f, Dots.TOP_RATE)[0] <= Dots.MOST);
-    }
+    void eachDotIsWhereItsMessageIsAFullTransitAfterItWasWrittenItHasLanded() {
+        Dots.Dot d = new Dots.Dot(null, 10f, 20f, 1f, 0f, 200f, 5 * S);
+        Dots.Dot spare = new Dots.Dot(null, 0f, 0f, 0f, 0f, 0f, 0L);
+        Dots s = new Dots(List.of(d, spare), -1L);
 
-    @Test
-    void theAskedHalfRunsEachDotAlongItsTrackFadingAtTheEndsAndFadesOutTheSpareOnes() {
-        Dots.Dot d = new Dots.Dot(null, 10f, 20f, 1f, 0f, 200f, 200f, 0f);
-        Dots.Dot spare = new Dots.Dot(null, 0f, 0f, 0f, 0f, 0f, 1f, 0f);
-        Dots s = new Dots(List.of(d, spare), -1L, 0L);
-        Seen seen = new Seen();
-        long t = S;     // 96 px along
-        Dots.place(s, t, false, seen);
-        assertEquals(10f + 96f - Dots.BOX / 2f, seen.offsets.getFirst()[0], 1e-3);
-        assertEquals(20f - Dots.BOX / 2f, seen.offsets.getFirst()[1], 1e-3);
-        assertEquals(List.of(1f, 0f), seen.opacities, "in the middle at full, the spare out");
+        Seen half = new Seen();
+        Dots.place(s, 5 * S + Dots.TRANSIT / 2, half);
+        assertEquals(10f + 100f - Dots.BOX / 2f, half.offsets.getFirst()[0], 1e-3, "half way when half its transit is gone");
+        assertEquals(20f - Dots.BOX / 2f, half.offsets.getFirst()[1], 1e-3);
+        assertEquals(List.of(1f, 0f), half.opacities, "the spare node carries nothing");
 
+        Seen before = new Seen();
+        Dots.place(s, 5 * S - MS, before);
+        assertEquals(0f, before.opacities.getFirst(), "not yet written");
+        Seen after = new Seen();
+        Dots.place(s, 5 * S + Dots.TRANSIT + MS, after);
+        assertEquals(0f, after.opacities.getFirst(), "landed");
         Seen near = new Seen();
-        Dots.place(s, (long) (S * 197.0 / 96.0), false, near);
+        Dots.place(s, 5 * S + (long) (Dots.TRANSIT * 197.0 / 200.0), near);
         assertEquals(0.3f, near.opacities.getFirst(), 1e-3, "three px from where it lands");
-        assertTrue(s.moving());
+    }
+
+    @Test
+    void followingTheDotsRunAtTheEdgeAndStoppedTheyStandAtTheCursor() {
+        Dots.Dot d = new Dots.Dot(null, 0f, 0f, 1f, 0f, 100f, S);
+        assertTrue(new Dots(List.of(d), -1L).moving());
+        assertEquals(7.0, new Dots(List.of(d), -1L).moment(7.0));
+        Dots pinned = new Dots(List.of(d), 3 * S);
+        assertFalse(pinned.moving(), "stopped, nothing moves on its own");
+        assertEquals(3e9, pinned.moment(7.0), "at the cursor, whatever the edge");
         assertFalse(Dots.NONE.moving());
     }
 
     @Test
-    void pausedTheDotsStopWhereTheyAreAndFollowingAgainGoOnFromThere() {
-        Dots.Dot d = new Dots.Dot(null, 0f, 0f, 1f, 0f, 1_000f, 1_000f, 0f);
-        Dots running = new Dots(List.of(d), -1L, 0L);
-        Dots stopped = running.following(false, 2 * S);
-        assertFalse(stopped.moving());
-        assertSame(stopped, stopped.following(false, 3 * S), "stopped already");
-        Seen whileStopped = new Seen();
-        Dots.place(stopped, 9 * S, false, whileStopped);
-        Seen atStop = new Seen();
-        Dots.place(running, 2 * S, false, atStop);
-        assertEquals(atStop.offsets.getFirst()[0], whileStopped.offsets.getFirst()[0], 1e-3, "where it stopped");
+    void aMessageIsPutOnTheArrowOfItsTypeFromItsSenderAndASenderWithNoBoxIsTheFrameworks() {
+        Diagram.Track rows = new Diagram.Track("dev.LinkRows", List.of("Messages.Rows"), 0f, 0f, 100f, 0f);
+        Diagram.Track replay = new Diagram.Track("dev.RecordingRows", List.of("Messages.Rows"), 0f, 50f, 100f, 50f);
+        Diagram.Track pressed = new Diagram.Track(End.FRAMEWORK, List.of("Button.Pressed"), 0f, 90f, 100f, 90f);
+        Diagram.Tracks tracks = new Diagram.Tracks(Set.of("dev.LinkRows", "dev.RecordingRows", End.FRAMEWORK),
+                List.of(rows, replay, pressed));
+        assertEquals(List.of(rows), tracks.carrying("Messages.Rows", "dev.LinkRows"), "two senders told apart");
+        assertEquals(List.of(pressed), tracks.carrying("Button.Pressed", "on main"));
+        assertEquals(List.of(), tracks.carrying("Messages.Rows", "dev.Elsewhere"));
+    }
 
-        Dots again = stopped.following(true, 5 * S);
-        Seen resumed = new Seen();
-        Dots.place(again, 5 * S, false, resumed);
-        assertEquals(atStop.offsets.getFirst()[0], resumed.offsets.getFirst()[0], 1e-3, "no jump on following");
-        assertEquals(3 * S, again.lostNanos());
-        assertEquals(again.dots(), again.laidOut(List.of(d)).dots());
+    @Test
+    void aDotForEachMessageOnItsWayAndOneForMessagesTooCloseTogetherToTellApart() {
+        Diagram.Track rows = new Diagram.Track("dev.LinkRows", List.of("Messages.Rows"), 0f, 0f, 600f, 0f);
+        Diagram.Tracks tracks = new Diagram.Tracks(Set.of("dev.LinkRows"), List.of(rows));
+        long cursor = 9 * S + 500 * MS;
+        List<Mark> marks = List.of(
+                message(S, "Messages.Rows", "dev.LinkRows"),                    // landed long before
+                message(9 * S, "Messages.Rows", "dev.LinkRows"),
+                message(9 * S + MS, "Messages.Rows", "dev.LinkRows"),           // under a dot's width behind: drawn over
+                message(9 * S + 300 * MS, "Messages.Rows", "dev.LinkRows"),
+                message(9 * S + 400 * MS, "Messages.Other", "dev.LinkRows"),    // on no arrow
+                message(9 * S + 600 * MS, "Messages.Rows", "dev.LinkRows"));    // after the cursor
+        assertEquals(List.of(9 * S, 9 * S + 300 * MS), sentAt(Dots.trips(tracks, marks, cursor, cursor)),
+                "stopped: those on their way at the cursor");
+        assertEquals(List.of(9 * S, 9 * S + 300 * MS, 9 * S + 600 * MS),
+                sentAt(Dots.trips(tracks, marks, cursor, Long.MAX_VALUE)), "following: and those written since");
+        assertEquals(1, Dots.from(marks, 9 * S));
+    }
+
+    private static List<Long> sentAt(List<Dots.Trip> trips) {
+        return trips.stream().map(Dots.Trip::sentAt).toList();
     }
 }

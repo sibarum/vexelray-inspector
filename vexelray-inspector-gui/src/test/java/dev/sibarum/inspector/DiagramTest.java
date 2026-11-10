@@ -125,9 +125,12 @@ class DiagramTest {
                 "nothing said that is not known");
         assertEquals("75 s ago", Diagram.ago(75_400_000_000L));
 
-        List<Diagram.Track> tracks = Diagram.tracks(f, 600f, 600f);
-        assertEquals(List.of(25.0, 2.5), tracks.stream().map(Diagram.Track::perSecond).sorted(
-                java.util.Comparator.reverseOrder()).toList(), "an arrow nothing is being written on has no dots");
-        assertEquals(List.of(), Diagram.tracks(f, 0f, 0f));
+        Diagram.Tracks tracks = Diagram.tracks(f, 600f, 600f);
+        assertEquals(l.arrows().size(), tracks.all().size(), "every arrow is a track, busy or not");
+        Diagram.Track rows = tracks.carrying("Rows", P + "LinkRows").getFirst();
+        assertEquals(List.of(P + "LinkRows", P + "Bench"), List.of(rows.from(), l.arrows().stream()
+                .filter(a -> a.from().equals(rows.from())).findFirst().orElseThrow().to()));
+        assertTrue(rows.length() > 0f);
+        assertEquals(Diagram.Tracks.NONE, Diagram.tracks(f, 0f, 0f));
     }
 }

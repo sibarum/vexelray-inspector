@@ -1147,6 +1147,7 @@ class BenchTest {
                 new Row(3, at + MS, 0L, 7L, "main", "frame", Model.HELD_FOR_GPU, "1", "")), Long.MAX_VALUE);
         assertEquals(List.of(new Field(Model.TYPE, "Messages.Rows"),
                 new Field(Model.PASS_NUMBER, "#7"), new Field(Model.THREAD, "vexel-source-link-rows"),
+                new Field(Model.FROM, "on vexel-source-link-rows"),
                 new Field(Model.PACKAGE, "dev.sibarum.inspector.core")),
                 m.lane(Model.MESSAGES).marks().getFirst().fields(),
                 "the path is filled when the details are said, since it grows after the event");

@@ -1,5 +1,9 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.core.Messages.Lane;
+import dev.sibarum.inspector.core.Messages.Mark;
+import dev.sibarum.inspector.core.Messages.Timeline;
+import dev.sibarum.inspector.core.Model;
 import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Gui;
@@ -8,72 +12,57 @@ import dev.vexelray.gui.core.layout.Length;
 import dev.vexelray.gui.draw.Sketch;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * The dots that run along the graph's lit arrows, as many a second as the sender writes on it, so how busy an arrow
- * is can be seen at a glance. Every dot runs at one speed, {@link #SPEED}, and what a second shows is how close
- * together they come: one dot a message up to {@link #HONEST} a second, then on a log scale up to {@link #MOST_SHOWN}
- * at {@link #TOP_RATE} and over. The rate is shown in steps ({@link #shown}), so a rate that wanders between two
- * batches leaves the dots where they are.
+ * The dots on the graph panel's arrows: one for each message on the Messages lane, leaving its sender's box at the
+ * moment it was written and landing on each part that hears it {@link #TRANSIT} later. So a dot is where the message
+ * would be at the moment the lanes are at: the right edge while following, the cursor when stopped. A burst on the
+ * lane leaves as a burst on its arrow, a quiet spell is a gap, and stepping the cursor moves the dots with it.
  *
- * <p>The told half ({@link Pool#dots}) lays the dots out on their tracks when the flows or the panel's size change; the
- * asked half ({@link #place}) moves them, from the frame's clock alone, allocating nothing. A dot fades in where its
- * arrow begins and out where it lands. Paused, the dots stop where they are, and go on from there when following
- * again: their clock is the frame's less the time spent paused ({@link #following}). Under reduced motion they stand.
+ * <p>A message is put on an arrow by its type and its sender, the event's {@link Model#FROM}, as the arrows are drawn.
+ * Two messages closer together on an arrow than a dot is wide would be drawn one over the other, so only one of them
+ * is: by the slot of time its moment falls in ({@link #slot}), which does not depend on which messages are in view, so
+ * a dot does not blink as the window moves.
  *
- * @param dots     every dot node the pool has, those on no track among them, faded out
- * @param pausedAt when the dots stopped, on the machine's clock; -1 while they run
- * @param lostNanos how long they have been stopped in all, which their clock is behind the frame's by
+ * <p>The told half ({@link Pool#dots}) lays them out when the timeline, the flows or the panel's size change; the asked
+ * half ({@link #place}) puts each where the moment has it, allocating nothing.
+ *
+ * @param dots     every dot node the pool has, those carrying no message among them, faded out
+ * @param pinnedAt the moment the dots stand at while the timeline is stopped, the cursor's; -1 while following, when
+ *                 the moment is the lanes' right edge at each frame
  */
-record Dots(List<Dot> dots, long pausedAt, long lostNanos) {
+record Dots(List<Dot> dots, long pinnedAt) {
 
-    /** No dots, running. */
-    static final Dots NONE = new Dots(List.of(), -1L, 0L);
+    /** No dots. */
+    static final Dots NONE = new Dots(List.of(), -1L);
 
-    /** How fast every dot runs, px a second. */
-    static final float SPEED = 96f;
+    /** How long a message's dot takes from its sender's box to its receiver's. */
+    static final long TRANSIT = 1_000_000_000L;
     /** A dot's diameter, px, and the box it is drawn in: in the names' ink, so it stands out on a lit arrow. */
     static final float SIZE = 6f;
     static final float BOX = 10f;
     /** How far from either end of its arrow a dot fades over, px. */
     static final float FADE = 10f;
-    /** The most dots on one arrow. */
-    static final int MOST = 24;
-    /** Up to this rate a dot is a message. */
-    static final double HONEST = 4.0;
-    /** The most dots a second an arrow shows, at {@link #TOP_RATE} a second and over. */
-    static final double MOST_SHOWN = 12.0;
-    static final double TOP_RATE = 1000.0;
+    /** The most dots at once, over every arrow. */
+    static final int MOST = 600;
 
     /**
-     * One dot: its node, where its track begins, the way along it, its length, how far along a dot goes before it is
-     * back where it began ({@code period}, at least the length), and how far ahead of the track's first dot it is.
-     * A dot on no track has length 0.
+     * One message's dot on one arrow: its node, where the arrow begins, the way along it, its length, and the moment
+     * the message was written, on the rows' clock. A node carrying no message has length 0.
      */
-    record Dot(Node node, float x0, float y0, float ux, float uy, float length, float period, float lead) {
+    record Dot(Node node, float x0, float y0, float ux, float uy, float length, long sentAt) {
     }
 
     Dots {
         dots = List.copyOf(dots);
     }
 
-    /** These dots stopped at {@code now}, or running from it, as {@code live} says; as they are if they already are. */
-    Dots following(boolean live, long now) {
-        if (live == (pausedAt < 0)) {
-            return this;
-        }
-        return live ? new Dots(dots, -1L, lostNanos + (now - pausedAt)) : new Dots(dots, now, lostNanos);
-    }
-
-    /** These, on {@code next}'s tracks, stopped or running as these are. */
-    Dots laidOut(List<Dot> next) {
-        return new Dots(next, pausedAt, lostNanos);
-    }
-
-    /** Whether they move: some dot is on a track, and they are not stopped. */
+    /** Whether the dots move by themselves: while following, with some on an arrow. */
     boolean moving() {
-        if (pausedAt >= 0) {
+        if (pinnedAt >= 0) {
             return false;
         }
         for (int i = 0; i < dots.size(); i++) {
@@ -84,60 +73,89 @@ record Dots(List<Dot> dots, long pausedAt, long lostNanos) {
         return false;
     }
 
-    /**
-     * The dots a second {@code perSecond} is shown as, in steps: a dot a message, by halves, up to {@link #HONEST};
-     * then in whole dots on a log scale to {@link #MOST_SHOWN}. 0 for none.
-     */
-    static double shown(double perSecond) {
-        if (!(perSecond > 0.0)) {
-            return 0.0;
-        }
-        if (perSecond <= HONEST) {
-            return Math.max(0.5, Math.round(perSecond * 2.0) / 2.0);
-        }
-        double over = Math.log(Math.min(perSecond, TOP_RATE) / HONEST) / Math.log(TOP_RATE / HONEST);
-        return Math.round(HONEST + over * (MOST_SHOWN - HONEST));
+    /** The moment the dots are at, for the lanes' right edge at {@code edge}: the cursor's when they are pinned. */
+    double moment(double edge) {
+        return pinnedAt >= 0 ? pinnedAt : edge;
     }
 
     /**
-     * The dots on a track {@code length} px long showing {@code perSecond}: how many, and the period they come round
-     * in. Spaced {@code SPEED / shown} apart, or as near that as a whole number of them along the track allows, so the
-     * last one leaves as the first comes in; one a period longer than the track when they come further apart than it is
-     * long. As {@code {count, period}}; no dots for no rate.
+     * The slot of time on a track {@code length} px long that a message written at {@code sentAt} falls in: a dot's
+     * width of travel, so two messages in one slot would be drawn over each other.
      */
-    static float[] spacing(float length, double perSecond) {
-        double shown = shown(perSecond);
-        if (shown <= 0.0 || length <= 0f) {
-            return new float[]{0f, 0f};
-        }
-        double apart = SPEED / shown;
-        if (apart >= length) {
-            return new float[]{1f, (float) apart};
-        }
-        int n = (int) Math.min(MOST, Math.max(1, Math.round(length / apart)));
-        return new float[]{n, length};
+    static long slot(long sentAt, float length) {
+        long width = Math.max(1L, (long) (TRANSIT * (SIZE / Math.max(length, SIZE))));
+        return Math.floorDiv(sentAt, width);
     }
 
     /**
-     * The asked half: each dot where its clock puts it at {@code t}, the frame's time on the machine's clock, faded at
-     * its track's ends; those on no track faded out. {@code still} for reduced motion, where they stand where they
-     * began. Allocates nothing.
+     * The asked half: each dot where its message is at {@code moment}, on the rows' clock, faded at its arrow's ends;
+     * one not yet sent, or landed, or carrying none, faded out. Allocates nothing.
      */
-    static void place(Dots s, long t, boolean still, Drawn out) {
-        long clock = still ? 0L : (s.pausedAt() >= 0 ? s.pausedAt() : t) - s.lostNanos();
-        double run = clock / 1e9 * SPEED;
+    static void place(Dots s, double moment, Drawn out) {
         List<Dot> dots = s.dots();
         for (int i = 0; i < dots.size(); i++) {
             Dot d = dots.get(i);
-            if (d.length() <= 0f) {
+            double gone = (moment - d.sentAt()) / TRANSIT;
+            if (d.length() <= 0f || gone < 0.0 || gone > 1.0) {
                 out.opacity(d.node(), 0f);
                 continue;
             }
-            float at = (float) ((run + d.lead()) % d.period());
-            float fade = at > d.length() ? 0f : Math.min(1f, Math.min(at, d.length() - at) / FADE);
+            float at = (float) (gone * d.length());
+            float fade = Math.min(1f, Math.min(at, d.length() - at) / FADE);
             out.offset(d.node(), d.x0() + d.ux() * at - BOX / 2f, d.y0() + d.uy() * at - BOX / 2f);
             out.opacity(d.node(), fade);
         }
+    }
+
+    /**
+     * Where in {@code marks}, in the order they were written, the first written at or after {@code fromNanos} is, as
+     * near as an order a little shuffled by two threads allows.
+     */
+    static int from(List<Mark> marks, long fromNanos) {
+        int lo = 0;
+        int hi = marks.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if (marks.get(mid).fromNanos() < fromNanos) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        return lo;
+    }
+
+    /** One message's way along one arrow: the track, and the moment the message was written. */
+    record Trip(Diagram.Track track, long sentAt) {
+    }
+
+    /** How much earlier than its place in the lane a message may have been written: rows from two threads. */
+    private static final long SLACK = 250_000_000L;
+
+    /**
+     * The trips of the messages among {@code marks}, the Messages lane's events, that are on their way at some moment
+     * from {@code fromNanos} to {@code toNanos}: each on every track of {@code tracks} that carries it, and only the
+     * first of those in one {@link #slot} of a track. At most {@link #MOST}. Pure, for a test.
+     */
+    static List<Trip> trips(Diagram.Tracks tracks, List<Mark> marks, long fromNanos, long toNanos) {
+        List<Trip> out = new ArrayList<>();
+        Set<String> drawn = new HashSet<>();
+        long earliest = fromNanos - TRANSIT;
+        for (int i = from(marks, earliest - SLACK); i < marks.size() && out.size() < MOST; i++) {
+            Mark m = marks.get(i);
+            if (m.fromNanos() < earliest || m.fromNanos() > toNanos) {
+                continue;
+            }
+            List<Diagram.Track> on = tracks.carrying(m.field(Model.TYPE), m.field(Model.FROM));
+            for (int k = 0; k < on.size() && out.size() < MOST; k++) {
+                Diagram.Track tr = on.get(k);
+                float length = tr.length();
+                if (length > 0f && drawn.add(tracks.all().indexOf(tr) + "@" + slot(m.fromNanos(), length))) {
+                    out.add(new Trip(tr, m.fromNanos()));
+                }
+            }
+        }
+        return out;
     }
 
     /**
@@ -158,30 +176,40 @@ record Dots(List<Dot> dots, long pausedAt, long lostNanos) {
         }
 
         /**
-         * The dots for {@code tracks}, moved {@code dx, dy} px (the graph window's lens), every node the pool has among
-         * them, as {@code before} runs.
+         * The dots for timeline {@code t}: each message on its Messages lane on its way at the moments the lanes will
+         * show before the next timeline, on {@code tracks} moved {@code dx, dy} px. Following, from its right edge on;
+         * stopped, at {@code cursor} alone, where they stand.
          */
-        Dots dots(Dots before, List<Diagram.Track> tracks, float dx, float dy) {
+        Dots dots(Diagram.Tracks tracks, Timeline t, long cursor, float dx, float dy) {
+            List<Mark> messages = List.of();
+            for (Lane l : t.lanes()) {
+                if (l.name().equals(Model.MESSAGES)) {
+                    messages = l.marks();
+                }
+            }
+            return t.live() ? dots(tracks, messages, t.edgeNanos(), Long.MAX_VALUE, -1L, dx, dy)
+                    : dots(tracks, messages, cursor, cursor, cursor, dx, dy);
+        }
+
+        /**
+         * The dots of the messages among {@code marks}, the Messages lane's events, that are on their way at some
+         * moment from {@code fromNanos} to {@code toNanos}: each on every track of {@code tracks} that carries it,
+         * moved {@code dx, dy} px. Pinned at {@code pinnedAt}, or -1 to follow. Every node the pool has is among them.
+         */
+        Dots dots(Diagram.Tracks tracks, List<Mark> marks, long fromNanos, long toNanos, long pinnedAt, float dx,
+                  float dy) {
             List<Dot> out = new ArrayList<>();
             int used = 0;
-            for (Diagram.Track tr : tracks) {
+            for (Trip trip : trips(tracks, marks, fromNanos, toNanos)) {
+                Diagram.Track tr = trip.track();
                 float length = tr.length();
-                float[] spaced = spacing(length, tr.perSecond());
-                int n = (int) spaced[0];
-                if (n == 0) {
-                    continue;
-                }
-                float ux = (tr.x1() - tr.x0()) / length;
-                float uy = (tr.y1() - tr.y0()) / length;
-                float apart = n == 1 ? spaced[1] : spaced[1] / n;
-                for (int k = 0; k < n; k++) {
-                    out.add(new Dot(node(used++), tr.x0() + dx, tr.y0() + dy, ux, uy, length, spaced[1], k * apart));
-                }
+                out.add(new Dot(node(used++), tr.x0() + dx, tr.y0() + dy, (tr.x1() - tr.x0()) / length,
+                        (tr.y1() - tr.y0()) / length, length, trip.sentAt()));
             }
             for (int i = used; i < nodes.size(); i++) {
-                out.add(new Dot(nodes.get(i), 0f, 0f, 0f, 0f, 0f, 1f, 0f));
+                out.add(new Dot(nodes.get(i), 0f, 0f, 0f, 0f, 0f, 0L));
             }
-            return before.laidOut(out);
+            return new Dots(out, pinnedAt);
         }
 
         private Node node(int i) {

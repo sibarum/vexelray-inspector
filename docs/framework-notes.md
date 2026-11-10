@@ -260,3 +260,15 @@ register a view's `@Draw` with the tree of the window its constructor's window p
 `Window.gui()`), as it already knows which `GraphWindow` it builds the view from; or the processor could refuse a
 `@Draw` on a view whose nodes it cannot place, rather than accept one that is never seen. This is also what TODO's
 "easing the graph window's zoom needs a `@Draw` for a second window's view" will meet.
+
+## FN-19 · A list's `Clicked` does not say whether Shift or Ctrl was held 🔬
+
+The rows and replay panels move the cursor on a click (`ListView.Clicked`), and their rows can now be chosen with
+Shift and Ctrl to copy, which must leave the cursor where it is. `Clicked` carries the list and the item only; the
+modifiers that decided whether the click was a plain one, a range or a toggle are applied to the `SelectionModel`
+inside `ListView.onRowClick` and then dropped. Worked around in `Ui.alone`: a click moves the cursor only when the
+item it names is the selection's one member, which is what a plain click leaves and a Shift- or Ctrl-click (almost)
+never does. It reads the model as it is when the view hears the message, a frame later, so a second click landing in
+between would be judged by the later selection. `Clicked` could carry the click's modifiers, or which
+`SelectionModel` operation it was (`at`, `toggle`, `extendTo`), so an application that acts on a plain click alone
+asks the message, not the model.

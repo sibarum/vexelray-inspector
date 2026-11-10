@@ -210,6 +210,29 @@ class ViewTest {
     }
 
     @Test
+    void copyPutsTheSelectedRowsOnTheClipboardAsCsvAndRowsChosenToCopyStayChosen() throws InterruptedException {
+        Messages.Row press = new Messages.Row(7, 1_000_000L, 0L, 3L, "main", "input", "press", "LEFT, held", "");
+        Messages.Row tick = new Messages.Row(8, 1_400_000L, 0L, 3L, "vexel-logic", "bus", "tick", "0.2ms", "");
+        Messages.Row draw = new Messages.Row(9, 2_500_000L, 0L, 4L, "main", "draw", "draw.ran", "#12", "");
+        Messages.RowsAround r = new Messages.RowsAround("run", List.of(press, tick, draw), 1);
+        shell.bus().publish(Messages.ROWS_AROUND_TOPIC, r);
+        eventually("the rows shown", () -> wiring.ui().rowCells(2).equals(View.rowCells(r).get(2)));
+        wiring.ui().rowSelection().toggle(0);
+        wiring.ui().rowSelection().toggle(2);
+        assertEquals(java.util.Set.of(0, 1, 2), wiring.ui().rowSelection().selection());
+        wiring.ui().rowSelection().toggle(1);
+        shell.bus().publish(Messages.ROWS_AROUND_TOPIC, r);   // the same rows again: the choice is kept
+        shell.gui().clipboard().set("");
+        shell.bus().publish(dev.vexelray.gui.widget.ListView.CHOSEN,
+                new dev.vexelray.gui.widget.ListView.Chosen(wiring.ui().rowsAddress(), Landmarks.COPY, 2));
+        eventually("the two rows copied", () -> !shell.gui().clipboard().get().isEmpty());
+        assertEquals("From cursor,Thread,Lane,Kind,Detail,Cause\r\n"
+                + "-0.400 ms,main,input,press,\"LEFT, held\",\r\n"
+                + "+1.100 ms,main,draw,draw.ran,#12,\r\n", shell.gui().clipboard().get());
+        assertTrue(wiring.ui().copied("no.such.table").isEmpty());
+    }
+
+    @Test
     void theThreadsPanelSaysEachClocksTurnItsStatesAndTheirSharesAndLeavesBlankWhatIsNotKnown()
             throws InterruptedException {
         long ms = 1_000_000L;

@@ -155,6 +155,11 @@ stop where they were, and the status line says what happened.
 | Click a row | put the cursor on that row of the rows panel |
 | Shift+drag on the lanes | select the stretch dragged over, for the readouts to count |
 | Escape | let the stretch selected go |
+| Shift+click / Ctrl+click a row | choose a range of rows, or one more or fewer, in any table, to copy; in the rows panel the cursor stays where it is |
+| Ctrl+C, or Copy on a row's right-click menu | copy the chosen rows of the table last clicked as CSV, its column titles first |
+
+What is copied is what the table shows, a cell a field. The rows panel's rows can be chosen among the eleven it
+shows, and the choice is kept until the cursor moves.
 
 Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
 says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click
@@ -198,6 +203,7 @@ message is in one file. Read these in this order.
 | `LinkRows.java` | the source that reads one run's rows over its link for as long as it is attached, setting each row on the machine's clock as it crosses. |
 | `RecordingRows.java` | the source that plays a probe recording back at its recorded pace, its rows sent as a run's, on the machine's clock as of when it started. |
 | `Child.java` | the source that starts `--launch`'s command with its automation on and a recording kept for Run again, logs its output, chooses it once its discovery file appears, and ends it when stopped. |
+| `Csv.java` | text as comma-separated values, a header line first: what a table's chosen rows are copied as. Pure. |
 | `Durations.java` | a probe row's duration (`51.68ms`) read back into nanoseconds: a pure function a step may call. |
 | `Core.java` | the list of this module's components, jobs and sources. The processor compiling `-gui` sees only `-gui`'s sources, so this list, named among `InspectorApp`'s starters, is how the wiring hears of them. A new part goes on it. |
 

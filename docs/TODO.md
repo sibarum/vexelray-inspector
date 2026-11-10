@@ -8,6 +8,12 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
+- [ ] Export frame (agreed 2026-11-10): paused, a button and Ctrl+E write one sectioned CSV of every panel as of the
+      cursor and every row of the cursor's frame, through `PickFile` and a `@Job` (`ExportFrame`, `WriteExport`,
+      `Exported`), the text built by a pure `FrameCsv` on `Csv`.
+- [ ] Copy reads `ListView.Clicked` without its modifiers (FN-19), so `Ui.alone` infers a plain click from the
+      selection; take the modifiers from the message once it carries them.
+
 - [ ] The Jobs lane shows a job's run, from its request reaching it to its reply sent, not from the request sent to
       the reply delivered, which design.md section 3 asks for: the send and the tick that took the reply are on other
       lanes, and the path already links them, so mark the span on the lane or leave it to the path.

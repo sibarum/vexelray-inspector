@@ -3,6 +3,7 @@ package dev.sibarum.inspector;
 import dev.sibarum.inspector.Glide.Handover;
 import dev.sibarum.inspector.Glide.Motion;
 import dev.sibarum.inspector.Glide.Path;
+import dev.sibarum.inspector.Keys.CopyKey;
 import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.RowKey;
@@ -261,12 +262,15 @@ final class View {
     private long pressedAt = -1L;
     private long pressWindow = -1L;
 
+    /** The body of the table last clicked or chosen from: what Ctrl+C copies the selection of. */
+    private String copyFrom = "";
+
     View(Gui gui, Keymap keys, Ui ui, Sender<PauseKey> pauseKey, Sender<FollowKey> followKey,
          Sender<EventKey> eventKey, Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
          Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
          Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
          Sender<RunAgain> runAgain, Sender<GoToTick> goToTick, Sender<WindowCommand> windows,
-         Sender<SelectRange> selectRange, Sender<ClearRange> clearRange) {
+         Sender<SelectRange> selectRange, Sender<ClearRange> clearRange, Sender<CopyKey> copyKey) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -328,6 +332,8 @@ final class View {
         keys.action("timeline.row-forward", "Next row", Shortcut.of(Key.DOWN)).sends(rowKey, new RowKey(1));
         keys.action("view.zoom-in", "Zoom in", Shortcut.of(Key.EQUAL)).sends(zoomKey, new ZoomKey(true));
         keys.action("view.zoom-out", "Zoom out", Shortcut.of(Key.MINUS)).sends(zoomKey, new ZoomKey(false));
+        keys.action(Landmarks.COPY, "Copy the selected rows", Shortcut.of(Key.C, Modifier.CONTROL))
+                .sends(copyKey, new CopyKey());
         keys.action("graph.open", "Open the graph in its own window", Shortcut.of(Key.G))
                 .sends(windows, WindowCommand.show(GraphWindow.KEY));
     }
@@ -413,6 +419,11 @@ final class View {
     /** A click on a row of the rows panel: ask the bench to put the cursor on the row shown there. */
     @Subscribe
     public void rowClicked(ListView.Clicked c) {
+        copyFrom = c.list();
+        // A Shift- or Ctrl-click chooses rows to copy and leaves the cursor where it is; a plain one moves it.
+        if (!ui.alone(c.list(), c.item())) {
+            return;
+        }
         if (c.list().equals(ui.rowsAddress()) && c.item() instanceof Integer place && place < rowsAround.rows().size()) {
             pressedAt = System.nanoTime();
             pressWindow = -1L;
@@ -424,6 +435,31 @@ final class View {
             pressWindow = -1L;
             goToTick.send(new GoToTick(replayReport.differences().get(place).tick()));
         }
+    }
+
+    /** Copy chosen from a table's row menu: that table's selected rows onto the clipboard. */
+    @Subscribe
+    public void chosen(ListView.Chosen c) {
+        if (c.action().equals(Landmarks.COPY)) {
+            copyFrom = c.at();
+            copy();
+        }
+    }
+
+    /** Ctrl+C: the selected rows of the table last clicked onto the clipboard. */
+    @Subscribe
+    public void copyKey(CopyKey key) {
+        copy();
+    }
+
+    private void copy() {
+        if (copyFrom.isEmpty()) {
+            return;
+        }
+        ui.copied(copyFrom).ifPresent(csv -> {
+            gui.clipboard().set(csv);
+            LOG.debug("copied {} chars of CSV from {}", csv.length(), copyFrom);
+        });
     }
 
     /** {@code =} or {@code -}: halve or double what the lane spans, about its right edge, gliding there. */

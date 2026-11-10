@@ -47,6 +47,15 @@ final class Landmarks {
     static final String REPLAY_TEXT = "replay.text";
     static final String REPLAY_BODY = "replay.body";
     static final String FLOWS_WHY = "flows.why";
+    /** The bodies of the flows and threads tables, whose rows a script right-clicks for Copy. */
+    static final String FLOWS_BODY = "flows.body";
+    static final String THREADS_BODY = "threads.body";
+
+    /**
+     * Copy: every table's row menu item, and the key binding's id (Ctrl+C), which copies the selected rows of the table
+     * last clicked as CSV, a header line first.
+     */
+    static final String COPY = "table.copy";
 
     /** The graph panel: the declared parts and the arrows between them, drawn. */
     static final String GRAPH = "graph";

@@ -2,6 +2,7 @@ package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.core.Bench;
 import dev.sibarum.inspector.core.ClockLedger;
+import dev.sibarum.inspector.core.Csv;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Model;
 import dev.vexelray.gui.core.Gui;
@@ -14,6 +15,7 @@ import dev.vexelray.gui.icons.Icon;
 import dev.vexelray.gui.icons.IconView;
 import dev.vexelray.gui.widget.Button;
 import dev.vexelray.gui.widget.IconButton;
+import dev.vexelray.gui.widget.MenuAction;
 import dev.vexelray.gui.widget.Select;
 import dev.vexelray.gui.widget.StatusBar;
 import dev.vexelray.gui.widget.Table;
@@ -24,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * The window: the framework's title bar, the timeline, and a status line under both.
@@ -125,6 +128,12 @@ final class Ui {
 
     /** How many places the replay panel shows before it scrolls. */
     private static final int REPLAY_SHOWN = 5;
+
+    /**
+     * Copy, on every table's row menu: chosen, it says so on {@code ListView.CHOSEN}, and the view copies that table's
+     * selection ({@link #copied}). Its line shows the chord the keymap's Copy has now.
+     */
+    static final MenuAction COPY = MenuAction.of(Landmarks.COPY, Icon.COPY, "Copy").command(Landmarks.COPY);
 
     /** The flows table's column widths, in {@link View#FLOW_COLUMNS}' order: the names share what is left. */
     private static final List<Length> FLOW_WIDTHS = List.of(Length.grow(2f), Length.rem(5.5f), Length.grow(2f),
@@ -263,7 +272,7 @@ final class Ui {
             }));
         }
         rows = new Table<>(gui, ROW_REM, rowColumns).name(Landmarks.ROWS);
-        rows.rows().name(Landmarks.ROWS_BODY);
+        rows.rows().name(Landmarks.ROWS_BODY).action(COPY);
         // Never focused: a focused list claims Space and the arrows, which pause and step here (FN-11).
         gui.focusable(rows.rows().node(), false);
         rows.headers(Type.UI, Type.SMALL, Role.DIM);
@@ -285,6 +294,7 @@ final class Ui {
             }));
         }
         threads = new Table<>(gui, ROW_REM, threadColumns).name(Landmarks.THREADS);
+        threads.rows().name(Landmarks.THREADS_BODY).action(COPY);
         // Never focused, as the rows panel is not (FN-11).
         gui.focusable(threads.rows().node(), false);
         threads.headers(Type.UI, Type.SMALL, Role.DIM);
@@ -329,6 +339,7 @@ final class Ui {
             }));
         }
         flows = new Table<>(gui, FLOW_ROW_REM, columns).name(Landmarks.FLOWS);
+        flows.rows().name(Landmarks.FLOWS_BODY).action(COPY);
         flows.headers(Type.UI, Type.SMALL, Role.DIM);
         flows.node().width(Length.FILL).height(Length.grow(1f));
         gui.landmark(Landmarks.FLOWS, flows.node());
@@ -366,7 +377,7 @@ final class Ui {
             }));
         }
         replayTable = new Table<>(gui, ROW_REM, replayColumns).name(Landmarks.REPLAY);
-        replayTable.rows().name(Landmarks.REPLAY_BODY);
+        replayTable.rows().name(Landmarks.REPLAY_BODY).action(COPY);
         // Never focused, as the rows panel is not (FN-11).
         gui.focusable(replayTable.rows().node(), false);
         replayTable.headers(Type.UI, Type.SMALL, Role.DIM);
@@ -507,8 +518,9 @@ final class Ui {
      */
     void rows(List<List<String>> texts, List<Role> inks, int selected) {
         // The table's own selection follows the cursor's row, so a click that selected a place does not stay there
-        // when the rows move under it.
-        if (selected >= 0) {
+        // when the rows move under it. Rows chosen with Shift or Ctrl, to copy, stay chosen while the rows under them
+        // do not move.
+        if (selected >= 0 && (!texts.equals(rowTexts) || rows.selection().size() <= 1)) {
             rows.selection().at(selected);
         }
         List<List<String>> was = rowTexts;
@@ -598,6 +610,67 @@ final class Ui {
     /** What the threads panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */
     List<String> threadCells(int place) {
         return place < threadTexts.size() ? threadTexts.get(place) : List.of();
+    }
+
+    /**
+     * The selected rows of the table whose body is at {@code list}, as CSV with the table's column titles first, in
+     * the order the table shows them; empty when {@code list} is no table's or nothing in it with text is selected.
+     * Blank places (the rows and threads panels keep places past their rows) are left out.
+     */
+    Optional<String> copied(String list) {
+        List<List<String>> chosen = new ArrayList<>();
+        List<String> headers;
+        if (list.equals(rows.rows().address())) {
+            headers = View.ROW_COLUMNS;
+            placed(rows, rowTexts, chosen);
+        } else if (list.equals(threads.rows().address())) {
+            headers = View.THREAD_COLUMNS;
+            placed(threads, threadTexts, chosen);
+        } else if (list.equals(replayTable.rows().address())) {
+            headers = View.REPLAY_COLUMNS;
+            placed(replayTable, replayTexts, chosen);
+        } else if (list.equals(flows.rows().address())) {
+            headers = View.FLOW_COLUMNS;
+            java.util.Set<String> selected = flows.selection().selection();
+            for (String topic : flowTopics) {
+                List<String> cells = flowCells.get(topic);
+                if (selected.contains(topic) && cells != null) {
+                    chosen.add(cells);
+                }
+            }
+        } else {
+            return Optional.empty();
+        }
+        return chosen.isEmpty() ? Optional.empty() : Optional.of(Csv.of(headers, chosen));
+    }
+
+    /** Onto {@code chosen}, the texts of {@code table}'s selected places that have any, in order of place. */
+    private static void placed(Table<Integer> table, List<List<String>> texts, List<List<String>> chosen) {
+        java.util.Set<Integer> selected = table.selection().selection();
+        for (int place = 0; place < texts.size(); place++) {
+            if (selected.contains(place)) {
+                chosen.add(texts.get(place));
+            }
+        }
+    }
+
+    /**
+     * Whether the table whose body is at {@code list} has {@code item} alone selected: what a plain click leaves, and
+     * a Shift- or Ctrl-click, which chooses rows to copy, does not.
+     */
+    boolean alone(String list, Object item) {
+        for (Table<?> t : List.of(rows, threads, replayTable, flows)) {
+            if (list.equals(t.rows().address())) {
+                java.util.Set<?> selected = t.selection().selection();
+                return selected.size() == 1 && selected.contains(item);
+            }
+        }
+        return false;
+    }
+
+    /** The rows panel's selection, for a test to choose rows in as Shift and Ctrl would. */
+    dev.vexelray.gui.widget.SelectionModel<Integer> rowSelection() {
+        return rows.selection();
     }
 
     /** Where the rows panel's body is on the bus: what its clicks carry. */

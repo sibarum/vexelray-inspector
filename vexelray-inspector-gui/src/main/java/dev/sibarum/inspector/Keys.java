@@ -40,6 +40,11 @@ final class Keys {
         static final Topic<RowKey> TOPIC = Topic.edge(RowKey.class);
     }
 
+    /** Ctrl+C: copy the selected rows of the table last clicked, as CSV. */
+    record CopyKey() {
+        static final Topic<CopyKey> TOPIC = Topic.edge(CopyKey.class);
+    }
+
     /** An arrow: step the cursor onto the next or previous event, {@code by} of them, back when negative. */
     record EventKey(int by) {
         static final Topic<EventKey> TOPIC = Topic.edge(EventKey.class);

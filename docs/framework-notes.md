@@ -242,7 +242,11 @@ then read the logic lane's rest and wakes exactly as it reads the main thread's.
 vexelray-framework `e4e4f55`), as proposed: the park is that idle zone, and the arrival that ends one writes a single
 `wake`, `message on logic`, on the thread that ended it.
 
-## FN-18 · A satellite window's view has its `@Draw` asked by the main window's tree 🔬
+## FN-18 · A satellite window's view has its `@Draw` asked by the main window's tree 🔬 (fixed upstream)
+
+Fixed upstream 2026-11-10: `@View(window = "graph")` names the window a view's nodes are in, and the wiring has that
+window's tree ask its `@Draw` (`Views.tree`); its `@Subscribe` methods stay on the main tree, which ticks while the
+satellite is closed. `GraphView` has its dots again, seen moving with `ottermate --window graph shot`. What was found:
 
 The graph panel's dots (moving along each busy arrow, as many a second as its sender writes) run from `View`'s
 `@Draw`, offsetting and fading a floating node a dot. The graph window's `GraphView` is a `@View` of its own over the

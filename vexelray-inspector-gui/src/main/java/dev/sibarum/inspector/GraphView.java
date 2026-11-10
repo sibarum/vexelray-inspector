@@ -2,8 +2,11 @@ package dev.sibarum.inspector;
 
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Traced;
+import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
 import dev.vexelray.framework.api.View;
+import dev.vexelray.gui.core.Drawn;
+import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.NodeEvent;
 import dev.vexelray.gui.core.input.DragEvent;
 import dev.vexelray.gui.draw.Picture;
@@ -17,9 +20,10 @@ import java.util.List;
  *
  * <p>A {@code @View} of its own, keeping to its window's widgets, as Mainframe's Workspaces window's is. It decides
  * nothing: where the graph is looked at from is the person's, and kept here, as the lanes' zoom is in {@link
- * dev.sibarum.inspector.View}. Every gesture is a redraw in the told half, so nothing moves on its own between them.
+ * dev.sibarum.inspector.View}. Every gesture is a redraw in the told half; what moves on its own is the dots along the
+ * busy arrows, as in the panel, asked by this window's tree ({@code @View(window)}: the main one would ignore them).
  */
-@View
+@View(window = GraphWindow.KEY)
 final class GraphView {
 
     /**
@@ -30,6 +34,14 @@ final class GraphView {
 
     private final GraphWindow window;
     private final Diagram.Inks inks;
+    /** The dot nodes on the stage, and the tracks and lens offset they were last laid out at. */
+    private final Dots.Pool pool;
+    private List<Diagram.Track> dotTracks = List.of();
+    private float dotX = Float.NaN;
+    private float dotY = Float.NaN;
+
+    /** The dots running along the lit arrows, where the lens has them: the asked half's state. */
+    Dots state = Dots.NONE;
 
     private Flows flows = new Flows("", "", List.of(), List.of());
     private Traced traced = Traced.NONE;
@@ -48,6 +60,7 @@ final class GraphView {
     GraphView(GraphWindow window) {
         this.window = window;
         this.inks = Diagram.Inks.of(window.gui());
+        this.pool = new Dots.Pool(window.gui(), window.stage(), inks.name());
         var gui = window.gui();
         gui.hear(window.stage(), NodeEvent.RESIZE, layout -> {
             stageW = layout.rect().w();
@@ -103,6 +116,30 @@ final class GraphView {
         lens = next;
         shown = laid.shifted(next.x(), next.y());
         window.stage().picture(shown);
+        layDots();
+    }
+
+    /**
+     * The dots laid out again on the arrows at the lens's zoom and moved where it has them: kept as they are when that
+     * changes no dot, so a rate that stays in its step leaves them running where they were.
+     */
+    private void layDots() {
+        List<Diagram.Track> tracks = Diagram.tracks(flows, stageW * lens.zoom(), stageH * lens.zoom());
+        if (tracks.equals(dotTracks) && lens.x() == dotX && lens.y() == dotY) {
+            return;
+        }
+        dotTracks = tracks;
+        dotX = lens.x();
+        dotY = lens.y();
+        state = pool.dots(state, tracks, lens.x(), lens.y());
+    }
+
+    /** The asked half: the dots where they run to at the frame's present ({@link Dots#place}). Due again while any move. */
+    @Draw
+    static long draw(Dots s, Frame frame, Drawn out) {
+        boolean still = frame.reducedMotion();
+        Dots.place(s, frame.monoNanos(), still, out);
+        return !still && s.moving() ? frame.presentNanos() : Frame.NEVER;
     }
 
     /** What the stage was last given to show. */

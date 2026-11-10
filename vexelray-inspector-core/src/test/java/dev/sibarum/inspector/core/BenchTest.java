@@ -3,6 +3,9 @@ package dev.sibarum.inspector.core;
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.ChildExited;
 import dev.sibarum.inspector.core.Messages.Choose;
+import dev.sibarum.inspector.core.Messages.ClearRange;
+import dev.sibarum.inspector.core.Messages.Range;
+import dev.sibarum.inspector.core.Messages.SelectRange;
 import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
@@ -127,7 +130,7 @@ class BenchTest {
         Timeline t = took(Timeline.class).getLast();
         return new Timeline(t.run(), t.status(), t.live(), t.edgeNanos(), t.lanes().stream()
                 .map(l -> new Lane(l.name(), l.marks().stream().map(BenchTest::bare).toList())).toList(),
-                t.on().map(BenchTest::bare), t.warning());
+                t.on().map(BenchTest::bare), t.warning(), t.selected());
     }
 
     /** The last readouts sent, keeping the rest of what was sent. */
@@ -851,14 +854,65 @@ class BenchTest {
                 row(-1, 2_050 * MS, "", Model.LOST_LANE, Model.LOST, "6"),
                 pass(300, 2_100 * MS, "1ms"))));
         Readouts live = readouts();
-        assertEquals(new Readouts(ONE.name(), 9, 10, 0, 677_000, 677_000, 10, 1_500_000, 2_000_000, 6), live,
+        assertEquals(new Readouts(ONE.name(), 1_100 * MS, 2_100 * MS, false, 9, 10, 0, 677_000, 677_000, 677_000, 10,
+                        1_500_000, 2_000_000, 2_000_000, 6), live,
                 "after 1.1 s: nine draws (the one ending at 1.1 s is out), their recording, ten holds and ticks,"
                         + " and the lost rows");
         sent.clear();
         tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 2_100 * MS));
         Readouts then = readouts();
-        assertEquals(new Readouts(ONE.name(), 10, 10, 0, 677_000, 677_000, 10, 500_000, 1_000_000, 0), then,
+        assertEquals(new Readouts(ONE.name(), 100 * MS, 1_100 * MS, false, 10, 10, 0, 677_000, 677_000, 677_000, 10,
+                        500_000, 1_000_000, 1_000_000, 0), then,
                 "a second back: the ticks as they were then, and nothing lost yet");
+    }
+
+    @Test
+    void aStretchSelectedIsWhatTheReadoutsCountUntilItIsLetGo() {
+        attached(ONE);
+        List<Row> rows = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            rows.addAll(aDraw(10L * i, 100 * MS * (i + 1)));
+            rows.add(row(10L * i + 8, 100 * MS * (i + 1) + 5 * MS, "vexel-logic", "bus", "tick", (i + 1) + "00us"));
+        }
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, rows));
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, List.of(
+                row(-1, 2_050 * MS, "", Model.LOST_LANE, Model.LOST, "6"),
+                pass(300, 2_100 * MS, "1ms"))));
+        sent.clear();
+
+        tell(Messages.SELECT_RANGE_TOPIC, new SelectRange(1_450 * MS, 250 * MS));
+        assertEquals(new Readouts(ONE.name(), 250 * MS, 1_450 * MS, true, 12, 12, 0, 677_000, 677_000, 677_000, 12,
+                        800_000, 1_400_000, 1_400_000, 0), readouts(),
+                "dragged right to left: the twelve draws, holds and ticks ending inside it, the slowest tick 1.4 ms,"
+                        + " and none of the rows lost after it");
+        Timeline t = timeline();
+        assertFalse(t.live(), "selecting pauses");
+        assertEquals(1_450 * MS, t.edgeNanos(), "the cursor at the stretch's later end");
+        assertEquals(Optional.of(new Range(250 * MS, 1_450 * MS)), t.selected());
+        assertTrue(t.status().startsWith("Selected 1.200 s"), t.status());
+
+        tell(Messages.SELECT_RANGE_TOPIC, new SelectRange(1_950 * MS, 9_000 * MS));
+        Readouts end = readouts();
+        assertEquals(new Range(1_950 * MS, 2_100 * MS), new Range(end.fromNanos(), end.toNanos()),
+                "kept on the island: its newest end is the newest row");
+        assertEquals(6, end.rowsLost(), "the rows lost inside the stretch");
+        sent.clear();
+
+        tell(Messages.SELECT_RANGE_TOPIC, new SelectRange(1_000 * MS, 1_000 * MS));
+        assertEquals(List.of(), took(Timeline.class), "a stretch with no length selects nothing, and keeps what was");
+
+        tell(Messages.CLEAR_RANGE_TOPIC, new ClearRange());
+        Readouts cleared = readouts();
+        assertFalse(cleared.selected(), "Escape: the second before the cursor again");
+        assertEquals(2_100 * MS, cleared.toNanos());
+        t = timeline();
+        assertEquals(Optional.empty(), t.selected());
+        assertEquals(2_100 * MS, t.edgeNanos(), "the cursor stays where it was");
+
+        tell(Messages.SELECT_RANGE_TOPIC, new SelectRange(250 * MS, 1_450 * MS));
+        tell(Messages.FOLLOW_TOPIC, new Follow());
+        assertFalse(readouts().selected(), "following lets the stretch go with the island");
+        assertEquals(Optional.empty(), timeline().selected());
     }
 
     @Test

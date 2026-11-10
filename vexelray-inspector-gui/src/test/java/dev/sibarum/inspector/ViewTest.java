@@ -613,12 +613,39 @@ class ViewTest {
 
     @Test
     void theReadoutsAreOneLineOfNumbers() {
-        assertEquals("Draws 57/s, held 3 for the ceiling and 0 for the GPU, recording p50 0.50 ms, p95 0.62 ms"
-                        + "   Ticks 120/s, p50 0.45 ms, p95 1.20 ms"
+        assertEquals("Draws 57/s, held 3 for the ceiling and 0 for the GPU, recording p50 0.50 ms, p95 0.62 ms,"
+                        + " max 0.90 ms   Ticks 120/s, p50 0.45 ms, p95 1.20 ms, max 3.10 ms"
                         + "   Rows lost 0",
-                View.readout(new Readouts("r", 57, 3, 0, 500_000, 620_000, 120, 450_000, 1_200_000, 0)));
-        assertEquals("", View.readout(new Readouts("", 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+                View.readout(new Readouts("r", 0L, 1_000_000_000L, false, 57, 3, 0, 500_000, 620_000, 900_000, 120,
+                        450_000, 1_200_000, 3_100_000, 0)));
+        assertEquals("", View.readout(new Readouts("", 0L, 0L, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
                 "nothing attached and nothing read");
+    }
+
+    @Test
+    void overAStretchSelectedTheReadoutsSayHowLongAndEachCountWithItsRate() {
+        assertEquals("Selected 2.500 s:   Draws 150 (60.0/s), held 3 for the ceiling and 0 for the GPU, recording"
+                        + " p50 0.50 ms, p95 0.62 ms, max 0.90 ms   Ticks 300 (120.0/s), p50 0.45 ms, p95 1.20 ms,"
+                        + " max 3.10 ms   Rows lost 2",
+                View.readout(new Readouts("r", 1_000_000_000L, 3_500_000_000L, true, 150, 3, 0, 500_000, 620_000,
+                        900_000, 300, 450_000, 1_200_000, 3_100_000, 2)));
+    }
+
+    @Test
+    void aStretchSelectedIsWashedAcrossEveryLaneUnderTheMarks() {
+        long at = 10 * View.SPAN_NANOS;
+        Timeline t = new Timeline("r", "", false, at, main(pass(at - 2_000_000_000L, at - 1_000_000_000L)),
+                Optional.empty(), "", Optional.of(new Messages.Range(at - 5_000_000_000L, at - 2_500_000_000L)));
+        Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at);
+        Picture.Fill wash = (Picture.Fill) p.marks().stream().filter(m -> m instanceof Picture.Fill).findFirst()
+                .orElseThrow();
+        assertEquals(Color.withAlpha(Color.WHITE, View.SELECTED_WASH), wash.color(), "the first fill, under the marks");
+        assertEquals(LANES_H, wash.h(), 0.01f, "across every lane");
+        assertEquals(2_500_000_000L * SCALE, wash.w(), 0.5f, "as long as the stretch");
+        assertEquals(List.of(), View.lanes(new Timeline("r", "", false, at, t.lanes(), Optional.empty()), LANE,
+                LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at).marks().stream()
+                .filter(m -> m instanceof Picture.Fill f && f.color().equals(wash.color())).toList(),
+                "nothing selected, no wash");
     }
 
     @Test

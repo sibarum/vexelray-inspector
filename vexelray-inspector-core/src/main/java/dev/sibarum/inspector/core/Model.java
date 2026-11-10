@@ -1250,27 +1250,36 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         }
     }
 
-    /** The readouts over the second before this model's moment. */
+    /** The readouts over the second before this model's moment, the rows lost counted from the first row read. */
     Readouts readouts(String run) {
-        long from = newestNanos - READOUT_NANOS;
+        return readouts(run, newestNanos - READOUT_NANOS, newestNanos, false, lost);
+    }
+
+    /**
+     * The readouts over the events of this model ending after {@code from} and at or before {@code to}, saying
+     * {@code rowsLost} as lost and whether the stretch was {@code selected}.
+     */
+    Readouts readouts(String run, long from, long to, boolean selected, long rowsLost) {
         int draws = 0;
         int ceiling = 0;
         int gpu = 0;
         for (Mark m : lane(DRAWING).marks()) {
-            if (m.toNanos() <= from) {
+            if (m.toNanos() <= from || m.toNanos() > to) {
                 continue;
             }
             draws += m.kind().equals(DRAW) ? 1 : 0;
             ceiling += m.kind().equals(HELD_FOR_CEILING) ? 1 : 0;
             gpu += m.kind().equals(HELD_FOR_GPU) ? 1 : 0;
         }
-        long[] recordings = lane(DRAWING).marks().stream().filter(m -> m.toNanos() > from && m.kind().equals(DRAW))
+        long[] recordings = lane(DRAWING).marks().stream()
+                .filter(m -> m.toNanos() > from && m.toNanos() <= to && m.kind().equals(DRAW))
                 .mapToLong(m -> Durations.nanos(m.field(RECORDING))).filter(n -> n >= 0).sorted().toArray();
-        long[] ticks = lane(LOGIC).marks().stream().filter(m -> m.toNanos() > from)
+        long[] ticks = lane(LOGIC).marks().stream().filter(m -> m.toNanos() > from && m.toNanos() <= to)
                 .mapToLong(m -> m.toNanos() - m.fromNanos()).toArray();
         Arrays.sort(ticks);
-        return new Readouts(run, draws, ceiling, gpu, percentile(recordings, 0.50), percentile(recordings, 0.95),
-                ticks.length, percentile(ticks, 0.50), percentile(ticks, 0.95), lost);
+        return new Readouts(run, from, to, selected, draws, ceiling, gpu, percentile(recordings, 0.50),
+                percentile(recordings, 0.95), percentile(recordings, 1.0), ticks.length, percentile(ticks, 0.50),
+                percentile(ticks, 0.95), percentile(ticks, 1.0), rowsLost);
     }
 
     /** The {@code p} percentile of {@code sorted}, nearest rank; 0 when empty. */

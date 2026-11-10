@@ -238,6 +238,23 @@ public final class Messages {
     public record Seek(long atNanos) {
     }
 
+    /**
+     * Shift and a drag on the lanes: select the stretch between two moments, in either order, for the readouts to count
+     * over instead of the second before the cursor. Pauses if following, and puts the cursor at the stretch's later end;
+     * both ends are kept on the island the bench keeps while paused. A state topic, as {@link Seek} is: a drag sends one
+     * a frame, and the bench takes the newest each tick. A stretch with no length selects nothing.
+     */
+    public static final Topic<SelectRange> SELECT_RANGE_TOPIC = Topic.state(SelectRange.class);
+
+    public record SelectRange(long fromNanos, long toNanos) {
+    }
+
+    /** Escape: let the selected stretch go, the readouts counting the second before the cursor again. */
+    public static final Topic<ClearRange> CLEAR_RANGE_TOPIC = Topic.edge(ClearRange.class);
+
+    public record ClearRange() {
+    }
+
     /** A click on an event: put the cursor on it, pausing if following. Ignored unless it is one the tape holds. */
     public static final Topic<GoTo> GO_TO_TOPIC = Topic.edge(GoTo.class);
 
@@ -346,6 +363,15 @@ public final class Messages {
     public record Event(String lane, Mark mark) {
     }
 
+    /** A stretch of the timeline selected, from its earlier moment to its later, on the machine's monotonic clock. */
+    public record Range(long fromNanos, long toNanos) {
+
+        /** How long it is. */
+        public long nanos() {
+            return toNanos - fromNanos;
+        }
+    }
+
     /**
      * The timeline: which run, what to say about it, where the cursor is, and every event kept on every lane, in
      * {@link Model#LANES}' order. A state topic: a storm of rows costs the view one a frame.
@@ -362,16 +388,23 @@ public final class Messages {
      * @param on        the event the cursor is on, after a step by events or a click; the cursor is then at its end
      * @param warning   what makes what is shown less than whole, in words, for a banner in plain sight: a run of
      *                  another link version; empty when nothing does
+     * @param selected  the stretch selected, which the lanes wash and the readouts count over; only while stopped
      */
     public static final Topic<Timeline> TIMELINE_TOPIC = Topic.state(Timeline.class);
 
     public record Timeline(String run, String status, boolean live, long edgeNanos, List<Lane> lanes,
-                           Optional<Event> on, String warning) {
+                           Optional<Event> on, String warning, Optional<Range> selected) {
         public Timeline {
             lanes = List.copyOf(lanes);
         }
 
-        /** A timeline with nothing to warn of. */
+        /** A timeline with nothing selected. */
+        public Timeline(String run, String status, boolean live, long edgeNanos, List<Lane> lanes,
+                        Optional<Event> on, String warning) {
+            this(run, status, live, edgeNanos, lanes, on, warning, Optional.empty());
+        }
+
+        /** A timeline with nothing to warn of and nothing selected. */
         public Timeline(String run, String status, boolean live, long edgeNanos, List<Lane> lanes,
                         Optional<Event> on) {
             this(run, status, live, edgeNanos, lanes, on, "");
@@ -379,27 +412,43 @@ public final class Messages {
     }
 
     /**
-     * The readouts, over the second before the cursor (the newest row while following), from the same model the
-     * timeline is drawn from, so they rewind with it. A state topic, as the timeline is.
+     * The readouts, over the second before the cursor (the newest row while following), or over the stretch selected,
+     * from the same events the timeline is drawn from, so they rewind with it. A state topic, as the timeline is.
      *
      * <p>Ticks are those of the logic lane's own thread: under {@code --logic=main} they run on the main thread beside
      * the widgets' tick, which no row tells apart yet (framework-notes FN-8), so there they read nothing.
      *
      * @param run            the run attached, or empty when none is
-     * @param draws          draws in the second
+     * @param fromNanos      where the stretch counted begins: an event is in it if it ends after this
+     * @param toNanos        where it ends: an event is in it if it ends at or before this
+     * @param selected       whether the stretch is one the person selected, rather than the second before the cursor
+     * @param draws          draws in the stretch
      * @param heldForCeiling draws held for the ceiling in it: pacing doing its job
      * @param heldForGpu     draws held for the GPU in it: the GPU being slow
      * @param recordingP50Nanos how long recording a draw's commands took ({@code emit canvas}), the median; 0 with none
      * @param recordingP95Nanos the 95th percentile; 0 with none
+     * @param recordingMaxNanos the longest; 0 with none
      * @param ticks          logic ticks in it
      * @param tickP50Nanos   how long they took, the median; 0 with none
      * @param tickP95Nanos   the 95th percentile; 0 with none
-     * @param rowsLost       rows the link lost, from the first row read to the cursor
+     * @param tickMaxNanos   the longest; 0 with none
+     * @param rowsLost       rows the link lost: from the first row read to the cursor, or within a stretch selected
      */
     public static final Topic<Readouts> READOUTS_TOPIC = Topic.state(Readouts.class);
 
-    public record Readouts(String run, int draws, int heldForCeiling, int heldForGpu, long recordingP50Nanos,
-                           long recordingP95Nanos, int ticks, long tickP50Nanos, long tickP95Nanos, long rowsLost) {
+    public record Readouts(String run, long fromNanos, long toNanos, boolean selected, int draws, int heldForCeiling,
+                           int heldForGpu, long recordingP50Nanos, long recordingP95Nanos, long recordingMaxNanos,
+                           int ticks, long tickP50Nanos, long tickP95Nanos, long tickMaxNanos, long rowsLost) {
+
+        /** How long the stretch counted is. */
+        public long nanos() {
+            return toNanos - fromNanos;
+        }
+
+        /** {@code n} of something in the stretch, a second. */
+        public double perSecond(int n) {
+            return nanos() <= 0 ? 0.0 : n * 1e9 / nanos();
+        }
     }
 
     /**

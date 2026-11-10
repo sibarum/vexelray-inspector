@@ -3,6 +3,7 @@ package dev.sibarum.inspector.core;
 import dev.sibarum.inspector.core.Messages.Attach;
 import dev.sibarum.inspector.core.Messages.ChildExited;
 import dev.sibarum.inspector.core.Messages.Choose;
+import dev.sibarum.inspector.core.Messages.ClearRange;
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
@@ -26,7 +27,9 @@ import dev.sibarum.inspector.core.Messages.Rows;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Runs;
+import dev.sibarum.inspector.core.Messages.Range;
 import dev.sibarum.inspector.core.Messages.Seek;
+import dev.sibarum.inspector.core.Messages.SelectRange;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.StepRow;
@@ -84,7 +87,7 @@ import java.util.Optional;
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class,
-        GoToTick.class})
+        GoToTick.class, SelectRange.class, ClearRange.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
         Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class})
 public final class Bench {
@@ -122,15 +125,21 @@ public final class Bench {
      * @param tape     the rows, with their checkpoints
      * @param kept     every event the lanes show
      * @param endNanos its newest end: the newest row when it was frozen, or where the cursor stopped if that was later
+     * @param selected the stretch of it selected ({@link SelectRange}), which the readouts count over; let go with it
      */
-    public record Island(Tape tape, Model kept, long endNanos) {
+    public record Island(Tape tape, Model kept, long endNanos, Optional<Range> selected) {
 
         /** None: following. */
-        static final Island NONE = new Island(Tape.EMPTY, Model.EMPTY, 0L);
+        static final Island NONE = new Island(Tape.EMPTY, Model.EMPTY, 0L, Optional.empty());
 
         /** {@code s}'s live tape and kept events frozen, its end at the newest row or {@code atNanos}, the later. */
         static Island of(State s, long atNanos) {
-            return new Island(s.tape(), s.kept(), Math.max(s.now().newestNanos(), atNanos));
+            return new Island(s.tape(), s.kept(), Math.max(s.now().newestNanos(), atNanos), Optional.empty());
+        }
+
+        /** This island with {@code selected} as its stretch selected, or none. */
+        Island selecting(Optional<Range> selected) {
+            return selected.equals(this.selected) ? this : new Island(tape, kept, endNanos, selected);
         }
 
         /** Its oldest end: as far back as the cursor can go. */
@@ -154,7 +163,8 @@ public final class Bench {
             if (inside.isEmpty()) {
                 return this;
             }
-            return new Island(tape.add(inside, endNanos, FOREVER), kept.fold(inside, endNanos, FOREVER), endNanos);
+            return new Island(tape.add(inside, endNanos, FOREVER), kept.fold(inside, endNanos, FOREVER), endNanos,
+                    selected);
         }
     }
 
@@ -310,10 +320,24 @@ public final class Bench {
         /** The timeline: every event kept, the cursor at the right edge while paused, the newest row while following. */
         Timeline timeline() {
             if (paused) {
-                return new Timeline(run, status, false, cursor, island.kept().lanes(), on, kept.warning());
+                return new Timeline(run, status, false, cursor, island.kept().lanes(), on, kept.warning(),
+                        island.selected());
             }
             return new Timeline(run, status, arriving, now.newestNanos(), kept.lanes(), Optional.empty(),
                     kept.warning());
+        }
+
+        /**
+         * The readouts: over the stretch selected, from every event the island keeps, with the rows lost within it; or
+         * else over the second before the cursor, {@code at} the model there.
+         */
+        Readouts readouts(Model at) {
+            if (!paused || island.selected().isEmpty()) {
+                return at.readouts(run);
+            }
+            Range r = island.selected().get();
+            long lost = island.tape().asOf(r.toNanos()).lost() - island.tape().asOf(r.fromNanos()).lost();
+            return island.kept().readouts(run, r.fromNanos(), r.toNanos(), true, Math.max(0L, lost));
         }
 
         /** The model as of the cursor: the one its island recomputes for it, or the live one while following. */
@@ -452,7 +476,9 @@ public final class Bench {
                 .on(Messages.STEP_ROW_TOPIC, b.step("step row", Bench::stepRow))
                 .on(Messages.GO_TO_ROW_TOPIC, b.step("go to row", Bench::goToRow))
                 .on(Messages.GO_TO_TICK_TOPIC, b.step("go to tick", Bench::goToTick))
-                .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek));
+                .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek))
+                .on(Messages.SELECT_RANGE_TOPIC, b.step("select range", Bench::selectRange))
+                .on(Messages.CLEAR_RANGE_TOPIC, b.step("clear range", Bench::clearRange));
         ledger = b.build(inbox, "bench", CAPACITY);
         timer.every(LOOK_AGAIN, Messages.FIND_RUNS_TOPIC, new FindRuns());
     }
@@ -761,6 +787,36 @@ public final class Bench {
         return say(paused(s, island, island.clamp(k.atNanos()), k.atNanos() > island.endNanos()), out);
     }
 
+    /**
+     * Shift and a drag: select the stretch between its two moments, kept on the island, and put the cursor at its later
+     * end, pausing if following. One with no length once kept there selects nothing, and leaves what was.
+     */
+    static State selectRange(State s, SelectRange r, Out out) {
+        if (s.tape().isEmpty() && s.island().tape().isEmpty()) {
+            return s;
+        }
+        Island island = s.held(Math.max(r.fromNanos(), r.toNanos()));
+        long from = island.clamp(Math.min(r.fromNanos(), r.toNanos()));
+        long to = island.clamp(Math.max(r.fromNanos(), r.toNanos()));
+        if (to <= from) {
+            return s;
+        }
+        Range range = new Range(from, to);
+        String where = String.format(Locale.ROOT, "Selected %.3f s, from %.3f s to %.3f s", range.nanos() / 1e9,
+                (from - s.first()) / 1e9, (to - s.first()) / 1e9)
+                + (s.run().isEmpty() ? "" : " of " + named(s.title(), s.run())) + ". Escape lets it go";
+        return say(s.pausedAt(island.selecting(Optional.of(range)), to,
+                s.run().isEmpty() ? s.gone() + ". " + where : where), out);
+    }
+
+    /** Escape: let the stretch selected go, the cursor staying where it is. Nothing selected, nothing. */
+    static State clearRange(State s, ClearRange c, Out out) {
+        if (!s.paused() || s.island().selected().isEmpty()) {
+            return s;
+        }
+        return say(paused(s, s.island().selecting(Optional.empty()), s.cursor(), false), out);
+    }
+
     /** The event ending latest before {@code at} (or at it, unless {@code strictly}) on the island. */
     private static Mark before(Island island, List<Mark> marks, long at, boolean strictly) {
         Mark best = null;
@@ -832,7 +888,7 @@ public final class Bench {
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
         Model at = s.atCursor();
-        out.send(Messages.READOUTS_TOPIC, at.readouts(s.run()));
+        out.send(Messages.READOUTS_TOPIC, s.readouts(at));
         out.send(Messages.FLOWS_TOPIC, s.flows(at));
         List<Model.Hop> hops = s.hops();
         out.send(Messages.DETAILS_TOPIC, s.details(hops));

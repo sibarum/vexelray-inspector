@@ -123,8 +123,11 @@ log has it) and as UTC (as its probe's rows have it), and how far into the run t
 thread, and for a message its type. From, To and Transport say what they can: the publishing thread, and that the
 receivers and how the message travelled are not recorded yet (framework-notes FN-10).
 
-The readouts count the second before the cursor: draws, draws held by reason, ticks and their median and 95th
-percentile, and the rows the link lost. A lane the run does not record, which only a run of another link version can
+The readouts count the second before the cursor: draws, draws held by reason, ticks and their median, 95th
+percentile and longest, and the rows the link lost. Shift and a drag across the lanes selects a stretch instead: it
+pauses, washes the stretch across every lane, puts the cursor at its later end, and the readouts count it, each count
+with its rate and the rows lost inside it, until Escape lets it go or the lanes follow the present again. Only what
+the tape keeps can be selected, so a drag past the newest row stops at it. A lane the run does not record, which only a run of another link version can
 leave out, has its name dimmed and the status line names it (framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they
 stop where they were, and the status line says what happened.
 
@@ -137,6 +140,8 @@ stop where they were, and the status line says what happened.
 | = / - | zoom in or out about the right edge: half or twice the time across, from 10 ms to a minute |
 | Click a lane | focus it (its name brightens and its band is outlined with a soft glow), and put the cursor on its event nearest the click, or where it was clicked if none is near |
 | Click a row | put the cursor on that row of the rows panel |
+| Shift+drag on the lanes | select the stretch dragged over, for the readouts to count |
+| Escape | let the stretch selected go |
 
 Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
 says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click

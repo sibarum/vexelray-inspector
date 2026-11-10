@@ -77,8 +77,13 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       arrows on a path. Upstream FN-14 (a publish naming its sender) would tell them apart.
 - [ ] A recording's draws and ticks: the CSV has no `frame` column, so `draw.ran` cannot be put on its draw by pass
       and a replay's draws stay unnumbered; read it by thread and order instead, as a tick's is.
-- [ ] Dragging the cursor on the lanes: hear `NodeEvent.DRAG` and send `Seek` (already the absolute cursor, a state
-      topic) for each position; the view turns a pixel into a moment as a click does.
+- [ ] Dragging the cursor on the lanes: a plain drag (the lanes already hear `NodeEvent.DRAG`, for Shift's selection)
+      sends `Seek` for each position; the view turns a pixel into a moment as `momentAt` does.
+- [ ] A stretch selected counts the readouts only. Next: the flows table over it (the model as of its later end less
+      its earlier end's checkpoint, as `Bench.State.flows` takes a second); the threads panel summed over the turns
+      inside it; and its longest tick, pass and draw, which a click goes to.
+- [ ] A stretch can only be selected by dragging. A key could grow one from the cursor (Shift+arrow is taken by the
+      step), and a selected stretch's ends cannot be dragged to change it.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the
       window. Zooming about the cursor itself would keep it still; it needs the edge's motion tied to the zoom's.
 - [ ] A catch-up from far back (Space after stepping a minute back) is a long, fast glide: `Glide.WINDOW_MAX_NANOS`

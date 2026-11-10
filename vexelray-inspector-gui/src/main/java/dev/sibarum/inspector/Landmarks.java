@@ -69,7 +69,7 @@ final class Landmarks {
      */
     static final String DETAIL = "detail.";
 
-    /** The readouts line, over the second before the cursor. */
+    /** The readouts line, over the second before the cursor, or over the stretch selected ("Selected ..."). */
     static final String READOUTS = "readouts";
 
     /** The button at the focused lane's right end that follows the present again, as End does. */

@@ -11,6 +11,7 @@ import dev.sibarum.inspector.Keys.StepKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Account;
 import dev.sibarum.inspector.core.Messages.Choose;
+import dev.sibarum.inspector.core.Messages.ClearRange;
 import dev.sibarum.inspector.core.Messages.Crossed;
 import dev.sibarum.inspector.core.Messages.Difference;
 import dev.sibarum.inspector.core.Messages.Details;
@@ -36,6 +37,7 @@ import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Messages.RunAgain;
 import dev.sibarum.inspector.core.Messages.RunPanel;
 import dev.sibarum.inspector.core.Messages.Seek;
+import dev.sibarum.inspector.core.Messages.SelectRange;
 import dev.sibarum.inspector.core.Messages.Step;
 import dev.sibarum.inspector.core.Messages.StepEvent;
 import dev.sibarum.inspector.core.Messages.StepRow;
@@ -51,6 +53,7 @@ import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.NodeEvent;
+import dev.vexelray.gui.core.input.DragEvent;
 import dev.vexelray.gui.core.input.Shortcut;
 import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
@@ -114,7 +117,8 @@ import java.util.Optional;
  * the time the lane spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch})
  * until the next picture is built at the new scale. A click on a lane focuses it, and puts the cursor on the event
  * nearest the click if one is near ({@link GoTo}), or else at the moment clicked ({@link Seek}); the main thread's is
- * focused at first.
+ * focused at first. Shift and a drag across the lanes selects the stretch dragged over ({@link SelectRange}), which the
+ * bench keeps on its island, the lanes wash and the readouts count over; Escape lets it go ({@link ClearRange}).
  *
  * <p><b>The cursor is a line, not the right edge.</b> Stopped, the cursor is drawn across the lanes where its moment
  * is, and the lanes stay where they came to rest for as long as it is in view: a click leaves it where it was clicked,
@@ -159,6 +163,9 @@ final class View {
      * as from an island long kept, widens the strip for as long as it lasts ({@link #reach}).
      */
     static final int SLIDE_LANES = 7;
+
+    /** How strong the wash over a stretch selected is, of the marks' colour: faint, so the marks read through it. */
+    static final float SELECTED_WASH = 0.12f;
 
     /** How close a click must be to an event to go to it, in pixels; further, it puts the cursor where it landed. */
     static final float CLICK_REACH_PX = 6f;
@@ -223,6 +230,7 @@ final class View {
     private final Sender<RunAgain> runAgain;
     private final Sender<GoToTick> goToTick;
     private final Sender<WindowCommand> windows;
+    private final Sender<SelectRange> selectRange;
 
     /** What the bench last said, kept to draw again at a new size or zoom. */
     private Timeline last = new Timeline("", "", false, 0L, List.of(), Optional.empty());
@@ -250,7 +258,8 @@ final class View {
          Sender<EventKey> eventKey, Sender<StepKey> stepKey, Sender<ZoomKey> zoomKey, Sender<RowKey> rowKey, Sender<Pause> pause,
          Sender<Follow> follow, Sender<StepEvent> stepEvent, Sender<Step> step, Sender<GoTo> goTo, Sender<Seek> seek,
          Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
-         Sender<RunAgain> runAgain, Sender<GoToTick> goToTick, Sender<WindowCommand> windows) {
+         Sender<RunAgain> runAgain, Sender<GoToTick> goToTick, Sender<WindowCommand> windows,
+         Sender<SelectRange> selectRange, Sender<ClearRange> clearRange) {
         this.gui = gui;
         this.ui = ui;
         this.pause = pause;
@@ -265,6 +274,7 @@ final class View {
         this.leave = leave;
         this.runAgain = runAgain;
         this.goToTick = goToTick;
+        this.selectRange = selectRange;
         this.windows = windows;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
                 gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
@@ -285,7 +295,15 @@ final class View {
             showFocus();
             show();
         });
-        gui.hear(ui.lane(), NodeEvent.CLICK, click -> clicked(click.x(), click.y()));
+        gui.hear(ui.lane(), NodeEvent.CLICK, click -> {
+            if (!click.modifiers().contains(Modifier.SHIFT)) {
+                clicked(click.x(), click.y());     // Shift is for selecting: its press ends a drag, not a click
+            }
+        });
+        gui.hear(ui.lane(), NodeEvent.DRAG, drag -> dragged(drag.phase(), drag.x(),
+                drag.modifiers().contains(Modifier.SHIFT)));
+        keys.action("timeline.unselect", "Let the selection go", Shortcut.of(Key.ESCAPE))
+                .sends(clearRange, new ClearRange());
         // Every window-wide command is the keymap's, so Key bindings… lists it and the person can change its chords.
         // The id is what their changes are stored under, so it is the part to keep stable.
         keys.action("timeline.pause", "Pause, or follow again", Shortcut.of(Key.SPACE))
@@ -438,7 +456,7 @@ final class View {
         focus = Model.LANES.get(band);
         ui.names(focus, unrecorded(last));
         showFocus();
-        double at = state.edge().at(now) - (laneX + laneW - x) / scale;
+        double at = momentAt(x, now, scale);
         pressedAt = now;
         pressWindow = -1L;
         Optional<Mark> near = nearest(marks(last, focus), at, CLICK_REACH_PX / scale);
@@ -447,6 +465,40 @@ final class View {
         } else {
             seek.send(new Seek((long) at));
         }
+    }
+
+    /** Where a Shift+drag on the lanes began, a moment; not a number while none is going on. */
+    private double selectFrom = Double.NaN;
+
+    /**
+     * A drag on the lanes: with Shift held as it starts, select the stretch from the moment it started at to the moment
+     * under the pointer, sent as it moves (a state topic, so a fast drag costs the bench one a tick). Without Shift,
+     * nothing yet: a plain drag is kept for moving the cursor.
+     */
+    private void dragged(DragEvent.Phase phase, float x, boolean shift) {
+        long now = System.nanoTime();
+        double scale = scale(now);
+        if (phase == DragEvent.Phase.START) {
+            selectFrom = shift && scale > 0 ? momentAt(x, now, scale) : Double.NaN;
+            return;
+        }
+        if (Double.isNaN(selectFrom)) {
+            return;
+        }
+        double at = momentAt(x, now, scale);
+        if (Math.abs(at - selectFrom) * scale >= 1.0) {
+            pressedAt = now;
+            pressWindow = -1L;
+            selectRange.send(new SelectRange((long) selectFrom, (long) at));
+        }
+        if (phase == DragEvent.Phase.END) {
+            selectFrom = Double.NaN;
+        }
+    }
+
+    /** The moment at {@code x} on the lanes, where the motion puts their right edge {@code now}. */
+    private double momentAt(float x, long now, double scale) {
+        return state.edge().at(now) - (laneX + laneW - x) / scale;
     }
 
     /** Mark the focused lane's band over the lanes, where the strip's slide does not move it. */
@@ -815,6 +867,14 @@ final class View {
             s.line(0f, band * i, edge + w * slideLanes, band * i, 1f, inks.line());
         }
         int columns = (int) Math.ceil(edge + w * slideLanes);
+        t.selected().ifPresent(r -> {
+            // Under the marks: a faint wash of the stretch across every lane, and a hairline at each end.
+            float x0 = edge + (r.fromNanos() - t.edgeNanos()) * pxPerNano;
+            float x1 = edge + (r.toNanos() - t.edgeNanos()) * pxPerNano;
+            s.fill(x0, 0f, Math.max(x1 - x0, 1f), h, Color.withAlpha(inks.mark(), SELECTED_WASH));
+            s.line(x0 + 0.5f, 0f, x0 + 0.5f, h, 1f, inks.mark());
+            s.line(x1 - 0.5f, 0f, x1 - 0.5f, h, 1f, inks.mark());
+        });
         float[] rests = new float[restsNanos.length];
         for (int i = 0; i < rests.length; i++) {
             rests[i] = edge + (float) ((restsNanos[i] - t.edgeNanos()) * pxPerNano);
@@ -1411,15 +1471,24 @@ final class View {
         return String.join(", ", said);
     }
 
-    /** What the readouts line says. Pure, for a test. */
+    /**
+     * What the readouts line says: over the last second, counts a second; over a stretch selected, how long it is, and
+     * each count with its rate. Pure, for a test.
+     */
     static String readout(Readouts r) {
         if (r.run().isEmpty() && r.draws() == 0 && r.ticks() == 0) {
             return "";
         }
-        return String.format(Locale.ROOT, "Draws %d/s, held %d for the ceiling and %d for the GPU, recording p50 %.2f"
-                        + " ms, p95 %.2f ms   Ticks %d/s, p50 %.2f ms, p95 %.2f ms   Rows lost %d", r.draws(),
-                r.heldForCeiling(), r.heldForGpu(), r.recordingP50Nanos() / 1e6, r.recordingP95Nanos() / 1e6, r.ticks(),
-                r.tickP50Nanos() / 1e6, r.tickP95Nanos() / 1e6, r.rowsLost());
+        String timing = String.format(Locale.ROOT, "held %d for the ceiling and %d for the GPU, recording p50 %.2f ms,"
+                        + " p95 %.2f ms, max %.2f ms", r.heldForCeiling(), r.heldForGpu(), r.recordingP50Nanos() / 1e6,
+                r.recordingP95Nanos() / 1e6, r.recordingMaxNanos() / 1e6);
+        String ticking = String.format(Locale.ROOT, "p50 %.2f ms, p95 %.2f ms, max %.2f ms   Rows lost %d",
+                r.tickP50Nanos() / 1e6, r.tickP95Nanos() / 1e6, r.tickMaxNanos() / 1e6, r.rowsLost());
+        if (!r.selected()) {
+            return String.format(Locale.ROOT, "Draws %d/s, %s   Ticks %d/s, %s", r.draws(), timing, r.ticks(), ticking);
+        }
+        return String.format(Locale.ROOT, "Selected %.3f s:   Draws %d (%.1f/s), %s   Ticks %d (%.1f/s), %s",
+                r.nanos() / 1e9, r.draws(), r.perSecond(r.draws()), timing, r.ticks(), r.perSecond(r.ticks()), ticking);
     }
 
     /**

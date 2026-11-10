@@ -129,6 +129,35 @@ class ClockLedgerTest {
     }
 
     @Test
+    void overAStretchEachClocksWholeTurnsInsideItAreSummedAndSayHowMany() {
+        twoPassesAndTheirDraws();
+        row(23000, 10, "main", "frame", "frame", "1ms");
+        Messages.LedgerAt l = ClockLedger.over("run", rows, B, B + 21_500 * US, "");
+        Account main = l.accounts().getFirst();
+        assertEquals(new Account(Model.MAIN, "2 passes", B, B + 20_000 * US, 3_500 * US + 1_500 * US, 500 * US,
+                        5_500 * US, 1_000 * US + 8_000 * US, 1_000 * US, 1, 1_500 * US, ClockLedger.LONGEST_WAKE),
+                main, "passes #7 and #8, from 0 to 20 ms: #9 ends after the stretch; each state the two together, and the"
+                        + " one wake's latency the longest");
+        Account drawing = l.accounts().get(2);
+        assertEquals("1 draw", drawing.turn(), "the second draw's turn has no next draw to end it");
+        assertEquals("resting is between draws; held once for the ceiling", drawing.note(),
+                "one draw: all its note is what every turn says");
+        assertEquals(Account.none(Model.MAIN, "no whole pass inside the stretch"),
+                ClockLedger.over("run", rows, B + 1, B + 12_000 * US, "").accounts().getFirst(),
+                "a pass begun before it, and the next not ended inside it");
+    }
+
+    @Test
+    void aSumOfTurnsKeepsOnlyWhatEveryNoteSaysAndAFigureNoTurnFillsStaysUnfilled() {
+        Account a = new Account(ClockLedger.JOBS, "job A", 0L, 10L, 4L, -1L, 6L, 0L, -1L, -1, -1L,
+                "on vexel-job-1; resting is between jobs");
+        Account b = new Account(ClockLedger.JOBS, "job B", 10L, 30L, 5L, -1L, 15L, 0L, -1L, -1, -1L,
+                "on vexel-job-2; resting is between jobs");
+        assertEquals(new Account(ClockLedger.JOBS, "2 jobs", 0L, 30L, 9L, -1L, 21L, 0L, -1L, -1, -1L,
+                "resting is between jobs"), ClockLedger.summed(ClockLedger.JOBS, "job", List.of(a, b)));
+    }
+
+    @Test
     void theLedgerHasEveryClockAndJobsWithNoneToReadSaySo() {
         twoPassesAndTheirDraws();
         Messages.LedgerAt l = ClockLedger.at("run", rows, B + 5000 * US, "");

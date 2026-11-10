@@ -477,15 +477,15 @@ final class View {
      */
     private void dragged(DragEvent.Phase phase, float x, boolean shift) {
         long now = System.nanoTime();
-        double scale = scale(now);
+        double scale = laneW > 0f ? laneW / span : 0.0;
         if (phase == DragEvent.Phase.START) {
-            selectFrom = shift && scale > 0 ? momentAt(x, now, scale) : Double.NaN;
+            selectFrom = shift && scale > 0 ? restingMomentAt(x, now, scale) : Double.NaN;
             return;
         }
         if (Double.isNaN(selectFrom)) {
             return;
         }
-        double at = momentAt(x, now, scale);
+        double at = restingMomentAt(x, now, scale);
         if (Math.abs(at - selectFrom) * scale >= 1.0) {
             pressedAt = now;
             pressWindow = -1L;
@@ -499,6 +499,15 @@ final class View {
     /** The moment at {@code x} on the lanes, where the motion puts their right edge {@code now}. */
     private double momentAt(float x, long now, double scale) {
         return state.edge().at(now) - (laneX + laneW - x) / scale;
+    }
+
+    /**
+     * The moment at {@code x} on the lanes once they come to rest, at {@code scale}, the zoom they are going to: a
+     * stretch is selected on the lanes as they will stand, so a drag begun while they still glide from a pause, or
+     * from the stretch's own first move, ends where it is seen to.
+     */
+    private double restingMomentAt(float x, long now, double scale) {
+        return state.edge().rest(now, Glide.window(0.0)) - (laneX + laneW - x) / scale;
     }
 
     /** Mark the focused lane's band over the lanes, where the strip's slide does not move it. */
@@ -627,13 +636,26 @@ final class View {
         if (pressedAt < 0 && edge.last().rate() != 0.0) {
             return rest;    // the run went away while followed: coast to a stop
         }
-        return keepInView(rest, t.edgeNanos(), span);
+        return keepInView(rest, t.edgeNanos(), span, t.selected().isPresent());
     }
 
     /**
      * Where the right edge rests to show {@code cursorNanos}: at {@code restNanos} if the cursor is inside the lanes
      * spanning {@code spanNanos} back from there, clear of either side by {@link #VIEW_MARGIN} of the span; otherwise
      * where it puts the cursor in the middle. Pure, for a test.
+     */
+    static double keepInView(double restNanos, double cursorNanos, double spanNanos, boolean selected) {
+        if (selected && cursorNanos <= restNanos && cursorNanos >= restNanos - spanNanos) {
+            // Selecting puts the cursor at the stretch's end, under the pointer: lanes that glided to centre it would
+            // move what the pointer is over in the middle of the drag.
+            return restNanos;
+        }
+        return keepInView(restNanos, cursorNanos, spanNanos);
+    }
+
+    /**
+     * As {@link #keepInView(double, double, double, boolean)} with nothing selected: the cursor kept clear of either
+     * side by {@link #VIEW_MARGIN}. Pure, for a test.
      */
     static double keepInView(double restNanos, double cursorNanos, double spanNanos) {
         double margin = spanNanos * VIEW_MARGIN;

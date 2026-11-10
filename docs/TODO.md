@@ -79,8 +79,12 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       and a replay's draws stay unnumbered; read it by thread and order instead, as a tick's is.
 - [ ] Dragging the cursor on the lanes: a plain drag (the lanes already hear `NodeEvent.DRAG`, for Shift's selection)
       sends `Seek` for each position; the view turns a pixel into a moment as `momentAt` does.
-- [ ] A stretch selected counts the readouts and the flows. Next: the threads panel summed over the turns inside it;
-      and its longest tick, pass and draw, which a click goes to.
+- [ ] A stretch selected counts the readouts, the flows and the threads. Next: its longest tick, pass and draw, which
+      a click goes to.
+- [ ] Over a stretch the threads panel's draws are whole turns inside it and the readouts' draws are draws ending
+      inside it, so the two can differ by one (160 against 161): say which in the panel, or count both alike.
+- [ ] The ledger's span lookups skip spans begun more than `ClockLedger.SPAN` before what they look at, so over a stretch
+      a rest longer than a second (an unfocused window's park) is left unaccounted.
 - [ ] The flows table builds only the rows in view, and sorts by name, so over a stretch the busy topics are found by
       scrolling: the sort by written (above) matters more once counts can be a stretch's.
 - [ ] A stretch can only be selected by dragging. A key could grow one from the cursor (Shift+arrow is taken by the

@@ -148,7 +148,7 @@ public final class Bench {
             if (selected.equals(selected())) {
                 return this;
             }
-            return new Island(tape, kept, endNanos, selected.map(r -> Selection.of(tape, r)));
+            return new Island(tape, kept, endNanos, selected.map(r -> Selection.of(tape, kept, r)));
         }
 
         /** Its oldest end: as far back as the cursor can go. */
@@ -173,21 +173,32 @@ public final class Bench {
                 return this;
             }
             Tape more = tape.add(inside, endNanos, FOREVER);
-            // A late row inside the stretch changes what it counted: its ends are folded again from the fuller tape.
+            Model keptMore = kept.fold(inside, endNanos, FOREVER);
+            // A late row inside the stretch changes what it counted: it is read again from the fuller tape.
             Optional<Selection> again = selection.map(s -> inside.stream()
-                    .anyMatch(r -> r.atNanos() <= s.range().toNanos()) ? Selection.of(more, s.range()) : s);
-            return new Island(more, kept.fold(inside, endNanos, FOREVER), endNanos, again);
+                    .anyMatch(r -> r.atNanos() <= s.range().toNanos() + ClockLedger.SLACK)
+                    ? Selection.of(more, keptMore, s.range()) : s);
+            return new Island(more, keptMore, endNanos, again);
         }
     }
 
     /**
-     * A stretch selected, and the model as of each of its ends: what the readouts' lost rows and every flow are
-     * counted between. Folded from the tape when it is selected rather than for each message after.
+     * A stretch selected, and what is counted over it that the tape must be read again for: the model as of each of
+     * its ends, which the readouts' lost rows and every flow are counted between, and each clock's whole turns inside
+     * it, summed, for the threads panel. Read when it is selected rather than for each message after.
      */
-    public record Selection(Range range, Model from, Model to) {
+    public record Selection(Range range, Model from, Model to, List<Messages.Account> accounts) {
 
-        static Selection of(Tape tape, Range r) {
-            return new Selection(r, tape.asOf(r.fromNanos()), tape.asOf(r.toNanos()));
+        public Selection {
+            accounts = List.copyOf(accounts);
+        }
+
+        /** {@code r} on {@code tape}, its logic ticks those of the thread {@code kept}'s ran on. */
+        static Selection of(Tape tape, Model kept, Range r) {
+            long half = r.nanos() / 2;
+            List<Row> rows = tape.near(r.fromNanos() + half, half + ClockLedger.SLACK, ClockLedger::reads);
+            return new Selection(r, tape.asOf(r.fromNanos()), tape.asOf(r.toNanos()),
+                    ClockLedger.over("", rows, r.fromNanos(), r.toNanos(), logicThread(kept)).accounts());
         }
     }
 
@@ -427,10 +438,16 @@ public final class Bench {
             return paused ? island.tape().around(run, row.orElse(Tape.key(cursor)), AROUND) : tape.newest(run, AROUND);
         }
 
-        /** The ledger of each clock's turn the cursor is in; following, of the newest whole turns. */
+        /**
+         * The ledger of each clock's turn the cursor is in; following, of the newest whole turns; over a stretch
+         * selected, of each clock's whole turns inside it, summed, wherever the cursor is.
+         */
         LedgerAt ledger() {
             if (tape.isEmpty() && island.tape().isEmpty()) {
                 return new LedgerAt(run, List.of());
+            }
+            if (paused && island.selection().isPresent()) {
+                return new LedgerAt(run, island.selection().get().accounts());
             }
             String logic = logicThread(kept);
             if (paused) {

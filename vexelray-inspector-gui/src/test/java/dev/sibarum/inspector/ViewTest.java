@@ -561,6 +561,18 @@ class ViewTest {
     }
 
     @Test
+    void withAStretchSelectedTheLanesStayPutWhileItsEndIsAnywhereInViewSoADragIsNotMovedUnderThePointer() {
+        double span = View.SPAN_NANOS;
+        double rest = 50_000 * MS;
+        assertEquals(rest, View.keepInView(rest, rest - 9_600 * MS, span, true),
+                "inside the left margin, where a drag from the left begins: nothing moves");
+        assertEquals(rest, View.keepInView(rest, rest - 100 * MS, span, true), "and the right");
+        assertEquals(rest - 12_000 * MS + span / 2, View.keepInView(rest, rest - 12_000 * MS, span, true),
+                "out of view: put in the middle, as without one");
+        assertEquals(rest - 9_600 * MS + span / 2, View.keepInView(rest, rest - 9_600 * MS, span, false));
+    }
+
+    @Test
     void whileFollowingNoCursorIsDrawn() {
         long at = 20_000 * MS;
         Timeline t = new Timeline("r", "", true, at, main(pass(at - 500 * MS, at - 400 * MS)), Optional.empty());

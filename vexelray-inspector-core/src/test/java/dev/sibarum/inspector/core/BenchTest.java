@@ -916,6 +916,11 @@ class BenchTest {
                         800_000, 1_400_000, 1_400_000, 0), readouts(),
                 "dragged right to left: the twelve draws, holds and ticks ending inside it, the slowest tick 1.4 ms,"
                         + " and none of the rows lost after it");
+        LedgerAt summed = sent.stream().filter(LedgerAt.class::isInstance).map(LedgerAt.class::cast).toList()
+                .getLast();
+        assertEquals("11 passes", summed.accounts().getFirst().turn(),
+                "the threads panel: the passes begun at 0.3 s to 1.3 s, whose next began inside it too");
+        assertEquals("11 draws", summed.accounts().get(2).turn());
         Timeline t = timeline();
         assertFalse(t.live(), "selecting pauses");
         assertEquals(1_450 * MS, t.edgeNanos(), "the cursor at the stretch's later end");

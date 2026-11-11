@@ -200,12 +200,12 @@ class ViewTest {
                 List.of("the cursor's", "vexel-logic", "bus", "tick", "0.2ms", ""),
                 List.of("+1.100 ms", "main", "draw", "draw.ran", "#12 c1.i01.1", "")), View.rowCells(r));
         Messages.Traced path = new Messages.Traced("run", "c1.i01.1", List.of(), List.of(), List.of(), List.of());
-        assertEquals(List.of(Ui.PATH, Role.ACCENT, Ui.PATH), View.rowInks(r, path),
+        assertEquals(List.of(Ui.PATH, Look.CURSOR, Ui.PATH), View.rowInks(r, path),
                 "the press in its cause, the draw that showed it, the cursor's own in the accent");
-        assertEquals(List.of(Role.INK, Role.ACCENT, Role.INK), View.rowInks(r, Messages.Traced.NONE));
+        assertEquals(List.of(Role.INK, Look.CURSOR, Role.INK), View.rowInks(r, Messages.Traced.NONE));
         shell.bus().publish(Messages.ROWS_AROUND_TOPIC, r);
         eventually("the rows shown", () -> wiring.ui().rowCells(2).equals(View.rowCells(r).get(2)));
-        assertEquals(Role.ACCENT, wiring.ui().rowInk(1));
+        assertEquals(Look.CURSOR, wiring.ui().rowInk(1));
         assertEquals(List.of(), wiring.ui().rowCells(3), "a place past them blank");
     }
 
@@ -291,6 +291,18 @@ class ViewTest {
         assertEquals("run.csv · replayed", View.runLine(new RunPanel("replay:run.csv", "run.csv", 0,
                 Bench.REPLAYED, "", List.of(one), true)), "a recording has no process, and no logic said yet");
         assertEquals("No application inspected", View.runLine(new RunPanel("", "", 0, "", "", List.of(one), false)));
+    }
+
+    @Test
+    void besideThePickerIsOnlyWhatItDoesNotSay() {
+        Messages.Run one = new Messages.Run("calculator-11", "Calculator", 11, "uds:one");
+        RunPanel attached = new RunPanel("calculator-11", "Calculator", 11, Bench.ATTACHED,
+                "logic on its own lane, vexel-logic", List.of(one), true);
+        assertEquals("attached · logic on its own lane, vexel-logic", View.runBeside(attached, true),
+                "the picker names the run and its process");
+        RunPanel replayed = new RunPanel("replay:run.csv", "run.csv", 0, Bench.REPLAYED, "", List.of(one), true);
+        assertEquals("run.csv · replayed", View.runBeside(replayed, false),
+                "a recording is no choice in the picker, so the line says it whole");
     }
 
     @Test

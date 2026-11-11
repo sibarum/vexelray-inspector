@@ -37,8 +37,20 @@ final class Type {
 
     // --------------------------------------------------------------- gutters
 
-    /** A tight gap, and the navigator's padding. */
+    /** A tight gap: between a card's heading and its body, between controls in a row. */
     static final Length TIGHT = Length.dp(5.6f);
+
+    /** Between cards, and around them all: the design's 12 px. */
+    static final Length GAP = Length.dp(12f);
+
+    /** Inside a card, and across a chip. */
+    static final Length PAD = Length.dp(12f);
+
+    /** A card's corners. */
+    static final Length CARD_CORNER = Length.dp(12f);
+
+    /** A chip's corners, and a well's inside a card. */
+    static final Length CHIP_CORNER = Length.dp(8f);
 
     private Type() {
     }

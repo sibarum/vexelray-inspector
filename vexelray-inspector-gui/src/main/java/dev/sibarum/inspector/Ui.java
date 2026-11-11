@@ -5,8 +5,10 @@ import dev.sibarum.inspector.core.ClockLedger;
 import dev.sibarum.inspector.core.Csv;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Model;
+import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
+import dev.vexelray.gui.core.WindowRegion;
 import dev.vexelray.gui.core.layout.Length;
 import dev.vexelray.gui.core.layout.LayoutEnums.AlignItems;
 import dev.vexelray.gui.core.layout.LayoutEnums.Direction;
@@ -31,6 +33,13 @@ import java.util.Optional;
 /**
  * The window: the framework's title bar, the timeline, and a status line under both.
  *
+ * <h2>Cards</h2>
+ *
+ * <p>Every section is a card ({@link #card}), as the redesign of 2026-11-10 draws them: a panel off the page, rounded,
+ * edged in {@link Look#EDGE}, its name in faint capitals over it. In order: Timeline; Cursor (the details) beside
+ * Events (the rows panel); Clocks (the threads panel and the readouts); Run again (the replay panel, once pressed);
+ * and Graph beside Topics (the flows table) taking what is left.
+ *
  * <h2>The timeline</h2>
  *
  * <p>One lane per clock, each a name beside a band of marks, with the present at the right edge (vexelray-inspector's
@@ -44,14 +53,15 @@ import java.util.Optional;
  *
  * <h2>The run panel</h2>
  *
- * <p>One line over everything else: what is inspected, how it was reached and where its logic runs, then the picker
- * of running applications and the button that detaches ({@link #runPanel}). Neither control takes the focus: a
- * focused control claims Space, and Space pauses here (FN-11), so both are driven by the pointer.
+ * <p>In the title bar, after the mark: the picker of running applications, which names the run; Run again and Detach;
+ * then how the run was reached and where its logic runs ({@link #runPanel}). No control takes the focus: a focused
+ * control claims Space, and Space pauses here (FN-11), so all are driven by the pointer. Export frame is on the Cursor
+ * card, as it saves the frame at the cursor.
  *
  * <h2>The warning</h2>
  *
- * <p>Over the lanes, a banner with the caution mark, shown only while what the lanes show may be less than whole: a
- * run of another link version, which may not send all the Inspector reads ({@link #warning}).
+ * <p>In the title bar, a brass chip with the caution mark, shown only while what the lanes show may be less than
+ * whole: a run of another link version, which may not send all the Inspector reads ({@link #warning}).
  *
  * <h2>The details</h2>
  *
@@ -102,7 +112,7 @@ final class Ui {
 
     /** What the path of the event the cursor is on is marked in, in every panel: apart from the accent, which every
      * lane and lit arrow is drawn in. */
-    static final Role PATH = Role.SUCCESS;
+    static final Role PATH = Look.PATH;
 
     /** The details panel's height, in rem: the clock, a few fields and a path of a dozen hops before it scrolls. */
     static final float DETAILS_REM = 16f;
@@ -260,7 +270,7 @@ final class Ui {
             gui.landmark(Landmarks.detail(View.DETAILS.get(i)), details[i]);
             detailRows[i] = gui.row().width(Length.FILL).gap(Type.TIGHT).children(label, details[i]);
         }
-        Node detailsPanel = gui.column().width(Length.grow(1f)).height(Length.FILL).padding(Type.TIGHT)
+        Node detailsPanel = gui.column().width(Length.FILL).height(Length.grow(1f))
                 .clip(true).scroll(false, true).children(detailRows);
         gui.landmark(Landmarks.DETAILS, detailsPanel);
 
@@ -279,12 +289,19 @@ final class Ui {
         // Never focused: a focused list claims Space and the arrows, which pause and step here (FN-11).
         gui.focusable(rows.rows().node(), false);
         rows.headers(Type.UI, Type.SMALL, Role.DIM);
-        rows.node().width(Length.grow(2f)).height(Length.FILL);
+        rows.node().width(Length.FILL).height(Length.grow(1f));
         rows.items(java.util.stream.IntStream.range(0, Bench.AROUND).boxed().toList());
         gui.landmark(Landmarks.ROWS, rows.node());
+        // On the cursor's card, as what it saves is the frame at the cursor.
+        exportFrame = new Button(gui, "Export frame").kind(Button.Kind.GHOST).name(Landmarks.EXPORT).enabled(false);
+        // Never focused, as the follow button is not (FN-11).
+        gui.focusable(exportFrame.node(), false);
+        gui.landmark(Landmarks.EXPORT, exportFrame.node());
         // The rows beside the details: the cursor's moment as the rows said it, and as the event it is on.
-        Node cursorPanels = gui.row().width(Length.FILL).height(Length.rem(DETAILS_REM)).gap(Type.TIGHT)
-                .children(detailsPanel, rows.node());
+        Node cursorPanels = gui.row().width(Length.FILL).height(Length.rem(DETAILS_REM)).gap(Type.GAP)
+                .children(card(head("Cursor", exportFrame.node()), detailsPanel).width(Length.grow(1f))
+                                .height(Length.FILL),
+                        card("Events", rows.node()).width(Length.grow(2f)).height(Length.FILL));
 
         List<Table.Column<Integer>> threadColumns = new ArrayList<>();
         for (int i = 0; i < View.THREAD_COLUMNS.size(); i++) {
@@ -305,33 +322,39 @@ final class Ui {
         threads.items(java.util.stream.IntStream.range(0, ClockLedger.CLOCKS.size()).boxed().toList());
         gui.landmark(Landmarks.THREADS, threads.node());
 
-        warningText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
+        warningText = gui.text("").width(Length.AUTO).textSize(Type.SMALL).wordWrap(false)
+                .textColor(gui.theme().color(Role.CAUTION));
         gui.landmark(Landmarks.WARNING_TEXT, warningText);
-        warning = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER).padding(Type.TIGHT)
-                .background(gui.theme().color(Role.PANEL)).border(Length.dp(1), gui.theme().color(Role.CAUTION))
-                .children(IconView.of(gui, Icon.CAUTION).size(Length.rem(1.25f)).tint(Role.CAUTION).node(),
+        // A chip in the title bar: brass on a wash of it, as the design draws a warning.
+        warning = gui.row().width(Length.AUTO).height(Length.rem(1.75f)).gap(Type.TIGHT)
+                .alignItems(AlignItems.CENTER).padding(Length.ZERO, Type.PAD).corner(Type.CHIP_CORNER)
+                .background(Color.withAlpha(gui.theme().color(Role.CAUTION), 0.06f))
+                .border(Length.dp(1), Color.withAlpha(gui.theme().color(Role.CAUTION), 0.35f))
+                .children(IconView.of(gui, Icon.CAUTION).size(Length.rem(1f)).tint(Role.CAUTION).node(),
                         warningText);
         warning.visible(false);
         gui.landmark(Landmarks.WARNING, warning);
 
-        runText = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
+        runText = gui.text("").width(Length.AUTO).textSize(Type.SMALL).textColor(gui.theme().color(Role.DIM))
+                .wordWrap(false);
         gui.landmark(Landmarks.RUN_TEXT, runText);
         runs = new Select<Run>(gui, Ui::runLabel).name(Landmarks.RUNS).placeholder("Choose an application");
-        runs.node().width(Length.rem(18f));
+        runs.node().width(Length.rem(14f)).windowRegion(WindowRegion.INTERACTIVE);
         gui.focusable(runs.node(), false);
         gui.landmark(Landmarks.RUNS, runs.node());
-        detach = new Button(gui, "Detach").name(Landmarks.DETACH).enabled(false);
-        gui.focusable(detach.node(), false);
-        gui.landmark(Landmarks.DETACH, detach.node());
-        runAgain = new Button(gui, "Run again").name(Landmarks.RUN_AGAIN).enabled(false);
-        gui.focusable(runAgain.node(), false);
-        gui.landmark(Landmarks.RUN_AGAIN, runAgain.node());
-        exportFrame = new Button(gui, "Export frame").name(Landmarks.EXPORT).enabled(false);
-        gui.focusable(exportFrame.node(), false);
-        gui.landmark(Landmarks.EXPORT, exportFrame.node());
-        Node runPanel = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
-                .children(runText, runs.node(), exportFrame.node(), runAgain.node(), detach.node());
+        detach = barButton("Detach", Landmarks.DETACH);
+        runAgain = barButton("Run again", Landmarks.RUN_AGAIN);
+        // In the title bar, after the mark: the run, what can be done to it, the warning when there is one, and how it
+        // was reached and where its logic runs. The bar's left gives way at its end when the window is narrow (it
+        // clips, and an application's part of it can take none of the caption's slack), so the words go last and the
+        // buttons are never what is cut.
+        Node runPanel = gui.row().width(Length.AUTO).height(Length.FILL).gap(Type.TIGHT)
+                .alignItems(AlignItems.CENTER).padding(Length.ZERO, Type.TIGHT)
+                .children(runs.node(), runAgain.node(), detach.node(), warning, runText);
         gui.landmark(Landmarks.RUN, runPanel);
+        // The bar's own title would only say the mark's name again.
+        titleBar.title("");
+        titleBar.addLeading(runPanel);
 
         List<Table.Column<String>> columns = new ArrayList<>();
         for (int i = 0; i < View.FLOW_COLUMNS.size(); i++) {
@@ -352,22 +375,18 @@ final class Ui {
         flowsWhy = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         flowsWhy.visible(false);
         gui.landmark(Landmarks.FLOWS_WHY, flowsWhy);
-        Node flowsPanel = gui.column().width(Length.grow(1.4f)).height(Length.FILL).gap(Type.TIGHT)
-                .children(flowsWhy, flows.node());
-        // The graph beside its flows: the same topics, drawn between the parts, the counts in the table.
+        Node flowsPanel = card("Topics", flowsWhy, flows.node()).width(Length.grow(1.4f)).height(Length.FILL);
+        // The graph beside its flows: the same topics, drawn between the parts, the counts in the table. A well in
+        // its card, a step under it, as the design sinks the graph's ground.
         graph = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false).childMotion(false)
-                .background(gui.theme().color(Role.PANEL));
+                .corner(Type.CHIP_CORNER).background(gui.theme().color(Role.PAGE));
         gui.landmark(Landmarks.GRAPH, graph);
         // Over the graph, at its right: the button that gives it a window of its own to be looked around in.
         openGraph = new IconButton(gui, Icon.POP_OUT, "Open the graph in its own window").name(Landmarks.GRAPH_OPEN)
                 .tip("Open the graph in its own window (G)");
         gui.landmark(Landmarks.GRAPH_OPEN, openGraph.node());
-        Node graphHead = gui.row().width(Length.FILL).alignItems(AlignItems.CENTER).gap(Type.TIGHT).children(
-                gui.text("Graph").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL),
-                openGraph.node());
-        Node graphPanel = gui.column().width(Length.grow(1f)).height(Length.FILL).gap(Type.TIGHT)
-                .children(graphHead, graph);
-        Node panels = gui.row().width(Length.FILL).height(Length.grow(1f)).gap(Type.TIGHT)
+        Node graphPanel = card(head("Graph", openGraph.node()), graph).width(Length.grow(1f)).height(Length.FILL);
+        Node panels = gui.row().width(Length.FILL).height(Length.grow(1f)).gap(Type.GAP)
                 .children(graphPanel, flowsPanel);
 
         replayText = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.INK));
@@ -390,18 +409,63 @@ final class Ui {
         replayTable.node().width(Length.FILL).height(Length.rem(ROW_REM * (REPLAY_SHOWN + 1) + 0.75f));
         replayTable.items(java.util.stream.IntStream.range(0, View.REPLAY_LISTED).boxed().toList());
         replayTable.node().visible(false);
-        replay = gui.column().width(Length.FILL).gap(Type.TIGHT).children(replayText, replayTable.node());
+        replay = card("Run again", replayText, replayTable.node()).width(Length.FILL);
         replay.visible(false);
         gui.landmark(Landmarks.REPLAY, replay);
 
-        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
-                .children(runPanel, warning, lanes, cursorPanels, threads.node(), readoutRow, replay, panels);
+        // The cards in the design's order: the timeline, the cursor and its rows, the clocks, then what Run again
+        // found (once it has run), and the graph beside its topics taking what is left.
+        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.GAP).gap(Type.GAP)
+                .children(card("Timeline", lanes).width(Length.FILL), cursorPanels,
+                        card("Clocks", threads.node(), readoutRow).width(Length.FILL), replay, panels);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
                 .background(gui.theme().color(Role.PAGE))
                 .children(titleBar.node(), timeline, status.node());
         focus(Model.MAIN);
+    }
+
+    /**
+     * A card, as the design draws every section: a panel standing off the page, rounded, edged a step brighter than
+     * the ladder's line, with its name in small faint capitals over {@code body}.
+     */
+    private Node card(String title, Node... body) {
+        return card(head(title), body);
+    }
+
+    /** A card under {@code head}, a heading {@link #head} made. */
+    private Node card(Node head, Node... body) {
+        Node[] children = new Node[1 + body.length];
+        children[0] = head;
+        System.arraycopy(body, 0, children, 1, body.length);
+        return gui.column().gap(Type.TIGHT).padding(Type.PAD).corner(Type.CARD_CORNER)
+                .background(gui.theme().color(Role.PANEL)).border(Length.dp(1), gui.theme().color(Look.EDGE))
+                .children(children);
+    }
+
+    /**
+     * A card's heading: its name in capitals, faint, and at its right {@code tools}. The design spaces its letters
+     * wide, which no text node can (framework-notes FN-21), so the capitals carry it alone.
+     */
+    private Node head(String title, Node... tools) {
+        Node[] children = new Node[1 + tools.length];
+        children[0] = gui.text(title.toUpperCase(java.util.Locale.ROOT)).width(Length.grow(1f))
+                .textColor(gui.theme().color(Role.FAINT)).textSize(Type.SMALL);
+        System.arraycopy(tools, 0, children, 1, tools.length);
+        return gui.row().width(Length.FILL).alignItems(AlignItems.CENTER).gap(Type.TIGHT).children(children);
+    }
+
+    /**
+     * A button in the title bar: quiet until the pointer is on it, never focused (a focused button claims Space, and
+     * Space pauses here, FN-11), and a click of its own rather than the bar's drag.
+     */
+    private Button barButton(String label, String landmark) {
+        Button b = new Button(gui, label).kind(Button.Kind.GHOST).name(landmark).enabled(false);
+        b.node().windowRegion(WindowRegion.INTERACTIVE);
+        gui.focusable(b.node(), false);
+        gui.landmark(landmark, b.node());
+        return b;
     }
 
     /** The lanes' box: what the view measures to draw the strip for, a band a lane. */
@@ -806,13 +870,14 @@ final class Ui {
     private Run runShown;
 
     /**
-     * What the run panel shows: {@code line}, what is inspected and from where; the running applications to choose
-     * from, {@code current} shown chosen when it is among them; and whether there is a run to detach from.
+     * What the run panel shows: {@code line}, what is inspected and from where, of which the picker already names the
+     * run, so beside it is only {@code beside}; the running applications to choose from, {@code current} shown chosen
+     * when it is among them; and whether there is a run to detach from.
      */
-    void runPanel(String line, List<Run> choices, Run current, boolean canDetach) {
+    void runPanel(String line, String beside, List<Run> choices, Run current, boolean canDetach) {
         if (!line.equals(runSaid)) {
             runSaid = line;
-            runText.text(line);
+            runText.text(beside);
         }
         if (!choices.equals(runChoices)) {
             runChoices = choices;

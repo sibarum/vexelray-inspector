@@ -26,8 +26,8 @@ start it with `--automation=0` (for one built from this template, `mvn compile e
 the Inspector reads, traced, whatever its `-Dprobe` settings say. Until one is running, the status line says so, and
 the Inspector looks again every two seconds.
 
-**Which one.** By itself it attaches to the newest, and when that one goes away, to the next newest. The run panel over
-the lanes says what is inspected and from where, and its picker lists every application running with its link: one
+**Which one.** By itself it attaches to the newest, and when that one goes away, to the next newest. The run panel in
+the title bar says what is inspected and from where, and its picker lists every application running with its link: one
 chosen there is kept, and when it goes away its lanes stay to step through until another is chosen. Detach stops
 inspecting and keeps the lanes. Three settings choose at launch instead:
 
@@ -43,7 +43,7 @@ in `-Dapp.args`, which suits `--attach` and `--replay`; a command with spaces is
 with `java` directly.
 
 **Same link version, nothing missing.** The application says its link's version when the stream opens
-(`InspectorLink.VERSION`). When it is not this Inspector's, a banner with the caution mark stands over the lanes for as
+(`InspectorLink.VERSION`). When it is not this Inspector's, a chip with the caution mark stands in the title bar for as
 long as it is attached, saying what may be missing and whether to rebuild the application or upgrade the Inspector.
 
 ```
@@ -158,7 +158,7 @@ stop where they were, and the status line says what happened.
 | Shift+click / Ctrl+click a row | choose a range of rows, or one more or fewer, in any table, to copy; in the rows panel the cursor stays where it is |
 | Ctrl+C, or Copy on a row's right-click menu | copy the chosen rows of the table last clicked as CSV, its column titles first |
 
-| Ctrl+E, or Export frame in the run panel | save the frame the cursor is in to a CSV file, pausing first if following |
+| Ctrl+E, or Export frame on the Cursor card | save the frame the cursor is in to a CSV file, pausing first if following |
 
 What is copied is what the table shows, a cell a field. The rows panel's rows can be chosen among the eleven it
 shows, and the choice is kept until the cursor moves.

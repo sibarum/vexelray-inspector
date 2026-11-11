@@ -53,6 +53,36 @@ class LookTest {
                 "the accent should be a colour, not the text shade");
     }
 
+    /**
+     * The design's authored colours against what the palette draws, a role each: the gap is pinned, so a moved anchor
+     * that drifts from the design fails here rather than in a review. 0.01 in Oklab is under a just-noticeable step.
+     */
+    @Test
+    void theDesignsColoursAreWhatIsDrawn() {
+        near(0x05070B, Role.PAGE, 0.004);
+        near(0x070A0F, Role.CHROME, 0.004);
+        near(0x0A0E14, Role.PANEL, 0.004);
+        near(0xD6E2EC, Role.INK, 0.004);
+        // The gap the construction leaves: the design's greys are bluer (chroma about 0.03) than a blend of the ink
+        // and the page can be (about 0.017), at the right lightness. Pinned rather than absorbed.
+        near(0xA9BACA, Role.DIM, 0.015);
+        near(0x8597A8, Role.FAINT, 0.02);
+        near(0x45C8DC, Role.ACCENT, 0.004);
+        near(0x172230, Look.EDGE, 0.004);
+        near(0xE0AA4A, Look.CURSOR, 0.004);
+        near(0xF0D29C, Look.PATH, 0.004);
+        // The framework derives caution; the danger's chroma is chosen so it lands near the brass, at its own hue.
+        near(0xE0AA4A, Role.CAUTION, 0.03);
+    }
+
+    private static void near(int rgb, Role role, double within) {
+        dev.vexelray.gui.core.style.Oklab want = dev.vexelray.gui.core.style.Oklab.of(Color.rgb(rgb));
+        dev.vexelray.gui.core.style.Oklab got = dev.vexelray.gui.core.style.Oklab.of(Look.THEME.color(role));
+        double d = Math.sqrt(Math.pow(want.l() - got.l(), 2) + Math.pow(want.a() - got.a(), 2)
+                + Math.pow(want.b() - got.b(), 2));
+        assertTrue(d <= within, String.format("#%06X drawn %.4f away in Oklab, more than %.3f", rgb, d, within));
+    }
+
     /** Rough perceived brightness -- enough to order two shades, which is all these assertions need. */
     private static float luminance(Color c) {
         return 0.2126f * c.r() + 0.7152f * c.g() + 0.0722f * c.b();

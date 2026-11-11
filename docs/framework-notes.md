@@ -282,3 +282,22 @@ come up on the desktop of the person at it. So the export was seen in the window
 Under automation the framework could answer pickers itself: a verb (`pick <path>` or `pick cancel`) that answers the
 oldest picker waiting, with `Picked`, and a picker held rather than shown while the socket is open and the run is in
 the background, as the read-model already lists what is waiting.
+
+## FN-21 · No letter-spacing, no glow, and an application's part of the title bar can take no slack 🔬
+
+The redesign (2026-11-10) heads each card in wide-spaced capitals in a third face (Space Grotesk), glows the cursor,
+the focused lane and the chosen controls in their own colour, and puts the run's picker, its warning and its buttons
+in the title bar with the buttons at the right. Three things stood in the way, each approximated in `Ui`:
+
+- **Letter-spacing.** A text node has a size, a weight and a face, and no tracking. The headings are capitals at
+  `Type.SMALL` in the faint ink with no spacing. The face is not the gap: an application's build can name families of
+  its own (`Node.font(String)`, `fonts.json`), and that was not tried here.
+- **A coloured glow.** `Node.elevation` is a drop shadow in the palette's depth; there is no shadow in a colour of the
+  node's own, so a glow on a node is not possible. The focused lane's glow is drawn by hand in the view's overlay
+  (`View.focusGlow`, rings at falling alpha), which every application that wants one will write again.
+- **The title bar's left.** `TitleBar.addLeading` takes nodes into a row that is as wide as its content and clips;
+  the caption takes all the slack. So an application's controls there sit left after the lockup, and a long line
+  among them cannot shrink to an ellipsis (no node has a maximum width): when the window is narrow the row is cut at
+  its end. The run panel puts its words last so the buttons are never what is cut. `WindowInstrument`'s javadoc says
+  why the bar's right is not the application's, so the fix is not there: a leading child that can take a share of
+  the slack (a grow with a floor, ellipsizing its text) would do it.

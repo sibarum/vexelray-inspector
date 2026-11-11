@@ -293,7 +293,7 @@ final class View {
         this.selectRange = selectRange;
         this.windows = windows;
         this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
-                gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Role.INK),
+                gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Look.CURSOR),
                 gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
@@ -583,7 +583,7 @@ final class View {
     /** Mark the focused lane's band over the lanes, where the strip's slide does not move it. */
     private void showFocus() {
         if (laneH > 0f) {
-            ui.lane().overlay(focusGlow(laneW, laneH, Model.LANES.indexOf(focus), inks.mark()));
+            ui.lane().overlay(focusGlow(laneW, laneH, Model.LANES.indexOf(focus), inks.on()));
         }
     }
 
@@ -1378,7 +1378,19 @@ final class View {
                 current = r;
             }
         }
-        ui.runPanel(runLine(p), p.choices(), current, !p.run().isEmpty());
+        ui.runPanel(runLine(p), runBeside(p, current != null), p.choices(), current, !p.run().isEmpty());
+    }
+
+    /**
+     * What stands beside the picker: while it shows the run ({@code picked}), only how the run was reached and where
+     * its logic runs; otherwise the whole line, as the picker then names nothing (no run, or a replayed recording,
+     * which is no running application to choose).
+     */
+    static String runBeside(RunPanel p, boolean picked) {
+        if (!picked) {
+            return runLine(p);
+        }
+        return p.logic().isEmpty() ? p.from() : p.from() + " · " + p.logic();
     }
 
     /** The run panel's line: the run, its process, how it was reached and where its logic runs. */
@@ -1466,7 +1478,7 @@ final class View {
     static List<Role> rowInks(RowsAround r, Traced t) {
         List<Role> inks = new ArrayList<>(r.rows().size());
         for (int i = 0; i < r.rows().size(); i++) {
-            inks.add(i == r.selected() ? Role.ACCENT : t.has(r.rows().get(i)) ? Ui.PATH : Role.INK);
+            inks.add(i == r.selected() ? Look.CURSOR : t.has(r.rows().get(i)) ? Ui.PATH : Role.INK);
         }
         return inks;
     }

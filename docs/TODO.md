@@ -8,6 +8,14 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 
 ## Next
 
+- [ ] The redesign's parts not yet built (the look is in, 2026-11-11): the left rail of views (Timeline, Clocks,
+      Graph, Topics, Settings; what pressing one does is undecided), the timeline's window picker (1 s, 6 s, 30 s,
+      the whole run) and its ruler and legend, a count beside each lane's name, the follow button in the timeline's
+      heading, the run-time dial on the Cursor card, the clock cards with their state bars (below, the threads panel
+      entry), the readouts as chips, and the cards' bracket corners and glows (FN-21).
+- [ ] Held-for-GPU marks are drawn in caution, which the new palette makes the cursor's brass; they could take a
+      colour of their own.
+
 - [ ] Export frame is not seen past its button with `ottermate`: nothing answers the save picker under automation
       (FN-20). Once something does, a check that exports and reads the file back.
 - [ ] Export frame's rows of the frame are looked for within 2 s of the cursor (`Bench.FRAME_REACH`), so a pass longer

@@ -38,7 +38,16 @@ import java.util.Optional;
  * <p>Every section is a card ({@link #card}), as the redesign of 2026-11-10 draws them: a panel off the page, rounded,
  * edged in {@link Look#EDGE}, its name in faint capitals over it. In order: Timeline; Cursor (the details) beside
  * Events (the rows panel); Clocks (the threads panel and the readouts); Run again (the replay panel, once pressed);
- * and Graph beside Topics (the flows table) taking what is left.
+ * and Graph beside Topics (the flows table).
+ *
+ * <h2>One scrollbar</h2>
+ *
+ * <p>The page scrolls, and nothing on it does: each card is as tall as what it holds, so a small window reaches the
+ * graph by scrolling the page. A card whose contents could outgrow it shows what fits, with no scrollbar of its own,
+ * and a pop-out button at its heading's right opens all of it in a window of its own, as the graph's does: the
+ * details in the cursor window, the topics past the first {@link #TOPICS_SHOWN} in the topics window, the differences
+ * past the first {@link #REPLAY_SHOWN} in the replay window ({@link PanelWindow}). The Events and Clocks tables have
+ * a fixed count of places, and are as tall as all of them.
  *
  * <h2>The timeline</h2>
  *
@@ -67,8 +76,8 @@ import java.util.Optional;
  *
  * <p>Right under the lanes, where the eye goes first: a label and a value a line ({@link #details}), what the run's
  * clock said at the cursor and the fields of the event it is on, a row for each field of the event schema, shown only
- * while that event has it. Its height is kept, {@link #DETAILS_REM}, and what does not fit scrolls inside it: a
- * click's path is thirty hops, and the graph and flows under it must stay in view beside the lanes that mark it.
+ * while that event has it. As tall as the Events card beside it, and what does not fit is clipped: a click's path is
+ * thirty hops, read whole in the cursor window.
  *
  * <h2>The rows panel</h2>
  *
@@ -114,11 +123,8 @@ final class Ui {
      * lane and lit arrow is drawn in. */
     static final Role PATH = Look.PATH;
 
-    /** The details panel's height, in rem: the clock, a few fields and a path of a dozen hops before it scrolls. */
-    static final float DETAILS_REM = 16f;
-
-    /** A row of the flows table, in rem. */
-    private static final float FLOW_ROW_REM = 1.5f;
+    /** How many topics the Topics card shows, without a scrollbar: the rest are in the topics window. */
+    static final int TOPICS_SHOWN = 10;
 
     /** A row of the rows panel, in rem: eleven fit beside the details with its header. */
     private static final float ROW_REM = 1.25f;
@@ -133,21 +139,22 @@ final class Ui {
             Length.rem(7.5f), Length.grow(1f));
 
     /** The replay panel's column widths, in {@link View#REPLAY_COLUMNS}' order: the two sends share what is left. */
-    private static final List<Length> REPLAY_WIDTHS = List.of(Length.rem(5f), Length.rem(4.5f), Length.rem(18f),
+    static final List<Length> REPLAY_WIDTHS = List.of(Length.rem(5f), Length.rem(4.5f), Length.rem(18f),
             Length.grow(1f), Length.grow(1f));
 
-    /** How many places the replay panel shows before it scrolls. */
-    private static final int REPLAY_SHOWN = 5;
+    /** How many places the Run again card shows, without a scrollbar: every difference is in the replay window. */
+    static final int REPLAY_SHOWN = 5;
+
+    /** The replay panel's ink, by column: the two sends in the ink, the tick, send and topic dimmed. */
+    static Role replayInk(int column) {
+        return column >= View.REPLAY_COLUMNS.size() - 2 ? Role.INK : Role.DIM;
+    }
 
     /**
      * Copy, on every table's row menu: chosen, it says so on {@code ListView.CHOSEN}, and the view copies that table's
      * selection ({@link #copied}). Its line shows the chord the keymap's Copy has now.
      */
     static final MenuAction COPY = MenuAction.of(Landmarks.COPY, Icon.COPY, "Copy").command(Landmarks.COPY);
-
-    /** The flows table's column widths, in {@link View#FLOW_COLUMNS}' order: the names share what is left. */
-    private static final List<Length> FLOW_WIDTHS = List.of(Length.grow(2f), Length.rem(5.5f), Length.grow(2f),
-            Length.grow(3f), Length.rem(6.5f), Length.rem(6.5f), Length.rem(7f));
 
     private final Gui gui;
     private final StatusBar status;
@@ -160,8 +167,7 @@ final class Ui {
     private final IconButton follow;
     /** The space over the follow button, a lane high for each lane above the focused one. */
     private final Node above;
-    private final Node[] details;
-    private final Node[] detailRows;
+    private final DetailsList details;
     private final Node warning;
     private final Node warningText;
     private final Node runText;
@@ -173,15 +179,18 @@ final class Ui {
     private boolean exportable;
     private final Node replay;
     private final Node replayText;
-    private final Table<Integer> replayTable;
-    /** What each of the replay panel's places says, a cell a column, as {@link #replay} last set them. */
-    private List<List<String>> replayTexts = List.of();
-    private final Map<Integer, Node[]> replayNodes = new HashMap<>();
+    private final Places replayTable;
     private String replaySaid = "";
-    private final Table<String> flows;
+    private final Topics flows;
     private final Node flowsWhy;
+    /** Beside the Topics card's name: how many of the topics it shows, while it cannot show them all. */
+    private final Node flowsShown;
+    private String flowsShownSaid = "";
     private final Node graph;
     private final IconButton openGraph;
+    private final IconButton openCursor;
+    private final IconButton openTopics;
+    private final IconButton openReplay;
     private final Table<Integer> rows;
     /** What each of the rows panel's places says, a cell a column, and in what ink, as {@link #rows} last set them. */
     private List<List<String>> rowTexts = List.of();
@@ -193,14 +202,6 @@ final class Ui {
     private List<List<String>> threadTexts = List.of();
     /** Each realized cell's text, by place and column, to change in place as the cursor moves. */
     private final Map<Integer, Node[]> threadNodes = new HashMap<>();
-    /** The topics the path of the event the cursor is on crossed, whose names the flows table marks. */
-    private java.util.Set<String> crossed = java.util.Set.of();
-    /** The topics the flows table holds, in the order last given. */
-    private List<String> flowTopics = List.of();
-    /** What each topic's cells say, by topic: what a row realized later is built with. */
-    private final Map<String, List<String>> flowCells = new HashMap<>();
-    /** Each realized cell's text, by topic and column, to change in place as the counts move. */
-    private final Map<String, Node[]> flowNodes = new HashMap<>();
 
     Ui(Gui gui, TitleBar titleBar) {
         this.gui = gui;
@@ -261,18 +262,12 @@ final class Ui {
         Node readoutRow = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
                 .children(readoutNodes);
 
-        details = new Node[View.DETAILS.size()];
-        detailRows = new Node[details.length];
-        for (int i = 0; i < details.length; i++) {
-            Node label = gui.text(View.DETAILS.get(i)).width(NAMES).textColor(gui.theme().color(Role.DIM))
-                    .textSize(Type.SMALL);
-            details[i] = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
-            gui.landmark(Landmarks.detail(View.DETAILS.get(i)), details[i]);
-            detailRows[i] = gui.row().width(Length.FILL).gap(Type.TIGHT).children(label, details[i]);
-        }
-        Node detailsPanel = gui.column().width(Length.FILL).height(Length.grow(1f))
-                .clip(true).scroll(false, true).children(detailRows);
+        // Clipped to the card, never scrolled: the dashboard has one scrollbar, its own, and a long path is read whole
+        // in the cursor window.
+        details = new DetailsList(gui, false, true);
+        Node detailsPanel = details.node();
         gui.landmark(Landmarks.DETAILS, detailsPanel);
+        openCursor = popOut(Landmarks.CURSOR_OPEN, "Open the cursor's details in their own window");
 
         List<Table.Column<Integer>> rowColumns = new ArrayList<>();
         for (int i = 0; i < View.ROW_COLUMNS.size(); i++) {
@@ -289,7 +284,8 @@ final class Ui {
         // Never focused: a focused list claims Space and the arrows, which pause and step here (FN-11).
         gui.focusable(rows.rows().node(), false);
         rows.headers(Type.UI, Type.SMALL, Role.DIM);
-        rows.node().width(Length.FILL).height(Length.grow(1f));
+        // Tall enough for every place, so it never scrolls.
+        rows.node().width(Length.FILL).height(Places.fit(Bench.AROUND, ROW_REM));
         rows.items(java.util.stream.IntStream.range(0, Bench.AROUND).boxed().toList());
         gui.landmark(Landmarks.ROWS, rows.node());
         // On the cursor's card, as what it saves is the frame at the cursor.
@@ -297,11 +293,12 @@ final class Ui {
         // Never focused, as the follow button is not (FN-11).
         gui.focusable(exportFrame.node(), false);
         gui.landmark(Landmarks.EXPORT, exportFrame.node());
-        // The rows beside the details: the cursor's moment as the rows said it, and as the event it is on.
-        Node cursorPanels = gui.row().width(Length.FILL).height(Length.rem(DETAILS_REM)).gap(Type.GAP)
-                .children(card(head("Cursor", exportFrame.node()), detailsPanel).width(Length.grow(1f))
-                                .height(Length.FILL),
-                        card("Events", rows.node()).width(Length.grow(2f)).height(Length.FILL));
+        // The rows beside the details: the cursor's moment as the rows said it, and as the event it is on. The Events
+        // card is as tall as its rows, and the Cursor card is stretched to it.
+        Node cursorPanels = gui.row().width(Length.FILL).gap(Type.GAP).alignItems(AlignItems.STRETCH)
+                .children(card(head("Cursor", exportFrame.node(), openCursor.node()), detailsPanel)
+                                .width(Length.grow(1f)),
+                        card("Events", rows.node()).width(Length.grow(2f)));
 
         List<Table.Column<Integer>> threadColumns = new ArrayList<>();
         for (int i = 0; i < View.THREAD_COLUMNS.size(); i++) {
@@ -356,28 +353,19 @@ final class Ui {
         titleBar.title("");
         titleBar.addLeading(runPanel);
 
-        List<Table.Column<String>> columns = new ArrayList<>();
-        for (int i = 0; i < View.FLOW_COLUMNS.size(); i++) {
-            int at = i;
-            columns.add(Table.Column.of(View.FLOW_COLUMNS.get(i), FLOW_WIDTHS.get(i), (nodes, topic) -> {
-                Node text = nodes.text(flowCells.getOrDefault(topic, View.NO_FLOW).get(at))
-                        .textSize(Type.SMALL).textColor(gui.theme().color(at > 0 ? Role.DIM
-                                : crossed.contains(topic) ? PATH : Role.INK));
-                flowNodes.computeIfAbsent(topic, t -> new Node[View.FLOW_COLUMNS.size()])[at] = text;
-                return text;
-            }));
-        }
-        flows = new Table<>(gui, FLOW_ROW_REM, columns).name(Landmarks.FLOWS);
-        flows.rows().name(Landmarks.FLOWS_BODY).action(COPY);
-        flows.headers(Type.UI, Type.SMALL, Role.DIM);
-        flows.node().width(Length.FILL).height(Length.grow(1f));
-        gui.landmark(Landmarks.FLOWS, flows.node());
+        // The first topics, as many as fit without a scrollbar; every one is in the topics window.
+        flows = new Topics(gui, Landmarks.FLOWS, Landmarks.FLOWS_BODY, TOPICS_SHOWN);
+        flows.node().width(Length.FILL).height(Places.fit(TOPICS_SHOWN, Topics.ROW_REM));
         flowsWhy = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         flowsWhy.visible(false);
         gui.landmark(Landmarks.FLOWS_WHY, flowsWhy);
-        Node flowsPanel = card("Topics", flowsWhy, flows.node()).width(Length.grow(1.4f)).height(Length.FILL);
+        flowsShown = gui.text("").width(Length.AUTO).textColor(gui.theme().color(Role.FAINT)).textSize(Type.SMALL)
+                .wordWrap(false);
+        openTopics = popOut(Landmarks.TOPICS_OPEN, "Open every topic in its own window");
+        Node flowsPanel = card(head("Topics", flowsShown, openTopics.node()), flowsWhy, flows.node())
+                .width(Length.grow(1.4f));
         // The graph beside its flows: the same topics, drawn between the parts, the counts in the table. A well in
-        // its card, a step under it, as the design sinks the graph's ground.
+        // its card, a step under it, as the design sinks the graph's ground; as tall as the Topics card is.
         graph = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false).childMotion(false)
                 .corner(Type.CHIP_CORNER).background(gui.theme().color(Role.PAGE));
         gui.landmark(Landmarks.GRAPH, graph);
@@ -385,39 +373,30 @@ final class Ui {
         openGraph = new IconButton(gui, Icon.POP_OUT, "Open the graph in its own window").name(Landmarks.GRAPH_OPEN)
                 .tip("Open the graph in its own window (G)");
         gui.landmark(Landmarks.GRAPH_OPEN, openGraph.node());
-        Node graphPanel = card(head("Graph", openGraph.node()), graph).width(Length.grow(1f)).height(Length.FILL);
-        Node panels = gui.row().width(Length.FILL).height(Length.grow(1f)).gap(Type.GAP)
+        Node graphPanel = card(head("Graph", openGraph.node()), graph).width(Length.grow(1f));
+        Node panels = gui.row().width(Length.FILL).gap(Type.GAP).alignItems(AlignItems.STRETCH)
                 .children(graphPanel, flowsPanel);
 
         replayText = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.INK));
         gui.landmark(Landmarks.REPLAY_TEXT, replayText);
-        List<Table.Column<Integer>> replayColumns = new ArrayList<>();
-        for (int i = 0; i < View.REPLAY_COLUMNS.size(); i++) {
-            int at = i;
-            replayColumns.add(Table.Column.of(View.REPLAY_COLUMNS.get(i), REPLAY_WIDTHS.get(i), (nodes, place) -> {
-                Node text = nodes.text(cell(replayTexts, place, at)).textSize(Type.SMALL)
-                        .textColor(gui.theme().color(at >= View.REPLAY_COLUMNS.size() - 2 ? Role.INK : Role.DIM));
-                replayNodes.computeIfAbsent(place, p -> new Node[View.REPLAY_COLUMNS.size()])[at] = text;
-                return text;
-            }));
-        }
-        replayTable = new Table<>(gui, ROW_REM, replayColumns).name(Landmarks.REPLAY);
-        replayTable.rows().name(Landmarks.REPLAY_BODY).action(COPY);
-        // Never focused, as the rows panel is not (FN-11).
-        gui.focusable(replayTable.rows().node(), false);
-        replayTable.headers(Type.UI, Type.SMALL, Role.DIM);
-        replayTable.node().width(Length.FILL).height(Length.rem(ROW_REM * (REPLAY_SHOWN + 1) + 0.75f));
-        replayTable.items(java.util.stream.IntStream.range(0, View.REPLAY_LISTED).boxed().toList());
+        // The first differences, as many as fit without a scrollbar; every one is in the replay window.
+        replayTable = new Places(gui, Landmarks.REPLAY, Landmarks.REPLAY_BODY, View.REPLAY_COLUMNS, REPLAY_WIDTHS,
+                ROW_REM, REPLAY_SHOWN, Ui::replayInk);
+        replayTable.node().width(Length.FILL).height(Places.fit(REPLAY_SHOWN, ROW_REM));
         replayTable.node().visible(false);
-        replay = card("Run again", replayText, replayTable.node()).width(Length.FILL);
+        openReplay = popOut(Landmarks.REPLAY_OPEN, "Open every difference in its own window");
+        replay = card(head("Run again", openReplay.node()), replayText, replayTable.node()).width(Length.FILL);
         replay.visible(false);
         gui.landmark(Landmarks.REPLAY, replay);
 
         // The cards in the design's order: the timeline, the cursor and its rows, the clocks, then what Run again
-        // found (once it has run), and the graph beside its topics taking what is left.
-        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.GAP).gap(Type.GAP)
+        // found (once it has run), and the graph beside its topics. Each as tall as what it holds, and the page,
+        // not a card, scrolls: the dashboard has one scrollbar, and whatever would scroll in a card is in a window.
+        Node page = gui.column().width(Length.FILL).padding(Type.GAP).gap(Type.GAP)
                 .children(card("Timeline", lanes).width(Length.FILL), cursorPanels,
                         card("Clocks", threads.node(), readoutRow).width(Length.FILL), replay, panels);
+        Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, true)
+                .children(page);
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
@@ -519,41 +498,28 @@ final class Ui {
      * hidden, since the event at the cursor has no such field, and the clock's row always shows.
      */
     void details(List<String> values) {
-        for (int i = 0; i < details.length; i++) {
-            details[i].text(values.get(i));
-            detailRows[i].visible(i == 0 || !values.get(i).isEmpty());
-        }
+        details.set(values);
     }
 
     /**
      * What the flows panel says: {@code why} there is no graph, when there is none, and a row a topic, each cell's text
-     * as {@code cells} gives it by topic. The rows are rebuilt only when the topics change, which is once a run; the
-     * counts, which change with every batch, change in place.
+     * as {@code cells} gives it by topic, the first {@link #TOPICS_SHOWN} of them, and beside its name how many of how
+     * many it shows while that is not all.
      */
     void flows(String why, List<String> topics, Map<String, List<String>> cells) {
         flowsWhy.text(why);
         flowsWhy.visible(!why.isEmpty());
-        if (!topics.equals(flowTopics)) {
-            flowTopics = List.copyOf(topics);
-            flowCells.clear();
-            flowCells.putAll(cells);
-            flowNodes.clear();
-            flows.items(flowTopics);
-            return;
+        boolean grew = topics.size() != flows.count();
+        flows.set(topics, cells);
+        if (grew) {
+            flowsShownSaid = shownOf(TOPICS_SHOWN, topics.size());
+            flowsShown.text(flowsShownSaid);
         }
-        for (String topic : topics) {
-            List<String> now = cells.get(topic);
-            List<String> was = flowCells.put(topic, now);
-            Node[] shown = flowNodes.get(topic);
-            if (now == null || now.equals(was) || shown == null) {
-                continue;
-            }
-            for (int i = 0; i < shown.length; i++) {
-                if (shown[i] != null && (was == null || !now.get(i).equals(was.get(i)))) {
-                    shown[i].text(now.get(i));
-                }
-            }
-        }
+    }
+
+    /** What a card that shows the first {@code shown} of {@code of} says beside its name: empty while that is all. */
+    static String shownOf(int shown, int of) {
+        return of > shown ? "first " + shown + " of " + of : "";
     }
 
     /**
@@ -561,25 +527,22 @@ final class Ui {
      * the path's colour, and unmark the rest; in place, as the counts change.
      */
     void crossed(List<String> topics) {
-        java.util.Set<String> now = java.util.Set.copyOf(topics);
-        for (Map.Entry<String, Node[]> e : flowNodes.entrySet()) {
-            boolean was = crossed.contains(e.getKey());
-            boolean is = now.contains(e.getKey());
-            if (was != is && e.getValue()[0] != null) {
-                e.getValue()[0].textColor(gui.theme().color(is ? PATH : Role.INK));
-            }
-        }
-        crossed = now;
+        flows.crossed(topics);
     }
 
     /** The topics {@link #crossed} marked last, for a test. */
     java.util.Set<String> crossed() {
-        return crossed;
+        return flows.crossed();
     }
 
     /** What a topic's cells say in the flows panel, for a test: empty when it has no row. */
     List<String> flowCells(String topic) {
-        return flowCells.getOrDefault(topic, List.of());
+        return flows.cells(topic);
+    }
+
+    /** What the Topics card says beside its name, for a test. */
+    String flowsShown() {
+        return flowsShownSaid;
     }
 
     /**
@@ -644,17 +607,8 @@ final class Ui {
             replayText.text(said);
             replay.visible(!said.isEmpty());
         }
-        List<List<String>> was = replayTexts;
-        replayTexts = List.copyOf(texts);
         replayTable.node().visible(!texts.isEmpty());
-        for (Map.Entry<Integer, Node[]> e : replayNodes.entrySet()) {
-            for (int i = 0; i < e.getValue().length; i++) {
-                String now = cell(replayTexts, e.getKey(), i);
-                if (e.getValue()[i] != null && !now.equals(cell(was, e.getKey(), i))) {
-                    e.getValue()[i].text(now);
-                }
-            }
-        }
+        replayTable.set(texts);
     }
 
     /** What the replay panel's line last said; empty while it is hidden. */
@@ -664,12 +618,12 @@ final class Ui {
 
     /** What the replay panel's {@code place} last said, a cell a column, for a test: empty when it is blank. */
     List<String> replayCells(int place) {
-        return place < replayTexts.size() ? replayTexts.get(place) : List.of();
+        return replayTable.cells(place);
     }
 
     /** Where the replay panel's body is on the bus: what its clicks carry. */
     String replayAddress() {
-        return replayTable.rows().address();
+        return replayTable.address();
     }
 
     /** Enable Export frame while there is something kept to export. */
@@ -709,18 +663,10 @@ final class Ui {
         } else if (list.equals(threads.rows().address())) {
             headers = View.THREAD_COLUMNS;
             placed(threads, threadTexts, chosen);
-        } else if (list.equals(replayTable.rows().address())) {
-            headers = View.REPLAY_COLUMNS;
-            placed(replayTable, replayTexts, chosen);
-        } else if (list.equals(flows.rows().address())) {
-            headers = View.FLOW_COLUMNS;
-            java.util.Set<String> selected = flows.selection().selection();
-            for (String topic : flowTopics) {
-                List<String> cells = flowCells.get(topic);
-                if (selected.contains(topic) && cells != null) {
-                    chosen.add(cells);
-                }
-            }
+        } else if (list.equals(replayTable.address())) {
+            return replayTable.copied();
+        } else if (list.equals(flows.address())) {
+            return flows.copied();
         } else {
             return Optional.empty();
         }
@@ -742,7 +688,7 @@ final class Ui {
      * a Shift- or Ctrl-click, which chooses rows to copy, does not.
      */
     boolean alone(String list, Object item) {
-        for (Table<?> t : List.of(rows, threads, replayTable, flows)) {
+        for (Table<?> t : List.of(rows, threads, replayTable.table(), flows.table())) {
             if (list.equals(t.rows().address())) {
                 java.util.Set<?> selected = t.selection().selection();
                 return selected.size() == 1 && selected.contains(item);
@@ -817,6 +763,30 @@ final class Ui {
 
     /** The address the follow button presses with. */
     /** The graph panel's button that opens the graph window. */
+    /**
+     * The window a pop-out button pressed with {@code address} opens: the cursor's, the topics' or the replay's key;
+     * empty for none of them. The graph's has its own ({@link #openGraphAddress}), as G presses it too.
+     */
+    Optional<String> popOutWindow(String address) {
+        return address.equals(openCursor.address()) ? Optional.of(CursorWindow.KEY)
+                : address.equals(openTopics.address()) ? Optional.of(TopicsWindow.KEY)
+                : address.equals(openReplay.address()) ? Optional.of(ReplayWindow.KEY) : Optional.empty();
+    }
+
+    /** The address the pop-out button with {@code landmark} presses with, for a test. */
+    String popOutAddress(String landmark) {
+        return landmark.equals(Landmarks.CURSOR_OPEN) ? openCursor.address()
+                : landmark.equals(Landmarks.TOPICS_OPEN) ? openTopics.address() : openReplay.address();
+    }
+
+    /** A card's pop-out button, at its heading's right: opens what the card shows in a window, with room to scroll. */
+    private IconButton popOut(String landmark, String tip) {
+        IconButton b = new IconButton(gui, Icon.POP_OUT, tip).name(landmark).tip(tip);
+        gui.focusable(b.node(), false);
+        gui.landmark(landmark, b.node());
+        return b;
+    }
+
     String openGraphAddress() {
         return openGraph.address();
     }

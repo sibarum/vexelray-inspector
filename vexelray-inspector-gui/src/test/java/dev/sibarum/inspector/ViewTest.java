@@ -183,6 +183,51 @@ class ViewTest {
     }
 
     @Test
+    void theTopicsCardShowsWhatFitsAndItsWindowEveryTopic() throws InterruptedException {
+        int more = Ui.TOPICS_SHOWN + 2;
+        List<Messages.Flow> flows = new java.util.ArrayList<>();
+        for (int i = 0; i < more; i++) {
+            flows.add(new Messages.Flow("dev.example.T" + i, "edge", List.of(), List.of(), i, i, 0.0));
+        }
+        shell.bus().publish(Messages.FLOWS_TOPIC, new Messages.Flows("run", "", List.of(), flows));
+        eventually("the card says how many it shows",
+                () -> ("first " + Ui.TOPICS_SHOWN + " of " + more).equals(wiring.ui().flowsShown()));
+        String last = "dev.example.T" + (more - 1);
+        eventually("the window holds every topic", () -> wiring.topicsWindow().topics().count() == more
+                && Integer.toString(more - 1).equals(wiring.topicsWindow().topics().cells(last).get(4)));
+        assertEquals("", Ui.shownOf(Ui.TOPICS_SHOWN, Ui.TOPICS_SHOWN), "a card showing everything says nothing");
+    }
+
+    @Test
+    void eachCardThatWouldScrollOpensItsOwnWindow() {
+        assertTrue(wiring.cursorWindow() != null && wiring.cursorView() != null);
+        assertTrue(wiring.topicsWindow() != null && wiring.topicsView() != null);
+        assertTrue(wiring.replayWindow() != null && wiring.replayView() != null);
+        Ui ui = wiring.ui();
+        assertEquals(java.util.Optional.of(CursorWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.CURSOR_OPEN)));
+        assertEquals(java.util.Optional.of(TopicsWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.TOPICS_OPEN)));
+        assertEquals(java.util.Optional.of(ReplayWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.REPLAY_OPEN)));
+        assertEquals(java.util.Optional.empty(), ui.popOutWindow(ui.openGraphAddress()), "the graph's opens by G too");
+    }
+
+    @Test
+    void theReplayWindowListsEveryDifferenceTheCardHasNoRoomFor() throws InterruptedException {
+        List<Messages.Difference> many = new java.util.ArrayList<>();
+        for (int i = 0; i < Ui.REPLAY_SHOWN + 3; i++) {
+            many.add(new Messages.Difference(i + 1, 0, "app.T" + i, "", "", "a", "b"));
+        }
+        shell.bus().publish(Messages.REPLAY_REPORT_TOPIC,
+                new Messages.ReplayReport("run", "Ran it again: 8 sends differ", false, many));
+        int last = many.size() - 1;
+        eventually("the window has the last", () -> ("app.T" + last).equals(
+                cellOr(wiring.replayWindow().places().cells(last), 2)));
+    }
+
+    private static String cellOr(List<String> cells, int column) {
+        return cells.isEmpty() ? "" : cells.get(column);
+    }
+
+    @Test
     void theGraphWindowIsDeclaredWithTheTreesAndItsButtonIsOverTheGraphPanel() {
         // Headless, a window not open is never laid out, so what it draws is seen by ottermate, not here.
         assertTrue(wiring.graphWindow() != null && wiring.graphView() != null, "built with the trees, before a window");

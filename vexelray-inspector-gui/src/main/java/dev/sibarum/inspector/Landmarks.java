@@ -75,6 +75,27 @@ final class Landmarks {
      */
     static final String GRAPH_STAGE = "graph.stage";
 
+    /** On the Cursor card: opens the cursor window, every detail of the cursor's moment with room to scroll. */
+    static final String CURSOR_OPEN = "cursor.open";
+
+    /** In the cursor window: its details. A script reaches it as {@code cursor.cursor.details}. */
+    static final String CURSOR_DETAILS = "cursor.details";
+
+    /** On the Topics card: opens the topics window, every topic with room to scroll. */
+    static final String TOPICS_OPEN = "topics.open";
+
+    /** In the topics window: its table, and the table's body, which its clicks and Copy carry. */
+    static final String TOPICS_TABLE = "topics.table";
+    static final String TOPICS_BODY = "topics.table.body";
+
+    /** On the Run again card: opens the replay window, every difference with room to scroll. */
+    static final String REPLAY_OPEN = "replay.open";
+
+    /** In the replay window: what running again found, its table, and the table's body. */
+    static final String REPLAY_WINDOW_TEXT = "replay.window.text";
+    static final String REPLAY_WINDOW = "replay.window";
+    static final String REPLAY_WINDOW_BODY = "replay.window.body";
+
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 

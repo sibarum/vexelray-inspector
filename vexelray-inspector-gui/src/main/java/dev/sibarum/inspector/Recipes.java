@@ -71,4 +71,28 @@ final class Recipes {
                 GraphWindow.H).satellite()));
     }
 
+    /**
+     * The cursor window: every detail of the cursor's moment, with room to scroll, as the graph window is declared.
+     * The Cursor card's pop-out opens it, and {@link CursorView} fills it.
+     */
+    @Provides
+    CursorWindow cursorWindow(Windows windows) {
+        return new CursorWindow(windows.named(NamedWindow.of(CursorWindow.KEY, CursorWindow.TITLE, PanelWindow.W,
+                PanelWindow.H).satellite()));
+    }
+
+    /** The topics window: every topic, with room to scroll; the Topics card's pop-out opens it. */
+    @Provides
+    TopicsWindow topicsWindow(Windows windows) {
+        return new TopicsWindow(windows.named(NamedWindow.of(TopicsWindow.KEY, TopicsWindow.TITLE, PanelWindow.W,
+                PanelWindow.H).satellite()));
+    }
+
+    /** The replay window: every difference running again found, with room to scroll; the Run again card's opens it. */
+    @Provides
+    ReplayWindow replayWindow(Windows windows) {
+        return new ReplayWindow(windows.named(NamedWindow.of(ReplayWindow.KEY, ReplayWindow.TITLE, PanelWindow.W,
+                PanelWindow.H).satellite()));
+    }
+
 }

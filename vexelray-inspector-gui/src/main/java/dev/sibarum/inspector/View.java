@@ -375,6 +375,8 @@ final class View {
             runAgain.send(new RunAgain());
         } else if (p.button().equals(ui.openGraphAddress())) {
             windows.send(WindowCommand.show(GraphWindow.KEY));
+        } else if (ui.popOutWindow(p.button()).isPresent()) {
+            windows.send(WindowCommand.show(ui.popOutWindow(p.button()).get()));
         } else if (ui.longestAt(p.button()) >= 0) {
             longest(readouts).get(ui.longestAt(p.button())).ifPresent(e -> goTo.send(new GoTo(e)));
         }

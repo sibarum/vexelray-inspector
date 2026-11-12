@@ -93,23 +93,22 @@ class DiagramTest {
     }
 
     @Test
-    void theTopicsAreNamedOnALitArrowAndNotOnAFaintOne() {
+    void onlyThePartsAreNamedAndNoArrowIs() {
         Picture p = Diagram.draw(FLOWS, 600f, 600f, INKS);
         List<String> texts = p.marks().stream().filter(m -> m instanceof Picture.Text).map(m -> ((Picture.Text) m)
-                .text()).toList();
-        assertTrue(texts.contains("Timeline, Details"), texts.toString());
-        assertTrue(texts.contains("Rows"), texts.toString());
-        assertFalse(texts.contains("FindRuns"), "a faint arrow names nothing: " + texts);
-        assertTrue(texts.containsAll(List.of("Bench", "View", "LinkRows", "ListRuns", End.FRAMEWORK)), texts.toString());
+                .text()).sorted().toList();
+        assertEquals(List.of("Bench", End.FRAMEWORK, "LinkRows", "ListRuns", "Physics · physics", "View").stream()
+                .sorted().toList(), texts, "a box's name each, and nothing on an arrow");
         assertEquals(0, Diagram.draw(FLOWS, 0f, 0f, INKS).marks().size(), "nothing before the panel is laid out");
     }
 
+    private static final Color LIT = Color.rgb(1, 0, 0);
+    private static final Color FAINT = Color.rgb(0, 1, 0);
     private static final Color PATH = Color.rgb(1, 1, 0);
-    private static final Diagram.Inks INKS = new Diagram.Inks(Color.WHITE, Color.WHITE, Color.rgb(1, 0, 0),
-            Color.rgb(0, 1, 0), Color.WHITE, PATH);
+    private static final Diagram.Inks INKS = new Diagram.Inks(Color.WHITE, Color.WHITE, LIT, FAINT, PATH);
 
     @Test
-    void theArrowsAPathWasDeliveredAlongAreDrawnInItsColourAndNamedThoughFaint() {
+    void theArrowsAPathWasDeliveredAlongAreDrawnInItsColourThoughFaint() {
         Traced t = new Traced("run", "c", List.of(), List.of(), List.of(), List.of(
                 new Crossed(P + "Rows", ""), new Crossed(P + "Rows", P + "Bench"),
                 new Crossed(P + "FindRuns", P + "ListRuns")));
@@ -118,15 +117,12 @@ class DiagramTest {
                 Model.typeName(a.from()) + ">" + Model.typeName(a.to())).toList();
         assertEquals(List.of("LinkRows>Bench", "Bench>ListRuns"), on, "by topic and receiver; a write alone is no arrow");
         Picture p = Diagram.draw(FLOWS, t, 600f, 600f, INKS);
-        List<String> texts = p.marks().stream().filter(m -> m instanceof Picture.Text).map(m -> ((Picture.Text) m)
-                .text()).toList();
-        assertTrue(texts.contains("FindRuns"), "named on the path though nothing else crossed it: " + texts);
         assertEquals(6, p.marks().stream().filter(m -> m instanceof Picture.Line line && line.color().equals(PATH))
                 .count(), "two arrows, each a line and a head of two strokes");
     }
 
     @Test
-    void anArrowSaysWhatItsSenderWritesASecondAndHowLongAgoItLastDidAndOnlyABusyOneHasATrack() {
+    void aLitArrowFadesWithTheAgeOfItsLastWriteAndAnUncrossedOneStaysFaint() {
         long at = 10_000_000_000L;
         Flows f = new Flows("run", "", FLOWS.parts(), List.of(
                 new Flow(P + "Rows", "edge", List.of(new End(P + "LinkRows", "sends", 40, 25.0, at - 300_000_000L)),
@@ -141,13 +137,23 @@ class DiagramTest {
         assertEquals(2.5, toView.perSecond(), 1e-9, "the topics' rates on one arrow together");
         assertEquals(at - 2_500_000_000L, toView.lastNanos(), "and the newest of their last writes");
 
-        List<String> texts = Diagram.draw(f, 600f, 600f, INKS).marks().stream()
-                .filter(m -> m instanceof Picture.Text).map(m -> ((Picture.Text) m).text()).toList();
-        assertTrue(texts.contains("Rows · 25/s · 300 ms ago"), texts.toString());
-        assertTrue(texts.contains("Timeline, Details · 2.5/s · 2.5 s ago"), texts.toString());
-        assertEquals("", Diagram.measured(new Diagram.Arrow("a", "b", List.of("T"), 3), 0L),
-                "nothing said that is not known");
-        assertEquals("75 s ago", Diagram.ago(75_400_000_000L));
+        Diagram.Arrow rowsArrow = l.arrows().stream().filter(a -> a.to().equals(P + "Bench")
+                && a.from().equals(P + "LinkRows")).findFirst().orElseThrow();
+        float young = Diagram.freshness(rowsArrow, at);
+        float older = Diagram.freshness(toView, at);
+        assertTrue(young > older && older > Diagram.EMBER, "newer is brighter: " + young + " > " + older);
+        assertEquals(1f, Diagram.freshness(toView, toView.lastNanos()), 1e-6f, "fresh the moment it is written");
+        assertEquals((1f + Diagram.EMBER) / 2f, Diagram.freshness(toView, toView.lastNanos()
+                + (long) Diagram.HALF_LIFE_NANOS), 1e-6f, "halfway to its ember a half-life on");
+        assertEquals(Diagram.EMBER, Diagram.freshness(toView, at + 3_600_000_000_000L), 1e-6f,
+                "never quite faint once crossed");
+        assertEquals(1f, Diagram.freshness(new Diagram.Arrow("a", "b", List.of("T"), 3), at),
+                "lit in full when when it was last written is not known");
+
+        Diagram.Arrow uncrossed = new Diagram.Arrow(P + "Bench", P + "ListRuns", List.of("FindRuns"), 0L);
+        assertEquals(FAINT, Diagram.ink(uncrossed, at, INKS), "an arrow nothing crossed stays faint");
+        assertEquals(LIT, Diagram.ink(rowsArrow, rowsArrow.lastNanos(), INKS));
+        assertFalse(Diagram.ink(toView, at, INKS).equals(LIT), "an older one has faded");
 
         Diagram.Tracks tracks = Diagram.tracks(f, 600f, 600f);
         assertEquals(l.arrows().size(), tracks.all().size(), "every arrow is a track, busy or not");

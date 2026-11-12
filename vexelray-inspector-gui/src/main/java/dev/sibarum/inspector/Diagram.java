@@ -27,7 +27,8 @@ import java.util.TreeMap;
  * <p>The tiers go the way messages mostly do, from outside in, top to bottom: the framework (what widgets, the window
  * and input send, and the receivers no part declares), sources and destinations, jobs, other senders, the components,
  * then the views. A tier of more than {@link #MOST_IN_ROW} parts wraps onto rows of its own, split evenly. An arrow carries every topic one part sends another, and is as thick as the log of what the sender
- * wrote on them; one something crossed names its topics, and the counts are the flows table's, beside it.
+ * wrote on them; one something crossed is lit, its colour fading back toward faint as its last write grows old. It
+ * names nothing: the topics and counts are the flows table's, beside it.
  */
 final class Diagram {
 
@@ -43,16 +44,15 @@ final class Diagram {
     static final int MOST_IN_ROW = 5;
 
     /**
-     * The colours: a part's box and name, an arrow something crossed, one nothing has, the topics on it, and an arrow
-     * the path of the event the cursor is on crossed.
+     * The colours: a part's box and name, an arrow something just crossed, one nothing has, and an arrow the path of
+     * the event the cursor is on crossed.
      */
-    record Inks(Color box, Color name, Color lit, Color faint, Color label, Color path) {
+    record Inks(Color box, Color name, Color lit, Color faint, Color path) {
 
         /** The graph's colours in {@code gui}'s theme: the graph panel's and the graph window's are the same. */
         static Inks of(Gui gui) {
             return new Inks(gui.theme().color(Role.LINE), gui.theme().color(Role.INK),
-                    gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Role.DIM),
-                    gui.theme().color(Ui.PATH));
+                    gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
         }
     }
 
@@ -232,7 +232,7 @@ final class Diagram {
 
     /**
      * The picture of {@code f} in a panel {@code w} by {@code h} px: a box a part, and an arrow a pair of parts, from
-     * the edge of the sender's box that faces the receiver to the receiver's, with the topics a lit one carries on it.
+     * the edge of the sender's box that faces the receiver to the receiver's, coloured by how lately it was crossed.
      */
     static Picture draw(Flows f, float w, float h, Inks inks) {
         return draw(f, Traced.NONE, w, h, inks);
@@ -258,7 +258,7 @@ final class Diagram {
         return false;
     }
 
-    /** As {@link #draw(Flows, float, float, Inks)}, the arrows path {@code t} crossed drawn in its colour, named. */
+    /** As {@link #draw(Flows, float, float, Inks)}, the arrows path {@code t} crossed drawn in its colour. */
     static Picture draw(Flows f, Traced t, float w, float h, Inks inks) {
         Sketch s = new Sketch().tag("graph");
         if (w <= 0f || h <= 0f) {
@@ -278,21 +278,11 @@ final class Diagram {
             float y0 = line[1];
             float x1 = line[2];
             float y1 = line[3];
-            float dx = line[4];
-            Color ink = path ? inks.path() : a.lit() ? inks.lit() : inks.faint();
+            Color ink = path ? inks.path() : ink(a, f.atNanos(), inks);
             float thick = (a.lit() ? (float) Math.min(4.0, 1.0 + Math.log10(1.0 + a.written())) : 1f)
                     + (path ? 1f : 0f);
             s.line(x0, y0, x1, y1, thick, ink);
             head(s, x0, y0, x1, y1, thick, ink);
-            if (a.lit() || path) {
-                String said = (a.topics().size() <= 2 ? String.join(", ", a.topics())
-                        : a.topics().get(0) + ", " + a.topics().get(1) + " +" + (a.topics().size() - 2))
-                        + measured(a, f.atNanos());
-                // A third of the way along, beside the line on its own side.
-                float lx = x0 + (x1 - x0) * 0.35f + (dx < 0 ? -said.length() * TEXT_PX * 0.47f - 4f : 4f);
-                float ly = y0 + (y1 - y0) * 0.35f + TEXT_PX * 0.3f;
-                s.text(said, lx, ly, TEXT_PX * 0.85f, inks.label());
-            }
         }
         for (Box b : l.boxes().values()) {
             s.outline(b.x(), b.y(), b.w(), b.h(), 3f, 1f, inks.box());
@@ -320,29 +310,26 @@ final class Diagram {
     }
 
     /**
-     * What the sender of arrow {@code a} writes on it a second, and how long before {@code atNanos} it last did, in
-     * words after its topics: {@code " · 42/s · 0.3 s ago"}. Each is left out when it is not known: no rate, or no
-     * write, or no moment the flows are as of.
+     * How fresh arrow {@code a}'s colour is as of {@code atNanos}: 1 the moment its sender last wrote on it, halving
+     * every {@link #HALF_LIFE_NANOS}, and never below {@link #EMBER}, so an arrow something once crossed stays apart
+     * from one nothing has. 1 when the moment of its last write, or the moment the flows are as of, is not known.
      */
-    static String measured(Arrow a, long atNanos) {
-        StringBuilder said = new StringBuilder();
-        if (a.perSecond() > 0.0) {
-            said.append(" · ").append(a.perSecond() >= 10.0 ? String.format(java.util.Locale.ROOT, "%.0f/s",
-                    a.perSecond()) : String.format(java.util.Locale.ROOT, "%.1f/s", a.perSecond()));
+    static float freshness(Arrow a, long atNanos) {
+        if (a.lastNanos() <= 0L || atNanos <= 0L) {
+            return 1f;
         }
-        if (a.lastNanos() > 0L && atNanos > 0L) {
-            said.append(" · ").append(ago(Math.max(0L, atNanos - a.lastNanos())));
-        }
-        return said.toString();
+        double age = Math.max(0L, atNanos - a.lastNanos());
+        return EMBER + (1f - EMBER) * (float) Math.pow(0.5, age / HALF_LIFE_NANOS);
     }
 
-    /** {@code nanos} as how long ago: in ms under a second, in tenths of a second under a minute, else whole seconds. */
-    static String ago(long nanos) {
-        if (nanos < 1_000_000_000L) {
-            return nanos / 1_000_000L + " ms ago";
-        }
-        return nanos < 60_000_000_000L ? String.format(java.util.Locale.ROOT, "%.1f s ago", nanos / 1e9)
-                : nanos / 1_000_000_000L + " s ago";
+    /** How long a lit arrow's colour takes to fade halfway to its ember. */
+    static final double HALF_LIFE_NANOS = 2e9;
+    /** How much of the lit colour an arrow keeps however long ago it was last crossed. */
+    static final float EMBER = 0.2f;
+
+    /** Arrow {@code a}'s colour as of {@code atNanos}: faint if nothing crossed it, else lit faded by its age. */
+    static Color ink(Arrow a, long atNanos, Inks inks) {
+        return a.lit() ? Color.lerp(inks.faint(), inks.lit(), freshness(a, atNanos)) : inks.faint();
     }
 
     /** The lines of {@code f}'s arrows, laid out in a panel {@code w} by {@code h} px: where {@link Dots} run. */

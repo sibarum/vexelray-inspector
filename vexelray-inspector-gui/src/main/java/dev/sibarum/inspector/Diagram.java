@@ -26,7 +26,7 @@ import java.util.TreeMap;
  *
  * <p>The tiers go the way messages mostly do, from outside in, top to bottom: the framework (what widgets, the window
  * and input send, and the receivers no part declares), sources and destinations, jobs, other senders, the components,
- * then the views. An arrow carries every topic one part sends another, and is as thick as the log of what the sender
+ * then the views. A tier of more than {@link #MOST_IN_ROW} parts wraps onto rows of its own, split evenly. An arrow carries every topic one part sends another, and is as thick as the log of what the sender
  * wrote on them; one something crossed names its topics, and the counts are the flows table's, beside it.
  */
 final class Diagram {
@@ -39,6 +39,8 @@ final class Diagram {
     private static final float GAP = 12f;
     /** How far apart two arrows between the same two parts, one each way, are drawn. */
     private static final float APART = 5f;
+    /** The most parts one row of the graph holds; a tier of more wraps onto rows of its own ({@link #rows}). */
+    static final int MOST_IN_ROW = 5;
 
     /**
      * The colours: a part's box and name, an arrow something crossed, one nothing has, the topics on it, and an arrow
@@ -182,25 +184,44 @@ final class Diagram {
             tiers.computeIfAbsent(0, c -> new ArrayList<>()).add(End.FRAMEWORK);
             labels.put(End.FRAMEWORK, End.FRAMEWORK);
         }
-        Map<String, Box> boxes = new LinkedHashMap<>();
-        int n = tiers.size();
-        float tierH = n == 0 ? 0f : h / n;
-        int i = 0;
+        // A tier of more than MOST_IN_ROW parts wraps onto rows of its own, as even as they can be.
+        List<List<String>> rows = new ArrayList<>();
         for (List<String> parts : tiers.values()) {
-            List<String> sorted = parts.stream().sorted().toList();
-            // A tier between two others keeps a slot spare at its right, so its boxes stand off the line an arrow
-            // from the tier above to the one below would take through the middle.
+            rows.addAll(rows(parts.stream().sorted().toList()));
+        }
+        Map<String, Box> boxes = new LinkedHashMap<>();
+        int n = rows.size();
+        float rowH = n == 0 ? 0f : h / n;
+        for (int i = 0; i < n; i++) {
+            List<String> row = rows.get(i);
+            // A row between two others keeps a slot spare at its right, so its boxes stand off the line an arrow
+            // from the row above to the one below would take through the middle.
             boolean between = i > 0 && i < n - 1;
-            float slot = w / (sorted.size() + (between ? 1 : 0));
-            float y = i * tierH + (tierH - BOX_H) / 2f;
-            for (int j = 0; j < sorted.size(); j++) {
-                String label = labels.get(sorted.get(j));
+            float slot = w / (row.size() + (between ? 1 : 0));
+            float y = i * rowH + (rowH - BOX_H) / 2f;
+            for (int j = 0; j < row.size(); j++) {
+                String label = labels.get(row.get(j));
                 float bw = Math.min(label.length() * TEXT_PX * 0.55f + 16f, slot - GAP);
-                boxes.put(sorted.get(j), new Box(sorted.get(j), label, slot * j + (slot - bw) / 2f, y, bw, BOX_H));
+                boxes.put(row.get(j), new Box(row.get(j), label, slot * j + (slot - bw) / 2f, y, bw, BOX_H));
             }
-            i++;
         }
         return new Layout(boxes, List.copyOf(arrows.values()));
+    }
+
+    /**
+     * {@code parts} in rows of at most {@link #MOST_IN_ROW}, as few rows as that allows and as even as they can be:
+     * the first rows take one more than the last when they cannot all be the same. Eleven are 4, 4 and 3.
+     */
+    static List<List<String>> rows(List<String> parts) {
+        int count = Math.max(1, (parts.size() + MOST_IN_ROW - 1) / MOST_IN_ROW);
+        List<List<String>> out = new ArrayList<>(count);
+        int from = 0;
+        for (int r = 0; r < count; r++) {
+            int size = parts.size() / count + (r < parts.size() % count ? 1 : 0);
+            out.add(parts.subList(from, from + size));
+            from += size;
+        }
+        return out;
     }
 
     /** A receiver's part: a mailbox, {@code class#method}, is its class's. */

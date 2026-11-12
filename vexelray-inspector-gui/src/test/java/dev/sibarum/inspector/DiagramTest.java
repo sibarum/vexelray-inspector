@@ -55,6 +55,30 @@ class DiagramTest {
     }
 
     @Test
+    void aCrowdedTierWrapsOntoEvenRowsOfNoMoreThanTheMost() {
+        assertEquals(List.of(4, 4, 3), Diagram.rows(names(11)).stream().map(List::size).toList());
+        assertEquals(List.of(5), Diagram.rows(names(5)).stream().map(List::size).toList());
+        assertEquals(List.of(3, 3), Diagram.rows(names(6)).stream().map(List::size).toList());
+        assertEquals(List.of(0), Diagram.rows(List.of()).stream().map(List::size).toList());
+
+        // Eleven components and a view: three rows of components above the view, every component below the source.
+        List<Part> parts = new java.util.ArrayList<>(List.of(new Part("source", P + "Src", "own", false),
+                new Part("view", P + "View", "gui", false)));
+        for (String name : names(11)) {
+            parts.add(new Part("component", name, "logic", false));
+        }
+        Diagram.Layout l = Diagram.lay(new Flows("run", "", parts, List.of()), 900f, 600f);
+        List<Float> ys = names(11).stream().map(p -> l.boxes().get(p).y()).distinct().sorted().toList();
+        assertEquals(3, ys.size(), "eleven components in three rows: " + ys);
+        assertTrue(l.boxes().get(P + "Src").y() < ys.get(0));
+        assertTrue(l.boxes().get(P + "View").y() > ys.get(2));
+    }
+
+    private static List<String> names(int count) {
+        return java.util.stream.IntStream.range(0, count).mapToObj(i -> P + "Part" + (char) ('A' + i)).toList();
+    }
+
+    @Test
     void anArrowIsAPairOfPartsWithEveryTopicItCarriesAndIsLitByWhatItsSenderWrote() {
         Diagram.Layout l = Diagram.lay(FLOWS, 600f, 600f);
         Diagram.Arrow toView = l.arrows().stream().filter(a -> a.to().equals(P + "View")).findFirst().orElseThrow();

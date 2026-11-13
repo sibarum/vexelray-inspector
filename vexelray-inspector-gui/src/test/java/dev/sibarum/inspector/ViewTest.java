@@ -452,7 +452,7 @@ class ViewTest {
         Picture.Fill mark = (Picture.Fill) p.marks().get(p.marks().size() - 3);
         assertEquals(20.0, mark.y(), "the top of the main thread's band");
         assertEquals(20.0, mark.h(), "the band's whole height");
-        assertEquals(Color.BLACK, mark.color());
+        assertEquals(Color.BLACK, dev.vexelray.gui.draw.Ink.fixedOf(mark.ink()));
     }
 
     @Test
@@ -471,7 +471,7 @@ class ViewTest {
                 "input's band first, drawing's fifth");
         float alone = View.Columns.SPARSE;
         assertEquals(List.of(Color.withAlpha(INKS.injected(), alone), Color.withAlpha(INKS.ceiling(), alone),
-                Color.withAlpha(INKS.gpu(), alone)), marks.stream().map(Picture.Line::color).toList(),
+                Color.withAlpha(INKS.gpu(), alone)), marks.stream().map(l -> dev.vexelray.gui.draw.Ink.fixedOf(l.ink())).toList(),
                 "each alone in its pixel, so at a moment's faintest");
     }
 
@@ -487,11 +487,11 @@ class ViewTest {
                 new Lane(Model.MESSAGES, List.of(sent))), Optional.empty());
         Traced traced = new Traced("r", "c.i01.1", List.of(), List.of("#7"), List.of(), List.of());
         Picture p = View.lanes(t, traced, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at, View.SLIDE_LANES, null);
-        List<Picture.Mark> path = p.marks().stream().filter(m -> (m instanceof Picture.Fill f && f.color().equals(PATH))
-                || (m instanceof Picture.Line l && l.color().equals(PATH))).toList();
+        List<Picture.Mark> path = p.marks().stream().filter(m -> (m instanceof Picture.Fill f && PATH.equals(dev.vexelray.gui.draw.Ink.fixedOf(f.ink())))
+                || (m instanceof Picture.Line l && PATH.equals(dev.vexelray.gui.draw.Ink.fixedOf(l.ink())))).toList();
         assertEquals(2, path.size(), "tick #7 by its number, the message by its cause; not tick #8: " + path);
         assertEquals(0, View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at).marks().stream()
-                .filter(m -> m instanceof Picture.Fill f && f.color().equals(PATH)).count(), "no path, nothing marked");
+                .filter(m -> m instanceof Picture.Fill f && PATH.equals(dev.vexelray.gui.draw.Ink.fixedOf(f.ink()))).count(), "no path, nothing marked");
         assertEquals(List.of("Rows", "Bump"), View.crossedTopics(new Traced("r", "c", List.of(), List.of(), List.of(),
                 List.of(new Crossed("Rows", ""), new Crossed("Rows", "B"), new Crossed("Bump", "C")))),
                 "each topic once, in the order crossed");
@@ -510,8 +510,8 @@ class ViewTest {
         List<Picture.Line> marks = p.marks().stream().filter(m -> m instanceof Picture.Line)
                 .map(m -> (Picture.Line) m).filter(l -> l.x0() == l.x1()).toList();
         assertEquals(List.of("951 w1", "980 w1"), lines(p), "a thousand moments in half a millisecond, one pixel: one mark");
-        assertEquals(1f, marks.getFirst().color().a(), 1e-6f, "dense: full strength");
-        assertEquals(View.Columns.SPARSE, marks.getLast().color().a(), 1e-6f, "alone: faintest");
+        assertEquals(1f, dev.vexelray.gui.draw.Ink.fixedOf(marks.getFirst().ink()).a(), 1e-6f, "dense: full strength");
+        assertEquals(View.Columns.SPARSE, dev.vexelray.gui.draw.Ink.fixedOf(marks.getLast().ink()).a(), 1e-6f, "alone: faintest");
     }
 
     @Test
@@ -622,7 +622,7 @@ class ViewTest {
         assertEquals(40.0, wash.y(), "the logic lane, the third band");
         assertEquals(20.0, wash.h());
         assertEquals(LANE, wash.w(), 1e-6);
-        assertTrue(wash.color().a() < 0.1f, "faint, so the marks under it still read");
+        assertTrue(dev.vexelray.gui.draw.Ink.fixedOf(wash.ink()).a() < 0.1f, "faint, so the marks under it still read");
         assertEquals(4, p.marks().size(), "the wash, and three rings fading inward");
     }
 
@@ -757,12 +757,12 @@ class ViewTest {
         Picture p = View.lanes(t, LANE, LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at);
         Picture.Fill wash = (Picture.Fill) p.marks().stream().filter(m -> m instanceof Picture.Fill).findFirst()
                 .orElseThrow();
-        assertEquals(Color.withAlpha(Color.WHITE, View.SELECTED_WASH), wash.color(), "the first fill, under the marks");
+        assertEquals(Color.withAlpha(Color.WHITE, View.SELECTED_WASH), dev.vexelray.gui.draw.Ink.fixedOf(wash.ink()), "the first fill, under the marks");
         assertEquals(LANES_H, wash.h(), 0.01f, "across every lane");
         assertEquals(2_500_000_000L * SCALE, wash.w(), 0.5f, "as long as the stretch");
         assertEquals(List.of(), View.lanes(new Timeline("r", "", false, at, t.lanes(), Optional.empty()), LANE,
                 LANES_H, SCALE, INKS, at - View.SPAN_NANOS, at).marks().stream()
-                .filter(m -> m instanceof Picture.Fill f && f.color().equals(wash.color())).toList(),
+                .filter(m -> m instanceof Picture.Fill f && f.ink().equals(wash.ink())).toList(),
                 "nothing selected, no wash");
     }
 

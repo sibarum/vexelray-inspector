@@ -117,7 +117,7 @@ class DiagramTest {
                 Model.typeName(a.from()) + ">" + Model.typeName(a.to())).toList();
         assertEquals(List.of("LinkRows>Bench", "Bench>ListRuns"), on, "by topic and receiver; a write alone is no arrow");
         Picture p = Diagram.draw(FLOWS, t, 600f, 600f, INKS);
-        assertEquals(6, p.marks().stream().filter(m -> m instanceof Picture.Line line && line.color().equals(PATH))
+        assertEquals(6, p.marks().stream().filter(m -> m instanceof Picture.Line line && PATH.equals(dev.vexelray.gui.draw.Ink.fixedOf(line.ink())))
                 .count(), "two arrows, each a line and a head of two strokes");
     }
 

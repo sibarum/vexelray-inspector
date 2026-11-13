@@ -1,5 +1,9 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.Keys.PauseKey;
+import dev.sibarum.inspector.core.Messages.Paused;
+import dev.vexelray.gui.widget.Button;
+import sibarum.atchung.Sender;
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Messages.Traced;
@@ -35,6 +39,7 @@ final class GraphView {
     static final float NOTCH_PX = 48f;
 
     private final GraphWindow window;
+    private final Sender<PauseKey> pauseKey;
     private final Diagram.Inks inks;
     /** The dot nodes on the stage, and the arrows they run along at the lens's zoom, before it moves them. */
     private final Dots.Pool pool;
@@ -59,8 +64,9 @@ final class GraphView {
     /** Whether a pinch is under way: Windows may send the same gesture as a Ctrl and wheel too, which zooms once. */
     private boolean pinching;
 
-    GraphView(GraphWindow window) {
+    GraphView(GraphWindow window, Sender<PauseKey> pauseKey) {
         this.window = window;
+        this.pauseKey = pauseKey;
         this.inks = Diagram.Inks.of(window.gui());
         this.pool = new Dots.Pool(window.gui(), window.stage(), inks.name());
         var gui = window.gui();
@@ -150,5 +156,19 @@ final class GraphView {
     /** What the stage was last given to show. */
     Picture shown() {
         return shown;
+    }
+
+    /** Whether the recorder is paused: this window's pause button shows what its click would do. */
+    @Subscribe
+    public void paused(Paused p) {
+        window.pause().show(p.paused());
+    }
+
+    /** This window's pause button: as Space, which the main view turns into a pause where its lanes come to rest. */
+    @Subscribe
+    public void pressed(Button.Pressed p) {
+        if (p.button().equals(window.pause().address())) {
+            pauseKey.send(new PauseKey());
+        }
     }
 }

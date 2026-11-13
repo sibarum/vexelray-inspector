@@ -165,6 +165,8 @@ final class Ui {
     /** The buttons that go to the stretch's longest pass, tick and draw, in {@link View#LONGEST}'s order. */
     private final Button[] longest;
     private final IconButton follow;
+    /** The title bar's pause button, as every window has one. */
+    private final PauseButton pause;
     /** The space over the follow button, a lane high for each lane above the focused one. */
     private final Node above;
     private final DetailsList details;
@@ -341,13 +343,14 @@ final class Ui {
         gui.landmark(Landmarks.RUNS, runs.node());
         detach = barButton("Detach", Landmarks.DETACH);
         runAgain = barButton("Run again", Landmarks.RUN_AGAIN);
-        // In the title bar, after the mark: the run, what can be done to it, the warning when there is one, and how it
-        // was reached and where its logic runs. The bar's left gives way at its end when the window is narrow (it
-        // clips, and an application's part of it can take none of the caption's slack), so the words go last and the
-        // buttons are never what is cut.
+        pause = new PauseButton(gui);
+        // In the title bar, after the mark: the pause button every window wears, the run, what can be done to it, the
+        // warning when there is one, and how it was reached and where its logic runs. The bar's left gives way at its
+        // end when the window is narrow (it clips, and an application's part of it can take none of the caption's
+        // slack), so the words go last and the buttons are never what is cut.
         Node runPanel = gui.row().width(Length.AUTO).height(Length.FILL).gap(Type.TIGHT)
                 .alignItems(AlignItems.CENTER).padding(Length.ZERO, Type.TIGHT)
-                .children(runs.node(), runAgain.node(), detach.node(), warning, runText);
+                .children(pause.node(), runs.node(), runAgain.node(), detach.node(), warning, runText);
         gui.landmark(Landmarks.RUN, runPanel);
         // The bar's own title would only say the mark's name again.
         titleBar.title("");
@@ -789,6 +792,11 @@ final class Ui {
 
     String openGraphAddress() {
         return openGraph.address();
+    }
+
+    /** The title bar's pause button. */
+    PauseButton pause() {
+        return pause;
     }
 
     String followAddress() {

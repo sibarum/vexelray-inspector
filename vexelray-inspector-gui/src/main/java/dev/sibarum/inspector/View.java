@@ -32,6 +32,7 @@ import dev.sibarum.inspector.core.Messages.LedgerAt;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
+import dev.sibarum.inspector.core.Messages.Paused;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.ReplayReport;
 import dev.sibarum.inspector.core.Messages.Row;
@@ -356,16 +357,28 @@ final class View {
         pause.send(new Pause((long) state.edge().rest(now, pressWindow)));
     }
 
+    /**
+     * Whether the recorder is paused: the title bar's pause button shows what its click would do, and the follow button
+     * can be pressed only then (following a run that went away, it would do nothing).
+     */
+    @Subscribe
+    public void paused(Paused p) {
+        ui.pause().show(p.paused());
+        ui.canFollow(p.paused());
+    }
+
     /** End: ask the bench to follow the present again. */
     @Subscribe
     public void followKey(FollowKey key) {
         followed();
     }
 
-    /** The button at the focused lane's right end: as End. */
+    /** A button of the main window: the pause button as Space, the one at the focused lane's right end as End. */
     @Subscribe
     public void pressed(Button.Pressed p) {
-        if (p.button().equals(ui.followAddress())) {
+        if (p.button().equals(ui.pause().address())) {
+            pauseKey(new PauseKey());
+        } else if (p.button().equals(ui.followAddress())) {
             followed();
         } else if (p.button().equals(ui.detachAddress())) {
             leave.send(new Leave());
@@ -671,7 +684,6 @@ final class View {
         layDots(false);
         ui.status(t.status());
         ui.warning(t.warning());
-        ui.canFollow(!t.live());
         List<String> unrecorded = unrecorded(t);
         ui.names(focus, unrecorded);
         ui.lanesNote(lanesNote(unrecorded));

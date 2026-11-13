@@ -18,6 +18,7 @@ final class ReplayWindow {
     static final String TITLE = "Run again";
 
     private final Gui gui;
+    private final PauseButton pause;
     private final Node said;
     private final Places places;
 
@@ -29,11 +30,16 @@ final class ReplayWindow {
         places = new Places(tree, Landmarks.REPLAY_WINDOW, Landmarks.REPLAY_WINDOW_BODY, View.REPLAY_COLUMNS,
                 Ui.REPLAY_WIDTHS, 1.25f, View.REPLAY_LISTED, Ui::replayInk);
         places.node().width(Length.FILL).height(Length.grow(1f));
-        gui = PanelWindow.fill(window, said, places.node());
+        pause = new PauseButton(tree);
+        gui = PanelWindow.fill(window, pause, said, places.node());
     }
 
     Gui gui() {
         return gui;
+    }
+
+    PauseButton pause() {
+        return pause;
     }
 
     Places places() {

@@ -17,6 +17,7 @@ final class TopicsWindow {
     static final String TITLE = "Topics";
 
     private final Gui gui;
+    private final PauseButton pause;
     private final Topics topics;
     private final Node why;
 
@@ -26,11 +27,16 @@ final class TopicsWindow {
         topics.node().width(Length.FILL).height(Length.grow(1f));
         why = tree.text("").width(Length.FILL).textColor(tree.theme().color(Role.DIM)).textSize(Type.SMALL);
         why.visible(false);
-        gui = PanelWindow.fill(window, why, topics.node());
+        pause = new PauseButton(tree);
+        gui = PanelWindow.fill(window, pause, why, topics.node());
     }
 
     Gui gui() {
         return gui;
+    }
+
+    PauseButton pause() {
+        return pause;
     }
 
     Topics topics() {

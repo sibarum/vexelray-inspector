@@ -412,6 +412,19 @@ public final class Messages {
     }
 
     /**
+     * Whether the recorder is paused: the cursor stopped, rather than following the present. Every window's pause
+     * button shows it, a play mark while paused and a pause mark while not, so each says what its click would do. A
+     * state topic, said whenever the timeline is, so a window opened later is told at once. Not the timeline's
+     * {@code live}, which is also false while following a run that went away.
+     *
+     * @param paused whether the cursor is stopped
+     */
+    public static final Topic<Paused> PAUSED_TOPIC = Topic.state(Paused.class);
+
+    public record Paused(boolean paused) {
+    }
+
+    /**
      * The readouts, over the second before the cursor (the newest row while following), or over the stretch selected,
      * from the same events the timeline is drawn from, so they rewind with it. A state topic, as the timeline is.
      *

@@ -20,6 +20,7 @@ import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Pause;
+import dev.sibarum.inspector.core.Messages.Paused;
 import dev.sibarum.inspector.core.Messages.Row;
 import dev.sibarum.inspector.core.Messages.LedgerAt;
 import dev.sibarum.inspector.core.Messages.RowsAround;
@@ -98,7 +99,7 @@ class BenchTest {
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
                 Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC,
                 Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC, Messages.ROWS_AROUND_TOPIC,
-                Messages.LEDGER_TOPIC)) {
+                Messages.LEDGER_TOPIC, Messages.PAUSED_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -493,6 +494,23 @@ class BenchTest {
 
     private static Mark span(long end) {
         return new Mark(end - MS, end, Model.PASS, "main");
+    }
+
+    @Test
+    void everyPauseButtonIsToldWhetherTheRecorderIsPausedHoweverItCameToBe() {
+        attached(ONE);
+        passes(1, 100 * MS, 600 * MS);
+        sent.clear();
+        tell(Messages.PAUSE_TOPIC, new Pause(680 * MS));
+        assertEquals(new Paused(true), took(Paused.class).getLast(), "paused: the buttons show play");
+        tell(Messages.PAUSE_TOPIC, new Pause(0L));
+        assertEquals(new Paused(false), took(Paused.class).getLast(), "the same press again follows: pause");
+        tell(Messages.STEP_TOPIC, new Step(-100 * MS, 680 * MS));
+        assertEquals(new Paused(true), took(Paused.class).getLast(), "a step pauses as well, and the buttons say so");
+        tell(Messages.FOLLOW_TOPIC, new Follow());
+        assertEquals(new Paused(false), took(Paused.class).getLast(), "End follows: pause again");
+        tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "it went away"));
+        assertFalse(took(Paused.class).getLast().paused(), "a run gone is not live, but nothing paused it: pause");
     }
 
     @Test

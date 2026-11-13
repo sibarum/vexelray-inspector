@@ -25,6 +25,7 @@ final class GraphWindow {
 
     private final Gui gui;
     private final Node stage;
+    private final PauseButton pause;
 
     GraphWindow(Window window) {
         gui = window.gui();
@@ -35,18 +36,19 @@ final class GraphWindow {
                 .width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
         Node body = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
                 .children(stage, hint);
-        Node root = gui.root().direction(Direction.COLUMN).background(gui.theme().color(Role.PAGE));
-        // No bar when the application asked for the OS frame.
-        if (window.titleBar() != null) {
-            root.children(window.titleBar().node(), body);
-        } else {
-            root.children(body);
-        }
+        pause = new PauseButton(gui);
+        gui.root().direction(Direction.COLUMN).background(gui.theme().color(Role.PAGE))
+                .children(PanelWindow.barred(window, pause), body);
     }
 
     /** The window's tree, which its view hears the gestures on. */
     Gui gui() {
         return gui;
+    }
+
+    /** The title bar's pause button. */
+    PauseButton pause() {
+        return pause;
     }
 
     /** The box the graph is drawn in. */

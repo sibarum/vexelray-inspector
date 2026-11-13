@@ -21,6 +21,7 @@ import dev.sibarum.inspector.core.Messages.LaunchChild;
 import dev.sibarum.inspector.core.Messages.Leave;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Pause;
+import dev.sibarum.inspector.core.Messages.Paused;
 import dev.sibarum.inspector.core.Messages.Readouts;
 import dev.sibarum.inspector.core.Messages.Replay;
 import dev.sibarum.inspector.core.Messages.Row;
@@ -95,7 +96,7 @@ import java.util.Optional;
         GoToTick.class, SelectRange.class, ClearRange.class, ExportFrame.class, Picked.class, Exported.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
         Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class, PickFile.class,
-        WriteExport.class})
+        WriteExport.class, Paused.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -570,6 +571,7 @@ public final class Bench {
             return say(s.withPick(pick), out);
         }
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
+        out.send(Messages.PAUSED_TOPIC, new Paused(s.paused()));
         return panel(s.withPick(pick), out);
     }
 
@@ -1025,6 +1027,7 @@ public final class Bench {
     /** Tell the view the timeline, readouts, details, path, flows, rows and ledger, all as of the cursor. */
     private static State say(State s, Out out) {
         out.send(Messages.TIMELINE_TOPIC, s.timeline());
+        out.send(Messages.PAUSED_TOPIC, new Paused(s.paused()));
         Model at = s.atCursor();
         out.send(Messages.READOUTS_TOPIC, s.readouts(at));
         out.send(Messages.FLOWS_TOPIC, s.flows(at));

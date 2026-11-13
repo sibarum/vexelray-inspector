@@ -14,17 +14,23 @@ final class CursorWindow {
     static final String TITLE = "Cursor";
 
     private final Gui gui;
+    private final PauseButton pause;
     private final DetailsList details;
 
     CursorWindow(Window window) {
         Gui tree = window.gui();
         details = new DetailsList(tree, true, false);
         tree.landmark(Landmarks.CURSOR_DETAILS, details.node());
-        gui = PanelWindow.fill(window, details.node());
+        pause = new PauseButton(tree);
+        gui = PanelWindow.fill(window, pause, details.node());
     }
 
     Gui gui() {
         return gui;
+    }
+
+    PauseButton pause() {
+        return pause;
     }
 
     DetailsList details() {

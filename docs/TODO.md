@@ -114,8 +114,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       caps it at half a second. Watch it, and lengthen or slow it if it reads as a blur.
 - [ ] Zoom chords (Ctrl+= / Ctrl+- / Ctrl+0) went with the template's `Intent`; bring them back with the next view
       that takes keys.
-- [ ] The follow button is enabled whenever the timeline is not live, which includes following a run that went away,
-      where it does nothing. `Timeline` could say whether the cursor is stopped rather than leave the view to infer it.
 - [ ] Replace the palette anchors in `Look.java` with the design's, measured in Oklab. See the note in that file
       about which authored colours the construction can reproduce and which have to be declared.
 

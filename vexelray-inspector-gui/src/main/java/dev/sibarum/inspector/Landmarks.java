@@ -126,6 +126,12 @@ final class Landmarks {
     static final String FOLLOW = "follow";
 
     /**
+     * The pause button in every window's title bar, the same name in each window's tree: a pause mark while following,
+     * a play mark while paused ({@link PauseButton}).
+     */
+    static final String PAUSE = "pause";
+
+    /**
      * The banner over the lanes saying what makes them less than whole (a run of another link version), and its text;
      * hidden while nothing does.
      */

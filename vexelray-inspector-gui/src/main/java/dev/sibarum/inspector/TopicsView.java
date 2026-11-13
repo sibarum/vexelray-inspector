@@ -1,5 +1,9 @@
 package dev.sibarum.inspector;
 
+import dev.sibarum.inspector.Keys.PauseKey;
+import dev.sibarum.inspector.core.Messages.Paused;
+import dev.vexelray.gui.widget.Button;
+import sibarum.atchung.Sender;
 import dev.sibarum.inspector.core.Messages.Flow;
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Traced;
@@ -21,9 +25,11 @@ import java.util.Map;
 final class TopicsView {
 
     private final TopicsWindow window;
+    private final Sender<PauseKey> pauseKey;
 
-    TopicsView(TopicsWindow window) {
+    TopicsView(TopicsWindow window, Sender<PauseKey> pauseKey) {
         this.window = window;
+        this.pauseKey = pauseKey;
     }
 
     @Subscribe
@@ -48,6 +54,20 @@ final class TopicsView {
     public void chosen(ListView.Chosen c) {
         if (c.action().equals(Landmarks.COPY) && c.at().equals(window.topics().address())) {
             window.topics().copied().ifPresent(csv -> window.gui().clipboard().set(csv));
+        }
+    }
+
+    /** Whether the recorder is paused: this window's pause button shows what its click would do. */
+    @Subscribe
+    public void paused(Paused p) {
+        window.pause().show(p.paused());
+    }
+
+    /** This window's pause button: as Space, which the main view turns into a pause where its lanes come to rest. */
+    @Subscribe
+    public void pressed(Button.Pressed p) {
+        if (p.button().equals(window.pause().address())) {
+            pauseKey.send(new PauseKey());
         }
     }
 }

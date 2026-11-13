@@ -147,6 +147,7 @@ stop where they were, and the status line says what happened.
 | Key | Does |
 | --- | --- |
 | Space | pause: the lanes slow to a stop; paused, follow the present again, catching up with it |
+| The pause button in any window's title bar | as Space; every window's shows a pause mark while following and a play mark while paused, however it was paused |
 | Left / Right | step the cursor onto the focused lane's previous or next event (pausing first if following) |
 | Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lanes span |
 | Up / Down | step the cursor onto the previous or next row, in order of time (pausing first if following); the rows panel and the details show it |

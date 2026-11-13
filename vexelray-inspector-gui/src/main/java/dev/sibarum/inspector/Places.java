@@ -43,7 +43,7 @@ final class Places {
             int at = i;
             built.add(Table.Column.of(columns.get(i), widths.get(i), (cells, place) -> {
                 Node text = cells.text(cell(texts, place, at)).textSize(Type.SMALL)
-                        .textColor(gui.theme().color(ink.apply(at)));
+                        .textColor(ink.apply(at));
                 nodes.computeIfAbsent(place, p -> new Node[columns.size()])[at] = text;
                 return text;
             }));

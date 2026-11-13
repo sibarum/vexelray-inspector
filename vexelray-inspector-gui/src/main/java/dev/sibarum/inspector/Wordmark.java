@@ -24,7 +24,8 @@ import java.io.InputStream;
  * <p><b>The letters follow the bar; the gear keeps its lime.</b> The letters are the drawing's layer {@code face}, in
  * the role {@code tint}, the node's own text colour, which the bar hands over as a paint ({@link TitleBar.Wordmark#ink}):
  * resolved every frame, so the pointer lifts it into the accent as it does a caption glyph. The gear is the icon's
- * #a8e05a, as the board draws it on a dark bar, and this application has only a dark theme ({@link Look}).
+ * #a8e05a, as the board draws it on a dark bar, baked into the drawing: it is the same in the light look ({@link Look}),
+ * where a lime gear on a near-white bar is quieter than the board intends.
  */
 final class Wordmark {
 

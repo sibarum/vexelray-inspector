@@ -49,7 +49,11 @@ final class Diagram {
      */
     record Inks(Color box, Color name, Color lit, Color faint, Color path) {
 
-        /** The graph's colours in {@code gui}'s theme: the graph panel's and the graph window's are the same. */
+        /**
+         * The graph's colours in {@code gui}'s theme now: the graph panel's and the graph window's are the same.
+         * Colours, not roles, because an arrow's is a blend of two by how fresh it is; so whoever holds them takes them
+         * again when the look shifts ({@code Seams.onTheme}) and draws the graph again.
+         */
         static Inks of(Gui gui) {
             return new Inks(gui.theme().color(Role.LINE), gui.theme().color(Role.INK),
                     gui.theme().color(Role.ACCENT), gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));

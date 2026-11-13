@@ -25,7 +25,7 @@ final class ReplayWindow {
     ReplayWindow(Window window) {
         Gui tree = window.gui();
         said = tree.text("Run again has not been pressed").width(Length.FILL)
-                .textColor(tree.theme().color(Role.INK));
+                .textColor(Role.INK);
         tree.landmark(Landmarks.REPLAY_WINDOW_TEXT, said);
         places = new Places(tree, Landmarks.REPLAY_WINDOW, Landmarks.REPLAY_WINDOW_BODY, View.REPLAY_COLUMNS,
                 Ui.REPLAY_WIDTHS, 1.25f, View.REPLAY_LISTED, Ui::replayInk);

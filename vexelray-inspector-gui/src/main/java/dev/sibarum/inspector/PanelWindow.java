@@ -27,7 +27,7 @@ final class PanelWindow {
         Gui gui = window.gui();
         Node column = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.GAP).gap(Type.TIGHT)
                 .children(body);
-        Node root = gui.root().direction(Direction.COLUMN).background(gui.theme().color(Role.PAGE));
+        Node root = gui.root().direction(Direction.COLUMN).background(Role.PAGE);
         root.children(barred(window, pause), column);
         return gui;
     }

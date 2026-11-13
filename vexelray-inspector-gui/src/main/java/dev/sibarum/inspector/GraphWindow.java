@@ -30,14 +30,14 @@ final class GraphWindow {
     GraphWindow(Window window) {
         gui = window.gui();
         stage = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false)
-                .background(gui.theme().color(Role.PANEL));
+                .background(Role.PANEL);
         gui.landmark(Landmarks.GRAPH_STAGE, stage);
         Node hint = gui.text("Wheel or pinch to zoom, drag to move, double-click to fit")
-                .width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+                .width(Length.FILL).textColor(Role.DIM).textSize(Type.SMALL);
         Node body = gui.column().width(Length.FILL).height(Length.grow(1f)).padding(Type.TIGHT).gap(Type.TIGHT)
                 .children(stage, hint);
         pause = new PauseButton(gui);
-        gui.root().direction(Direction.COLUMN).background(gui.theme().color(Role.PAGE))
+        gui.root().direction(Direction.COLUMN).background(Role.PAGE)
                 .children(PanelWindow.barred(window, pause), body);
     }
 

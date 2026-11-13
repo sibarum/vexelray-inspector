@@ -25,7 +25,7 @@ final class TopicsWindow {
         Gui tree = window.gui();
         topics = new Topics(tree, Landmarks.TOPICS_TABLE, Landmarks.TOPICS_BODY, Integer.MAX_VALUE);
         topics.node().width(Length.FILL).height(Length.grow(1f));
-        why = tree.text("").width(Length.FILL).textColor(tree.theme().color(Role.DIM)).textSize(Type.SMALL);
+        why = tree.text("").width(Length.FILL).textColor(Role.DIM).textSize(Type.SMALL);
         why.visible(false);
         pause = new PauseButton(tree);
         gui = PanelWindow.fill(window, pause, why, topics.node());

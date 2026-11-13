@@ -45,10 +45,14 @@ final class Recipes {
      * The look, and the smallest window this UI is still coherent in. Built from nothing the framework makes, so it
      * exists in the first phase and the framework applies it the moment it creates the {@code Gui}: "the theme is
      * applied before the first widget" is structural rather than a comment somebody has to keep obeying.
+     *
+     * <p>Both looks are declared, so the app menu offers Light and Dark and the framework keeps the person's choice; it
+     * opens dark until they choose.
      */
     @Provides
     Appearance look() {
-        return Appearance.of(Look.THEME, Length.rem(Inspector.MIN_W_EM), Length.rem(Inspector.MIN_H_EM));
+        return Appearance.of(Look.DARK, Length.rem(Inspector.MIN_W_EM), Length.rem(Inspector.MIN_H_EM))
+                .themes(Look.LIGHT, Look.DARK);
     }
 
     /**

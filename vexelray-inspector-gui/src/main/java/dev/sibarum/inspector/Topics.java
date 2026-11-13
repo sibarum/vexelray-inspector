@@ -51,8 +51,8 @@ final class Topics {
             int at = i;
             columns.add(Table.Column.of(View.FLOW_COLUMNS.get(i), WIDTHS.get(i), (made, topic) -> {
                 Node text = made.text(cells.getOrDefault(topic, View.NO_FLOW).get(at))
-                        .textSize(Type.SMALL).textColor(gui.theme().color(at > 0 ? Role.DIM
-                                : crossed.contains(topic) ? Ui.PATH : Role.INK));
+                        .textSize(Type.SMALL).textColor(at > 0 ? Role.DIM
+                                : crossed.contains(topic) ? Ui.PATH : Role.INK);
                 nodes.computeIfAbsent(topic, t -> new Node[View.FLOW_COLUMNS.size()])[at] = text;
                 return text;
             }));
@@ -113,7 +113,7 @@ final class Topics {
             boolean was = crossed.contains(e.getKey());
             boolean is = now.contains(e.getKey());
             if (was != is && e.getValue()[0] != null) {
-                e.getValue()[0].textColor(gui.theme().color(is ? Ui.PATH : Role.INK));
+                e.getValue()[0].textColor(is ? Ui.PATH : Role.INK);
             }
         }
         crossed = now;

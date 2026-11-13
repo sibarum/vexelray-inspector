@@ -9,7 +9,8 @@ import dev.vexelray.gui.core.style.Shading;
 import dev.vexelray.gui.core.style.Theme;
 
 /**
- * The palette, as anchors.
+ * The two looks, dark and light, as anchors: the application's own, and the person chooses between them in the app
+ * menu (Theme, then Light or Dark). The framework remembers the choice and re-themes every window with it.
  *
  * <h2>A palette is a construction, not a list of colours</h2>
  *
@@ -36,40 +37,56 @@ import dev.vexelray.gui.core.style.Theme;
  * edge, which the design draws brighter than the ladder's line, and the two brasses, which are the cursor's rather
  * than a warning's. {@code LookTest} pins each authored colour against what is drawn, so a gap is measured, never
  * absorbed.
+ *
+ * <h2>The light look is authored, not reflected</h2>
+ *
+ * <p>The Escapement design is dark only; the light look is the same family carried onto a near-white page: the same
+ * hues, every lightness chosen again. A mirror of the dark page (L 0.128) would land at a grey where a light page
+ * wants 0.975; the cyan and the brass, which glow on near-black, have to come down until they read on white as text
+ * does; a shadow that is depth on a dark page is a smudge on a light one, so its alpha drops by two thirds; and the
+ * edge light that glints on a dark card smears on a white one. The framework derives neither look, on purpose.
+ *
+ * <h2>Write the role, never the colour</h2>
+ *
+ * <p>The person can change the look while the application runs. A node that holds a {@link Role} is repainted in the
+ * new look, and fades to it; a node that was handed {@code gui.theme().color(role)} keeps the colour it was given,
+ * forever. So nodes are handed roles, and what is worked out from the theme once (the lanes' and the graph's inks,
+ * which are blended and thinned per mark) is worked out again when the look shifts.
  */
 final class Look {
 
-    // ---------------------------------------------------------------- anchors
+    // ---------------------------------------------------------------- the dark look
 
     /** The page: the colour behind everything, and what the frame clears to. {@code #05070B}. */
-    private static final Oklab PAGE = Oklab.polar(0.1277, 0.0108, -100.36);
+    private static final Oklab DARK_PAGE = Oklab.polar(0.1277, 0.0108, -100.36);
 
     /** Primary text, a cold near-white. {@code #D6E2EC}. */
-    private static final Oklab INK = Oklab.polar(0.9067, 0.0188, -117.02);
+    private static final Oklab DARK_INK = Oklab.polar(0.9067, 0.0188, -117.02);
 
     /** Cyan: what the run did -- a lane's marks, a lit arrow, a hover wash, a focus ring. {@code #45C8DC}. */
-    private static final Oklab ACCENT = Oklab.polar(0.7703, 0.1145, -150.42);
+    private static final Oklab DARK_ACCENT = Oklab.polar(0.7703, 0.1145, -150.42);
 
     /** The fill of a filled control: the cyan, dark enough that its label is the ink. */
-    private static final Oklab ACTION = Oklab.polar(0.4800, 0.0820, -150.42);
+    private static final Oklab DARK_ACTION = Oklab.polar(0.4800, 0.0820, -150.42);
 
     /** Red, at the chroma that turns the framework's caution into the design's brass. */
-    private static final Oklab DANGER = Oklab.polar(0.6200, 0.1510, 22.00);
+    private static final Oklab DARK_DANGER = Oklab.polar(0.6200, 0.1510, 22.00);
 
     /** Shadows: near-black, at the page's hue rather than a neutral grey. */
-    private static final Oklab DEPTH = Oklab.polar(0.0800, 0.0080, -100.36);
+    private static final Oklab DARK_DEPTH = Oklab.polar(0.0800, 0.0080, -100.36);
 
     /** How far one surface is from the next. Two steps from the page is a card. */
-    private static final double STEP = 0.0174;
+    private static final double DARK_STEP = 0.0174;
 
     /** How fast the ink fades towards the page: text(1) is DIM, text(2) is FAINT. */
-    private static final double FADE = 0.163;
+    private static final double DARK_FADE = 0.163;
 
     /** How dark a shadow is. */
-    private static final double SHADOW_ALPHA = 0.60;
+    private static final double DARK_SHADOW_ALPHA = 0.60;
 
-    static final Palette PALETTE =
-            new Palette(PAGE, STEP, INK, FADE, ACCENT, ACTION, DANGER, DEPTH, SHADOW_ALPHA);
+    /** The dark palette: the Escapement design's. */
+    static final Palette DARK_PALETTE = new Palette(DARK_PAGE, DARK_STEP, DARK_INK, DARK_FADE, DARK_ACCENT,
+            DARK_ACTION, DARK_DANGER, DARK_DEPTH, DARK_SHADOW_ALPHA);
 
     /**
      * Lit surfaces on, letterpress off.
@@ -77,30 +94,83 @@ final class Look {
      * <p>The edge light is what gives a dark panel its glint. Letterpress is the opposite call: it buys
      * contrast for white-on-fill labels by spending crispness, which small text can least afford.
      */
-    static final Theme THEME = Theme.of(PALETTE, Shading.ON_DARK, Relief.STANDARD, true, false);
+    static final Theme DARK = Theme.of(DARK_PALETTE, Shading.ON_DARK, Relief.STANDARD, true, false);
+
+    // ---------------------------------------------------------------- the light look
+
+    /** A near-white page at the dark page's blue, so the two read as one family. */
+    private static final Oklab LIGHT_PAGE = Oklab.polar(0.9750, 0.0060, -100.36);
+
+    /** Primary text: a deep blue slate rather than black, at the ink's own hue. */
+    private static final Oklab LIGHT_INK = Oklab.polar(0.2500, 0.0250, -117.02);
+
+    /** The cyan, brought down from 0.77 so a lane's marks and a focus ring still read on white. */
+    private static final Oklab LIGHT_ACCENT = Oklab.polar(0.5200, 0.0950, -150.42);
+
+    /** A filled control's fill: a little deeper than the accent, so its white label has room. */
+    private static final Oklab LIGHT_ACTION = Oklab.polar(0.4800, 0.0900, -150.42);
+
+    /**
+     * Red, darker for the same reason as the cyan, at a chroma that still turns the framework's caution (made at the
+     * accent's lightness) into a brass that reads on white.
+     */
+    private static final Oklab LIGHT_DANGER = Oklab.polar(0.5300, 0.1500, 22.00);
+
+    /** Shadows, at the page's hue. */
+    private static final Oklab LIGHT_DEPTH = Oklab.polar(0.2000, 0.0100, -100.36);
+
+    /** Each surface a step down from the page: wider than the dark look's, which would not show on white. */
+    private static final double LIGHT_STEP = 0.0220;
+
+    /** The ink fades faster than on the dark page, so dim and faint stay apart and faint still reads. */
+    private static final double LIGHT_FADE = 0.260;
+
+    /** A shadow a third as dark as the dark look's: here depth is a hint, not a void. */
+    private static final double LIGHT_SHADOW_ALPHA = 0.18;
+
+    /** The light palette. */
+    static final Palette LIGHT_PALETTE = new Palette(LIGHT_PAGE, LIGHT_STEP, LIGHT_INK, LIGHT_FADE, LIGHT_ACCENT,
+            LIGHT_ACTION, LIGHT_DANGER, LIGHT_DEPTH, LIGHT_SHADOW_ALPHA);
+
+    /** No edge light, which on a white card reads as a smear, and no letterpress. */
+    static final Theme LIGHT = Theme.of(LIGHT_PALETTE, Shading.ON_LIGHT, Relief.STANDARD, false, false);
 
     // ---------------------------------------------------------------- roles of our own
 
-    /** A card's edge, {@code #172230}: brighter than the ladder's line, so a card reads against the page. */
-    static final Role EDGE = fixed(Oklab.polar(0.2486, 0.0310, -105.21));
+    /** A card's edge on the dark page, {@code #172230}: brighter than the ladder's line. */
+    private static final Color DARK_EDGE = Oklab.polar(0.2486, 0.0310, -105.21).toColor();
+
+    /** A card's edge on the light page: darker than the ladder's line, at the same hue. */
+    private static final Color LIGHT_EDGE = Oklab.polar(0.7900, 0.0300, -105.21).toColor();
+
+    /** A card's edge: further from the page than the ladder's line, so a card reads against the page. */
+    static final Role EDGE = p -> p.equals(LIGHT_PALETTE) ? LIGHT_EDGE : DARK_EDGE;
+
+    /** Brass on the dark page, {@code #E0AA4A}. */
+    private static final Color DARK_CURSOR = Oklab.polar(0.7706, 0.1283, 79.07).toColor();
+
+    /** Brass on the light page: the same hue, darkened until it reads on white as text does. */
+    private static final Color LIGHT_CURSOR = Oklab.polar(0.5300, 0.1100, 79.07).toColor();
 
     /**
-     * Brass, {@code #E0AA4A}: where the person is looking -- the cursor, the lane the arrows step through, the row
-     * the cursor is on.
+     * Brass: where the person is looking -- the cursor, the lane the arrows step through, the row the cursor is on.
      */
-    static final Role CURSOR = fixed(Oklab.polar(0.7706, 0.1283, 79.07));
+    static final Role CURSOR = p -> p.equals(LIGHT_PALETTE) ? LIGHT_CURSOR : DARK_CURSOR;
+
+    /** Pale brass on the dark page, {@code #F0D29C}. */
+    private static final Color DARK_PATH = Oklab.polar(0.8763, 0.0774, 81.97).toColor();
 
     /**
-     * Pale brass, {@code #F0D29C}: the rest of the path of the event the cursor is on, in every panel. The cursor's
-     * own colour, lighter and quieter, so the path reads as the cursor's without being mistaken for it.
+     * The path on the light page: as on the dark one, the cursor's brass taken further from the page and quieter in
+     * chroma, which on white is darker and browner.
      */
-    static final Role PATH = fixed(Oklab.polar(0.8763, 0.0774, 81.97));
+    private static final Color LIGHT_PATH = Oklab.polar(0.4500, 0.0650, 81.97).toColor();
 
-    /** A role that is {@code colour} whatever the palette. */
-    private static Role fixed(Oklab colour) {
-        Color c = colour.toColor();
-        return p -> c;
-    }
+    /**
+     * The rest of the path of the event the cursor is on, in every panel. The cursor's own colour, further from the page
+     * and quieter, so the path reads as the cursor's without being mistaken for it.
+     */
+    static final Role PATH = p -> p.equals(LIGHT_PALETTE) ? LIGHT_PATH : DARK_PATH;
 
     private Look() {
     }

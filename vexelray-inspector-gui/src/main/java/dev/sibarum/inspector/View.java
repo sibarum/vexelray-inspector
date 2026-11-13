@@ -51,6 +51,7 @@ import dev.sibarum.inspector.core.Model;
 import dev.sibarum.inspector.core.Bench;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
+import dev.vexelray.framework.core.ThemeShifted;
 import dev.vexelray.framework.core.WindowCommand;
 import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Frame;
@@ -215,6 +216,16 @@ final class View {
      */
     record Inks(Color mark, Color ceiling, Color gpu, Color injected, Color on, Color line, Color path) {
 
+        /**
+         * The lanes' colours in {@code gui}'s theme now. Colours, not roles, because a mark's is thinned by how strong
+         * it is and a run of marks is merged by its colour; so the view takes them again when the look shifts.
+         */
+        static Inks of(Gui gui) {
+            return new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
+                    gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Look.CURSOR),
+                    gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
+        }
+
         /** What {@code kind} is drawn in. */
         Color of(String kind) {
             return kind.equals(Model.HELD_FOR_CEILING) ? ceiling : kind.equals(Model.HELD_FOR_GPU) ? gpu
@@ -227,7 +238,8 @@ final class View {
 
     private final Gui gui;
     private final Ui ui;
-    private final Inks inks;
+    /** The lanes' colours in the look the window is in: taken again when it shifts. */
+    private Inks inks;
     private final Sender<Pause> pause;
     private final Sender<Follow> follow;
     private final Sender<Step> step;
@@ -293,13 +305,11 @@ final class View {
         this.goToTick = goToTick;
         this.selectRange = selectRange;
         this.windows = windows;
-        this.inks = new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
-                gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Look.CURSOR),
-                gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
+        this.inks = Inks.of(gui);
         this.state = new Strip(ui.strip(), 0L, 0f, 0f, Motion.of(Path.stopped(0.0)),
                 Motion.of(Path.stopped(Math.log(span))));
         this.diagramInks = Diagram.Inks.of(gui);
-        this.graphDots = new Dots.Pool(gui, ui.graph(), diagramInks.name());
+        this.graphDots = new Dots.Pool(gui, ui.graph(), Role.INK);
         gui.hear(ui.graph(), NodeEvent.RESIZE, layout -> {
             graphW = layout.rect().w();
             graphH = layout.rect().h();
@@ -1577,6 +1587,20 @@ final class View {
     /** A topic's cells before anything is known of it. */
     static final List<String> NO_FLOW = Collections.nCopies(FLOW_COLUMNS.size(), "");
 
+    /**
+     * The look the window is in, said at start and when the person chooses the other. The lanes' and the graph's inks
+     * are colours worked out from it (thinned and blended per mark), so they are taken again and both drawn in them.
+     * Every node holds a role, and follows on its own.
+     */
+    @Subscribe
+    public void shifted(ThemeShifted look) {
+        inks = Inks.of(gui);
+        diagramInks = Diagram.Inks.of(gui);
+        showFocus();
+        show();
+        ui.graph().picture(Diagram.draw(lastFlows, traced, graphW, graphH, diagramInks));
+    }
+
     @Subscribe
     public void flows(Flows f) {
         List<String> topics = new ArrayList<>(f.flows().size());
@@ -1614,7 +1638,7 @@ final class View {
     }
 
     /** The graph panel's colours, and its size and what it last showed, for a resize to draw it again. */
-    private final Diagram.Inks diagramInks;
+    private Diagram.Inks diagramInks;
     /** The graph panel's dot nodes, and the tracks they were last laid out on. */
     private final Dots.Pool graphDots;
     private Diagram.Tracks dotTracks = Diagram.Tracks.NONE;

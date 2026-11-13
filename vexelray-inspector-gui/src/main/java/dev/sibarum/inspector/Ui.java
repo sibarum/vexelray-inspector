@@ -5,7 +5,6 @@ import dev.sibarum.inspector.core.ClockLedger;
 import dev.sibarum.inspector.core.Csv;
 import dev.sibarum.inspector.core.Messages.Run;
 import dev.sibarum.inspector.core.Model;
-import dev.vexelray.canvas.Color;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.WindowRegion;
@@ -227,13 +226,13 @@ final class Ui {
         strip = gui.box().width(Length.percent(100f * (1 + 2 * View.SLIDE_LANES))).height(Length.FILL);
         // Clipped but never scrolled: the strip overflows it on purpose, and overflow alone would give it a scrollbar.
         lane = gui.box().width(Length.grow(1f)).height(Length.rem(LANE_REM * count)).clip(true).scroll(false, false)
-                .background(gui.theme().color(Role.PANEL))
+                .background(Role.PANEL)
                 .children(strip);
         gui.landmark(Landmarks.LANES, lane);
         names = new Node[count];
         for (int i = 0; i < count; i++) {
             names[i] = gui.text(Model.LANES.get(i)).width(NAMES).height(Length.rem(LANE_REM))
-                    .textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+                    .textColor(Role.DIM).textSize(Type.SMALL);
         }
         Node column = gui.column().width(NAMES).children(names);
         follow = new IconButton(gui, Icon.SKIP_NEXT, "Follow the present").name(Landmarks.FOLLOW)
@@ -247,7 +246,7 @@ final class Ui {
         Node ends = gui.column().width(Length.AUTO).height(Length.rem(LANE_REM * count)).children(above, followSlot);
         Node lanes = gui.row().width(Length.FILL).gap(Type.TIGHT).children(column, lane, ends);
 
-        readouts = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        readouts = gui.text("").width(Length.grow(1f)).textColor(Role.DIM).textSize(Type.SMALL);
         gui.landmark(Landmarks.READOUTS, readouts);
         longest = new Button[View.LONGEST.size()];
         Node[] readoutNodes = new Node[1 + longest.length];
@@ -276,7 +275,7 @@ final class Ui {
             int at = i;
             rowColumns.add(Table.Column.of(View.ROW_COLUMNS.get(i), ROW_WIDTHS.get(i), (nodes, place) -> {
                 Node text = nodes.text(place < rowTexts.size() ? rowTexts.get(place).get(at) : "")
-                        .textSize(Type.SMALL).textColor(gui.theme().color(inkOf(place)));
+                        .textSize(Type.SMALL).textColor(inkOf(place));
                 rowNodes.computeIfAbsent(place, p -> new Node[View.ROW_COLUMNS.size()])[at] = text;
                 return text;
             }));
@@ -307,7 +306,7 @@ final class Ui {
             int at = i;
             threadColumns.add(Table.Column.of(View.THREAD_COLUMNS.get(i), THREAD_WIDTHS.get(i), (nodes, place) -> {
                 Node text = nodes.text(cell(threadTexts, place, at)).textSize(Type.SMALL)
-                        .textColor(gui.theme().color(at == View.THREAD_COLUMNS.size() - 1 ? Role.DIM : Role.INK));
+                        .textColor(at == View.THREAD_COLUMNS.size() - 1 ? Role.DIM : Role.INK);
                 threadNodes.computeIfAbsent(place, p -> new Node[View.THREAD_COLUMNS.size()])[at] = text;
                 return text;
             }));
@@ -322,19 +321,19 @@ final class Ui {
         gui.landmark(Landmarks.THREADS, threads.node());
 
         warningText = gui.text("").width(Length.AUTO).textSize(Type.SMALL).wordWrap(false)
-                .textColor(gui.theme().color(Role.CAUTION));
+                .textColor(Role.CAUTION);
         gui.landmark(Landmarks.WARNING_TEXT, warningText);
         // A chip in the title bar: brass on a wash of it, as the design draws a warning.
         warning = gui.row().width(Length.AUTO).height(Length.rem(1.75f)).gap(Type.TIGHT)
                 .alignItems(AlignItems.CENTER).padding(Length.ZERO, Type.PAD).corner(Type.CHIP_CORNER)
-                .background(Color.withAlpha(gui.theme().color(Role.CAUTION), 0.06f))
-                .border(Length.dp(1), Color.withAlpha(gui.theme().color(Role.CAUTION), 0.35f))
+                .background(Role.CAUTION.alpha(0.06f))
+                .border(Length.dp(1), Role.CAUTION.alpha(0.35f))
                 .children(IconView.of(gui, Icon.CAUTION).size(Length.rem(1f)).tint(Role.CAUTION).node(),
                         warningText);
         warning.visible(false);
         gui.landmark(Landmarks.WARNING, warning);
 
-        runText = gui.text("").width(Length.AUTO).textSize(Type.SMALL).textColor(gui.theme().color(Role.DIM))
+        runText = gui.text("").width(Length.AUTO).textSize(Type.SMALL).textColor(Role.DIM)
                 .wordWrap(false);
         gui.landmark(Landmarks.RUN_TEXT, runText);
         runs = new Select<Run>(gui, Ui::runLabel).name(Landmarks.RUNS).placeholder("Choose an application");
@@ -359,10 +358,10 @@ final class Ui {
         // The first topics, as many as fit without a scrollbar; every one is in the topics window.
         flows = new Topics(gui, Landmarks.FLOWS, Landmarks.FLOWS_BODY, TOPICS_SHOWN);
         flows.node().width(Length.FILL).height(Places.fit(TOPICS_SHOWN, Topics.ROW_REM));
-        flowsWhy = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.DIM)).textSize(Type.SMALL);
+        flowsWhy = gui.text("").width(Length.FILL).textColor(Role.DIM).textSize(Type.SMALL);
         flowsWhy.visible(false);
         gui.landmark(Landmarks.FLOWS_WHY, flowsWhy);
-        flowsShown = gui.text("").width(Length.AUTO).textColor(gui.theme().color(Role.FAINT)).textSize(Type.SMALL)
+        flowsShown = gui.text("").width(Length.AUTO).textColor(Role.FAINT).textSize(Type.SMALL)
                 .wordWrap(false);
         openTopics = popOut(Landmarks.TOPICS_OPEN, "Open every topic in its own window");
         Node flowsPanel = card(head("Topics", flowsShown, openTopics.node()), flowsWhy, flows.node())
@@ -370,7 +369,7 @@ final class Ui {
         // The graph beside its flows: the same topics, drawn between the parts, the counts in the table. A well in
         // its card, a step under it, as the design sinks the graph's ground; as tall as the Topics card is.
         graph = gui.box().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, false).childMotion(false)
-                .corner(Type.CHIP_CORNER).background(gui.theme().color(Role.PAGE));
+                .corner(Type.CHIP_CORNER).background(Role.PAGE);
         gui.landmark(Landmarks.GRAPH, graph);
         // Over the graph, at its right: the button that gives it a window of its own to be looked around in.
         openGraph = new IconButton(gui, Icon.POP_OUT, "Open the graph in its own window").name(Landmarks.GRAPH_OPEN)
@@ -380,7 +379,7 @@ final class Ui {
         Node panels = gui.row().width(Length.FILL).gap(Type.GAP).alignItems(AlignItems.STRETCH)
                 .children(graphPanel, flowsPanel);
 
-        replayText = gui.text("").width(Length.FILL).textColor(gui.theme().color(Role.INK));
+        replayText = gui.text("").width(Length.FILL).textColor(Role.INK);
         gui.landmark(Landmarks.REPLAY_TEXT, replayText);
         // The first differences, as many as fit without a scrollbar; every one is in the replay window.
         replayTable = new Places(gui, Landmarks.REPLAY, Landmarks.REPLAY_BODY, View.REPLAY_COLUMNS, REPLAY_WIDTHS,
@@ -403,7 +402,7 @@ final class Ui {
         gui.landmark(Landmarks.TIMELINE, timeline);
 
         gui.root().direction(Direction.COLUMN)
-                .background(gui.theme().color(Role.PAGE))
+                .background(Role.PAGE)
                 .children(titleBar.node(), timeline, status.node());
         focus(Model.MAIN);
     }
@@ -422,7 +421,7 @@ final class Ui {
         children[0] = head;
         System.arraycopy(body, 0, children, 1, body.length);
         return gui.column().gap(Type.TIGHT).padding(Type.PAD).corner(Type.CARD_CORNER)
-                .background(gui.theme().color(Role.PANEL)).border(Length.dp(1), gui.theme().color(Look.EDGE))
+                .background(Role.PANEL).border(Length.dp(1), Look.EDGE)
                 .children(children);
     }
 
@@ -433,7 +432,7 @@ final class Ui {
     private Node head(String title, Node... tools) {
         Node[] children = new Node[1 + tools.length];
         children[0] = gui.text(title.toUpperCase(java.util.Locale.ROOT)).width(Length.grow(1f))
-                .textColor(gui.theme().color(Role.FAINT)).textSize(Type.SMALL);
+                .textColor(Role.FAINT).textSize(Type.SMALL);
         System.arraycopy(tools, 0, children, 1, tools.length);
         return gui.row().width(Length.FILL).alignItems(AlignItems.CENTER).gap(Type.TIGHT).children(children);
     }
@@ -480,8 +479,8 @@ final class Ui {
         }
         for (int i = 0; i < names.length; i++) {
             String name = Model.LANES.get(i);
-            names[i].textColor(gui.theme().color(unrecorded.contains(name) ? Role.FAINT
-                    : name.equals(focus) ? Role.INK : Role.DIM));
+            names[i].textColor(unrecorded.contains(name) ? Role.FAINT
+                    : name.equals(focus) ? Role.INK : Role.DIM);
         }
     }
 
@@ -576,7 +575,7 @@ final class Ui {
                     shown.text(now);
                 }
                 if (recolour) {
-                    shown.textColor(gui.theme().color(inkOf(place)));
+                    shown.textColor(inkOf(place));
                 }
             }
         }

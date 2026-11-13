@@ -10,10 +10,12 @@ import dev.sibarum.inspector.core.Messages.Traced;
 import dev.vexelray.framework.api.Draw;
 import dev.vexelray.framework.api.Subscribe;
 import dev.vexelray.framework.api.View;
+import dev.vexelray.framework.core.ThemeShifted;
 import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.NodeEvent;
 import dev.vexelray.gui.core.input.DragEvent;
+import dev.vexelray.gui.core.style.Role;
 import dev.vexelray.gui.draw.Picture;
 
 import java.util.List;
@@ -40,7 +42,8 @@ final class GraphView {
 
     private final GraphWindow window;
     private final Sender<PauseKey> pauseKey;
-    private final Diagram.Inks inks;
+    /** The graph's colours in the look the window is in: taken again when it shifts. */
+    private Diagram.Inks inks;
     /** The dot nodes on the stage, and the arrows they run along at the lens's zoom, before it moves them. */
     private final Dots.Pool pool;
     private Diagram.Tracks dotTracks = Diagram.Tracks.NONE;
@@ -68,7 +71,7 @@ final class GraphView {
         this.window = window;
         this.pauseKey = pauseKey;
         this.inks = Diagram.Inks.of(window.gui());
-        this.pool = new Dots.Pool(window.gui(), window.stage(), inks.name());
+        this.pool = new Dots.Pool(window.gui(), window.stage(), Role.INK);
         var gui = window.gui();
         gui.hear(window.stage(), NodeEvent.RESIZE, layout -> {
             stageW = layout.rect().w();
@@ -94,6 +97,17 @@ final class GraphView {
             }
         });
         gui.hear(window.stage(), NodeEvent.DOUBLE_CLICK, c -> look(GraphLens.FITTED, true));
+    }
+
+    /**
+     * The look the window is in, said at start and when the person chooses the other: the graph's inks are colours
+     * worked out from it (an arrow's is a blend of two), so they are taken again and the graph drawn in them. The dots
+     * are a role, and follow on their own.
+     */
+    @Subscribe
+    public void shifted(ThemeShifted look) {
+        inks = Diagram.Inks.of(window.gui());
+        look(lens, true);
     }
 
     @Subscribe

@@ -4,7 +4,7 @@ import dev.sibarum.inspector.core.Messages.Lane;
 import dev.sibarum.inspector.core.Messages.Mark;
 import dev.sibarum.inspector.core.Messages.Timeline;
 import dev.sibarum.inspector.core.Model;
-import dev.vexelray.canvas.Color;
+import dev.vexelray.gui.draw.Ink;
 import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
@@ -166,10 +166,10 @@ record Dots(List<Dot> dots, long pinnedAt) {
 
         private final Gui gui;
         private final Node parent;
-        private final Color ink;
+        private final Ink ink;
         private final List<Node> nodes = new ArrayList<>();
 
-        Pool(Gui gui, Node parent, Color ink) {
+        Pool(Gui gui, Node parent, Ink ink) {
             this.gui = gui;
             this.parent = parent;
             this.ink = ink;

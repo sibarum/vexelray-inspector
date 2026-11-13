@@ -26,9 +26,9 @@ final class DetailsList {
         values = new Node[View.DETAILS.size()];
         lines = new Node[values.length];
         for (int i = 0; i < values.length; i++) {
-            Node label = gui.text(View.DETAILS.get(i)).width(LABELS).textColor(gui.theme().color(Role.DIM))
+            Node label = gui.text(View.DETAILS.get(i)).width(LABELS).textColor(Role.DIM)
                     .textSize(Type.SMALL);
-            values[i] = gui.text("").width(Length.grow(1f)).textColor(gui.theme().color(Role.INK));
+            values[i] = gui.text("").width(Length.grow(1f)).textColor(Role.INK);
             if (marked) {
                 gui.landmark(Landmarks.detail(View.DETAILS.get(i)), values[i]);
             }

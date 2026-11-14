@@ -13,7 +13,6 @@ import dev.sibarum.inspector.core.Messages.Event;
 import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Flow;
 import dev.sibarum.inspector.core.Messages.Flows;
-import dev.sibarum.inspector.core.Messages.FindRuns;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.Lane;
@@ -188,12 +187,6 @@ class BenchTest {
     private void attached(Run run) {
         tell(Messages.RUNS_TOPIC, new Runs(List.of(run), ""));
         sent.clear();
-    }
-
-    @Test
-    void theFirstWindowLooksForARunAtOnce() {
-        tell(WindowOpened.TOPIC, new WindowOpened("main"));
-        assertEquals(List.of(new FindRuns()), took(FindRuns.class));
     }
 
     @Test

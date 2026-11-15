@@ -23,6 +23,7 @@ import dev.vexelray.gui.core.Drawn;
 import dev.vexelray.gui.core.Feed;
 import dev.vexelray.gui.core.Frame;
 import dev.vexelray.gui.core.Node;
+import dev.vexelray.gui.core.TechniqueView;
 import dev.vexelray.gui.draw.Picture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -111,6 +112,11 @@ class ViewTest {
 
         @Override
         public Drawn show(Feed feed, int slot) {
+            return this;
+        }
+
+        @Override
+        public Drawn param(TechniqueView view, int index, float value) {
             return this;
         }
     }

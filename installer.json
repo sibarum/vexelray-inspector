@@ -26,5 +26,24 @@
         "dir": "ffmpeg-record"
       }
     ]
+  },
+
+  "linux": {
+    "binaries": [
+      {
+        "name": "vexelray-inspector",
+        "appId": "dev.sibarum.vexelray-inspector",
+        "source": "vexelray-inspector-gui/target-linux/vexelray-inspector",
+        "icon": "vexelray-inspector-gui/src/main/rc/vexelray-inspector.ico",
+        "addToPath": true,
+        "shortcuts": { "desktop": true, "startMenu": true, "label": "VexelRay Inspector" }
+      },
+      {
+        "name": "vexelray-inspector-ffmpeg-record",
+        "source": "vexelray-inspector-gui/target-linux/vexelray-inspector-ffmpeg-record-linux-x86_64.tar.gz",
+        "dir": "ffmpeg-record"
+      },
+      { "name": "notices", "source": "THIRD-PARTY-NOTICES.txt" }
+    ]
   }
 }

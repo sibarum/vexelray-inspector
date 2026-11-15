@@ -5,6 +5,8 @@
   "description": "DevTools for VexelRay applications: plain panels on a timeline that can be rewound.",
   "version": "0.1.0-SNAPSHOT",
 
+  "replaces": [ { "id": "inspector", "repoPath": "apps/inspector" } ],
+
   "repo": "sibarum/vexelray-dist",
   "branch": "main",
   "repoPath": "apps/vexelray-inspector",

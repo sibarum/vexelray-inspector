@@ -23,9 +23,14 @@ import dev.vexelray.framework.automation.AutomationStarter;
  * <p>The processor generates {@code InspectorAppWiring} from this. {@code icon} is the mark the window wears: the
  * same file {@code src/main/rc/vexelray-inspector.rc} links into the executable, which the pom puts on the class path.
  * Draw your own, render it to an {@code .ico}, and replace that one file; see the README, <i>The icon</i>.
+ *
+ * <p>{@code formerNames}: 0.1.x was installed under the id {@code inspector}, and {@code installer.json}'s
+ * {@code replaces} names it so an upgrade removes that install (its PATH link is what any application's debug menu
+ * starts). The processor requires the two lists to agree. Those releases already kept their settings in
+ * {@code ~/.vexelray-inspector}, so nothing moves.
  */
 @VexelApp(name = Inspector.APP, title = Inspector.TITLE, width = Inspector.W, height = Inspector.H,
-        icon = Inspector.ICON, starters = {AutomationStarter.class, Core.class})
+        icon = Inspector.ICON, starters = {AutomationStarter.class, Core.class}, formerNames = {"inspector"})
 final class InspectorApp {
 
     private InspectorApp() {

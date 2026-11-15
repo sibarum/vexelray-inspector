@@ -318,3 +318,17 @@ window opens a moment later), and `await <window>/<landmark>` in a `--script` an
 although the guide says a target may name its window. The check drove the window with one-off `--window events`
 commands instead. An `await` that waits for the window to open, as the first window is waited for, would let one
 script do it.
+
+## FN-23 · A renamed install is removed only when the new name was not installed yet 🔬
+
+0.1.x was installed under the id `inspector`; this one is `vexelray-inspector`, so the first Linux install of it went
+beside the old one rather than over it. Both put `vexelray-inspector` on PATH and the new installer leaves a link it
+did not make alone, so the old binary stayed what `~/.local/bin/vexelray-inspector` ran, and every application's
+*Open the Inspector* (which runs that bare command) opened 0.1.x. `installer.json` now says `replaces: inspector`
+(with `@VexelApp(formerNames = "inspector")` to match), which fixes an upgrade from 0.1.x. But vexelray-installer's
+`install.sh` only looks at `replaces` when nothing is installed under its own id (`if [ "$old" = /dev/null ]`), so a
+machine that already has both keeps both: it needs `sh ~/.local/opt/inspector/uninstall.sh --id inspector --yes` and
+then the new installer run again, to put back the PATH link and desktop entry the two shared.
+
+What the installer could do: check `replaces` on every run, and remove a replaced install still recorded beside its
+own, as step 9 already does after a first install. The Windows `install.ps1` has the same condition (`if (-not $old)`).

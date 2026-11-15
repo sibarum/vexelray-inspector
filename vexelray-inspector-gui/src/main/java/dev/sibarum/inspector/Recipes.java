@@ -99,4 +99,11 @@ final class Recipes {
                 PanelWindow.H).satellite()));
     }
 
+    /** The events window: a longer stretch of events, with room to scroll and to page; the Events card's opens it. */
+    @Provides
+    EventsWindow eventsWindow(Windows windows) {
+        return new EventsWindow(windows.named(NamedWindow.of(EventsWindow.KEY, EventsWindow.TITLE, PanelWindow.W,
+                PanelWindow.H).satellite()));
+    }
+
 }

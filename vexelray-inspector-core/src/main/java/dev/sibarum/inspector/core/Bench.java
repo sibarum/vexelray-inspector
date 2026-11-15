@@ -9,6 +9,8 @@ import dev.sibarum.inspector.core.Messages.Detach;
 import dev.sibarum.inspector.core.Messages.Detached;
 import dev.sibarum.inspector.core.Messages.Details;
 import dev.sibarum.inspector.core.Messages.Event;
+import dev.sibarum.inspector.core.Messages.EventSlice;
+import dev.sibarum.inspector.core.Messages.PageEvents;
 import dev.sibarum.inspector.core.Messages.ExportFrame;
 import dev.sibarum.inspector.core.Messages.Exported;
 import dev.sibarum.inspector.core.Messages.WriteExport;
@@ -93,10 +95,11 @@ import java.util.Optional;
 @Component
 @Hears({WindowOpened.class, Runs.class, Rows.class, Detached.class, ChildExited.class, Choose.class, Leave.class,
         Pause.class, Follow.class, Step.class, StepEvent.class, GoTo.class, Seek.class, StepRow.class, GoToRow.class,
-        GoToTick.class, SelectRange.class, ClearRange.class, ExportFrame.class, Picked.class, Exported.class})
+        GoToTick.class, SelectRange.class, ClearRange.class, ExportFrame.class, Picked.class, Exported.class,
+        PageEvents.class})
 @Publishes({FindRuns.class, Attach.class, Detach.class, Replay.class, LaunchChild.class, Timeline.class, Readouts.class,
-        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, LedgerAt.class, PickFile.class,
-        WriteExport.class, Paused.class})
+        Details.class, RunPanel.class, Flows.class, Traced.class, RowsAround.class, EventSlice.class, LedgerAt.class,
+        PickFile.class, WriteExport.class, Paused.class})
 public final class Bench {
 
     /** How often the timer asks which runs there are. */
@@ -327,10 +330,20 @@ public final class Bench {
      * @param row      the row the cursor is on, after a step by rows or a click on one; then it is on no event
      * @param gone     which run went away last, and why, kept to say beside "no application" until another is attached
      * @param pick     how the run was reached, whether it was chosen, and what else could be inspected
+     * @param browse   the row the events window was paged to, which its stretch holds around; empty while it follows
+     *                 the cursor, as it does again whenever the cursor moves
      */
     public record State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape,
                         long first, boolean paused, long cursor, Island island, Optional<Event> on, Optional<Row> row,
-                        String gone, Pick pick) {
+                        String gone, Pick pick, Optional<Row> browse) {
+
+        /** The events window following the cursor. */
+        State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape, long first,
+              boolean paused, long cursor, Island island, Optional<Event> on, Optional<Row> row, String gone,
+              Pick pick) {
+            this(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, row, gone, pick,
+                    Optional.empty());
+        }
 
         /** On no row. */
         State(String run, String title, String status, boolean arriving, Model now, Model kept, Tape tape, long first,
@@ -355,7 +368,7 @@ public final class Bench {
 
         State withPick(Pick pick) {
             return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, row,
-                    gone, pick);
+                    gone, pick, browse);
         }
 
         /** The timeline: every event kept, the cursor at the right edge while paused, the newest row while following. */
@@ -446,6 +459,37 @@ public final class Bench {
         }
 
         /**
+         * The events window's stretch: {@link EventSlice#SLICE} rows around the row it was paged to, or else around
+         * the cursor as {@code card}, the rows panel, is; the cursor's row marked where it is among them. Whether there
+         * is more either side is said against the first and last rows to arrive, which a late thread's row can be out
+         * of order with, rather than by reading the tape: this is said on every batch while following.
+         */
+        EventSlice eventSlice(RowsAround card) {
+            Tape on = paused ? island.tape() : tape;
+            if (on.isEmpty()) {
+                return new EventSlice(new RowsAround(run, List.of(), -1), -1L, browse.isEmpty(), paused, false, false);
+            }
+            RowsAround around = browse.isPresent() ? on.around(run, browse.get(), EventSlice.SLICE)
+                    : paused ? on.around(run, row.orElse(Tape.key(cursor)), EventSlice.SLICE)
+                    : on.newest(run, EventSlice.SLICE);
+            List<Row> rows = around.rows();
+            Row cursorRow = card.selected() < 0 ? null : card.rows().get(card.selected());
+            int selected = cursorRow == null ? -1 : rows.indexOf(cursorRow);
+            Row oldest = on.arrived(false);
+            Row newest = on.arrived(true);
+            boolean earlier = !rows.isEmpty() && oldest != null && Tape.ORDER.compare(oldest, rows.getFirst()) < 0;
+            boolean later = !rows.isEmpty() && newest != null && Tape.ORDER.compare(newest, rows.getLast()) > 0;
+            return new EventSlice(new RowsAround(run, rows, selected), cursorRow == null ? -1L : cursorRow.atNanos(),
+                    browse.isEmpty(), paused, earlier, later);
+        }
+
+        /** This state with the events window paged to {@code to}, or following the cursor when empty. */
+        State withBrowse(Optional<Row> to) {
+            return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, row,
+                    gone, pick, to);
+        }
+
+        /**
          * The ledger of each clock's turn the cursor is in; following, of the newest whole turns; over a stretch
          * selected, of each clock's whole turns inside it, summed, wherever the cursor is.
          */
@@ -480,7 +524,7 @@ public final class Bench {
 
         State withStatus(String status) {
             return new State(run, title, status, arriving, now, kept, tape, first, paused, cursor, island, on, row,
-                    gone, pick);
+                    gone, pick, browse);
         }
 
         State following(String status) {
@@ -530,6 +574,7 @@ public final class Bench {
                 .on(Messages.STEP_ROW_TOPIC, b.step("step row", Bench::stepRow))
                 .on(Messages.GO_TO_ROW_TOPIC, b.step("go to row", Bench::goToRow))
                 .on(Messages.GO_TO_TICK_TOPIC, b.step("go to tick", Bench::goToTick))
+                .on(Messages.PAGE_EVENTS_TOPIC, b.step("page events", Bench::pageEvents))
                 .on(Messages.SEEK_TOPIC, b.step("seek", Bench::seek))
                 .on(Messages.SELECT_RANGE_TOPIC, b.step("select range", Bench::selectRange))
                 .on(Messages.CLEAR_RANGE_TOPIC, b.step("clear range", Bench::clearRange))
@@ -585,7 +630,7 @@ public final class Bench {
             return s.withPick(s.pick().ended());
         }
         return say(new State("", "", ended, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
-                s.island(), s.on(), s.row(), ended, s.pick().ended()), out);
+                s.island(), s.on(), s.row(), ended, s.pick().ended(), s.browse()), out);
     }
 
     /**
@@ -653,7 +698,7 @@ public final class Bench {
         out.send(Messages.DETACH_TOPIC, new Detach(s.run()));
         String gone = "Detached from " + named(s.title(), s.run());
         return say(new State("", "", gone, false, s.now(), s.kept(), s.tape(), s.first(), s.paused(), s.cursor(),
-                s.island(), s.on(), s.row(), gone, s.pick().choose()), out);
+                s.island(), s.on(), s.row(), gone, s.pick().choose(), s.browse()), out);
     }
 
     /** Attach to {@code run}, reached {@code from}, and let the last run's tape go. */
@@ -681,7 +726,7 @@ public final class Bench {
         long first = s.tape().isEmpty() && !batch.rows().isEmpty() ? batch.rows().getFirst().atNanos() : s.first();
         if (s.paused()) {
             State next = new State(s.run(), s.title(), s.status(), true, now, kept, tape, first, true, s.cursor(),
-                    s.island().late(batch.rows()), s.on(), s.row(), "", s.pick());
+                    s.island().late(batch.rows()), s.on(), s.row(), "", s.pick(), s.browse());
             for (Row r : batch.rows()) {
                 if (r.atNanos() <= s.cursor()) {
                     return say(next, out);
@@ -692,7 +737,7 @@ public final class Bench {
         String status = (batch.lostTo() > 0 ? "Lost rows " + batch.lostFrom() + ".." + batch.lostTo() + " of "
                 : "Inspecting ") + named(s.title(), s.run());
         return say(new State(s.run(), s.title(), status, true, now, kept, tape, first, false, 0L, Island.NONE,
-                Optional.empty(), "", s.pick()), out);
+                Optional.empty(), Optional.empty(), "", s.pick(), s.browse()), out);
     }
 
     /**
@@ -706,7 +751,7 @@ public final class Bench {
         String gone = named(s.title(), s.run()) + ": " + d.why();
         Model kept = d.warning().isEmpty() ? s.kept() : s.kept().withWarning(d.warning());
         return say(new State("", "", gone, false, s.now(), kept, s.tape(), s.first(), s.paused(), s.cursor(),
-                s.island(), s.on(), s.row(), gone, s.pick()), out);
+                s.island(), s.on(), s.row(), gone, s.pick(), s.browse()), out);
     }
 
     /** Space: following, stop where the view's lane comes to rest; paused, follow the present again. */
@@ -1034,9 +1079,41 @@ public final class Bench {
         List<Model.Hop> hops = s.hops();
         out.send(Messages.DETAILS_TOPIC, s.details(hops));
         out.send(Messages.TRACED_TOPIC, s.traced(hops));
-        out.send(Messages.ROWS_AROUND_TOPIC, s.rowsAround());
+        RowsAround card = s.rowsAround();
+        out.send(Messages.ROWS_AROUND_TOPIC, card);
+        // Paged away while recording follows the present, the window's stretch holds still: nothing to say again.
+        if (s.paused() || s.browse().isEmpty()) {
+            out.send(Messages.EVENT_SLICE_TOPIC, s.eventSlice(card));
+        }
         out.send(Messages.LEDGER_TOPIC, s.ledger());
         return panel(s, out);
+    }
+
+    /**
+     * The events window's Earlier or Later: its stretch half a stretch back or on, held there, by paging to its first
+     * or last row; Later onto the newest rows while following the present follows them again, and {@code by} 0 follows
+     * the cursor at once. Nothing at an end there is no more past.
+     */
+    static State pageEvents(State s, PageEvents p, Out out) {
+        if (p.by() == 0) {
+            return s.browse().isEmpty() ? s : slice(s.withBrowse(Optional.empty()), out);
+        }
+        EventSlice was = s.eventSlice(s.rowsAround());
+        List<Row> rows = was.rows().rows();
+        if (rows.isEmpty() || (p.by() < 0 ? !was.earlier() : !was.later())) {
+            return s;
+        }
+        State next = s.withBrowse(Optional.of(p.by() < 0 ? rows.getFirst() : rows.getLast()));
+        if (p.by() > 0 && !s.paused() && !next.eventSlice(next.rowsAround()).later()) {
+            next = s.withBrowse(Optional.empty());
+        }
+        return slice(next, out);
+    }
+
+    /** Tell the events window its stretch. */
+    private static State slice(State s, Out out) {
+        out.send(Messages.EVENT_SLICE_TOPIC, s.eventSlice(s.rowsAround()));
+        return s;
     }
 
     /** Tell the view the run panel. */

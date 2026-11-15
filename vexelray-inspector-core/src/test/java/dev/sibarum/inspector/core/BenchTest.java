@@ -98,7 +98,7 @@ class BenchTest {
         for (Topic<?> t : List.of(Messages.FIND_RUNS_TOPIC, Messages.ATTACH_TOPIC, Messages.DETACH_TOPIC,
                 Messages.TIMELINE_TOPIC, Messages.READOUTS_TOPIC, Messages.DETAILS_TOPIC, Messages.RUN_PANEL_TOPIC,
                 Messages.REPLAY_TOPIC, Messages.LAUNCH_CHILD_TOPIC, Messages.FLOWS_TOPIC, Messages.ROWS_AROUND_TOPIC,
-                Messages.LEDGER_TOPIC, Messages.PAUSED_TOPIC)) {
+                Messages.LEDGER_TOPIC, Messages.PAUSED_TOPIC, Messages.EVENT_SLICE_TOPIC)) {
             listen(heard, t);
         }
     }
@@ -1376,6 +1376,78 @@ class BenchTest {
         tell(Messages.STEP_EVENT_TOPIC, new StepEvent(Model.MAIN, -1, 0L));
         assertEquals(Optional.empty(), sentDetails().row(), "an arrow steps the lane from the row, onto an event");
         assertEquals(on(span(200 * MS)), timeline().on());
+    }
+
+    /** The rows {@code from} to {@code to}, a millisecond apart, each its own sequence. */
+    private static List<Row> passes(int from, int to) {
+        List<Row> rows = new ArrayList<>();
+        for (int i = from; i <= to; i++) {
+            rows.add(pass(i, i * MS, "1ms"));
+        }
+        return rows;
+    }
+
+    /** The last stretch the events window was told; everything sent so far is forgotten. */
+    private Messages.EventSlice slice() {
+        return took(Messages.EventSlice.class).getLast();
+    }
+
+    @Test
+    void theEventsWindowFollowsTheNewestThenPagesBackAndOnAndFollowsAgain() {
+        attached(ONE);
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, passes(1, 500)));
+        Messages.EventSlice s = slice();
+        assertEquals(passes(301, 500), s.rows().rows(), "following the present: the newest stretch");
+        assertEquals(199, s.rows().selected(), "the cursor's, the newest row, marked");
+        assertTrue(s.following() && s.earlier() && !s.later() && !s.paused());
+
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(-1));
+        s = slice();
+        assertEquals(passes(202, 401), s.rows().rows(), "half a stretch back, around the first row it showed");
+        assertEquals(-1, s.rows().selected(), "the cursor's row is not among them");
+        assertEquals(500 * MS, s.cursor(), "but the times still count from it");
+        assertTrue(!s.following() && s.earlier() && s.later());
+
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, passes(501, 510)));
+        assertEquals(List.of(), took(Messages.EventSlice.class), "held while rows arrive: nothing said again");
+
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(1));
+        s = slice();
+        assertEquals(passes(302, 501), s.rows().rows(), "half a stretch on");
+        assertFalse(s.following());
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(1));
+        s = slice();
+        assertEquals(passes(311, 510), s.rows().rows(), "on to the newest: following the present again");
+        assertTrue(s.following());
+
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(0));
+        assertEquals(List.of(), took(Messages.EventSlice.class), "already following: nothing to do");
+    }
+
+    @Test
+    void theEventsWindowHeldWhilePausedFollowsTheCursorAgainWhenItMoves() {
+        attached(ONE);
+        tell(Messages.ROWS_TOPIC, new Rows(ONE.name(), 0, 0, passes(1, 500)));
+        Row at = pass(250, 250 * MS, "1ms");
+        tell(Messages.GO_TO_ROW_TOPIC, new Messages.GoToRow(at));
+        Messages.EventSlice s = slice();
+        assertTrue(s.paused() && s.following());
+        assertEquals(at, s.rows().rows().get(s.rows().selected()), "around the cursor's row, marked");
+
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(-1));
+        assertFalse(slice().following());
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(0));
+        s = slice();
+        assertTrue(s.following(), "Back to the cursor");
+        assertEquals(at, s.rows().rows().get(s.rows().selected()));
+
+        tell(Messages.PAGE_EVENTS_TOPIC, new Messages.PageEvents(-1));
+        assertFalse(slice().following());
+        Row other = pass(400, 400 * MS, "1ms");
+        tell(Messages.GO_TO_ROW_TOPIC, new Messages.GoToRow(other));
+        s = slice();
+        assertTrue(s.following(), "a move of the cursor brings the stretch back to it");
+        assertEquals(other, s.rows().rows().get(s.rows().selected()));
     }
 
     @Test

@@ -209,7 +209,9 @@ class ViewTest {
         assertTrue(wiring.cursorWindow() != null && wiring.cursorView() != null);
         assertTrue(wiring.topicsWindow() != null && wiring.topicsView() != null);
         assertTrue(wiring.replayWindow() != null && wiring.replayView() != null);
+        assertTrue(wiring.eventsWindow() != null && wiring.eventsView() != null);
         Ui ui = wiring.ui();
+        assertEquals(java.util.Optional.of(EventsWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.EVENTS_OPEN)));
         assertEquals(java.util.Optional.of(CursorWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.CURSOR_OPEN)));
         assertEquals(java.util.Optional.of(TopicsWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.TOPICS_OPEN)));
         assertEquals(java.util.Optional.of(ReplayWindow.KEY), ui.popOutWindow(ui.popOutAddress(Landmarks.REPLAY_OPEN)));
@@ -258,6 +260,22 @@ class ViewTest {
         eventually("the rows shown", () -> wiring.ui().rowCells(2).equals(View.rowCells(r).get(2)));
         assertEquals(Look.CURSOR, wiring.ui().rowInk(1));
         assertEquals(List.of(), wiring.ui().rowCells(3), "a place past them blank");
+    }
+
+    @Test
+    void theEventsWindowCountsFromTheCursorWhereverItIsAndSaysWhereItIsHeld() throws InterruptedException {
+        Messages.Row press = new Messages.Row(7, 1_000_000L, 0L, 3L, "main", "input", "press", "LEFT", "c1.i01.1");
+        Messages.Row tick = new Messages.Row(8, 1_400_000L, 0L, 3L, "vexel-logic", "bus", "tick", "0.2ms", "");
+        Messages.RowsAround held = new Messages.RowsAround("run", List.of(press, tick), -1);
+        Messages.EventSlice s = new Messages.EventSlice(held, 2_500_000L, false, true, true, true);
+        assertEquals(List.of(List.of("-1.500 ms", "main", "input", "press", "LEFT", "c1.i01.1"),
+                List.of("-1.100 ms", "vexel-logic", "bus", "tick", "0.2ms", "")), View.eventCells(s),
+                "the cursor's row is not among them, and the times count from it all the same");
+        assertEquals("2 events held, -1.500 to -1.100 ms from the cursor", View.eventsNote(s));
+        assertEquals("2 events around the cursor",
+                View.eventsNote(new Messages.EventSlice(held, 2_500_000L, true, true, false, false)));
+        shell.bus().publish(Messages.EVENT_SLICE_TOPIC, s);
+        eventually("the stretch shown", () -> wiring.eventsWindow().places().cells(1).equals(View.eventCells(s).get(1)));
     }
 
     @Test

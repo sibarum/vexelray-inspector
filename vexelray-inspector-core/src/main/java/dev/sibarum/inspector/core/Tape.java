@@ -348,6 +348,17 @@ public record Tape(List<Second> seconds) {
         }
     }
 
+    /** The last row to arrive, or the first when not {@code last}; null when none has. */
+    Row arrived(boolean last) {
+        for (int i = 0; i < seconds.size(); i++) {
+            List<Row> rows = seconds.get(last ? seconds.size() - 1 - i : i).rows();
+            if (!rows.isEmpty()) {
+                return last ? rows.getLast() : rows.getFirst();
+            }
+        }
+        return null;
+    }
+
     /** The second {@code atNanos} is in, the newest that begins by then; null when the tape begins after it. */
     Second secondAt(long atNanos) {
         Second at = null;

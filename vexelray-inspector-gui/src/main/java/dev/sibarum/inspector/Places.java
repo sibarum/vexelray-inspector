@@ -29,6 +29,10 @@ final class Places {
     private List<List<String>> texts = List.of();
     /** Each realized cell's text, by place and column. */
     private final Map<Integer, Node[]> nodes = new HashMap<>();
+    /** Each column's ink. */
+    private final IntFunction<Role> ink;
+    /** Each place's ink over its whole row, as {@link #inks} last set them; a place past them takes its column's. */
+    private List<Role> rowInks = List.of();
 
     /**
      * {@code places} places under {@code columns}, as wide as {@code widths}, each column's text in the ink
@@ -38,12 +42,13 @@ final class Places {
            IntFunction<Role> ink) {
         this.gui = gui;
         this.columns = columns;
+        this.ink = ink;
         List<Table.Column<Integer>> built = new ArrayList<>();
         for (int i = 0; i < columns.size(); i++) {
             int at = i;
             built.add(Table.Column.of(columns.get(i), widths.get(i), (cells, place) -> {
                 Node text = cells.text(cell(texts, place, at)).textSize(Type.SMALL)
-                        .textColor(ink.apply(at));
+                        .textColor(inkOf(rowInks, place, at));
                 nodes.computeIfAbsent(place, p -> new Node[columns.size()])[at] = text;
                 return text;
             }));
@@ -86,6 +91,27 @@ final class Places {
                 }
             }
         }
+    }
+
+    /**
+     * Each place's ink over its whole row, as {@code inks} gives it, as the rows panel colours the cursor's row and the
+     * path's; a place past them takes its column's ink. Changes only the cells whose ink differs.
+     */
+    void inks(List<Role> inks) {
+        List<Role> was = rowInks;
+        rowInks = List.copyOf(inks);
+        for (Map.Entry<Integer, Node[]> e : nodes.entrySet()) {
+            for (int i = 0; i < e.getValue().length; i++) {
+                Role now = inkOf(rowInks, e.getKey(), i);
+                if (e.getValue()[i] != null && !now.equals(inkOf(was, e.getKey(), i))) {
+                    e.getValue()[i].textColor(now);
+                }
+            }
+        }
+    }
+
+    private Role inkOf(List<Role> inks, int place, int column) {
+        return place < inks.size() ? inks.get(place) : ink.apply(column);
     }
 
     /** What {@code place} last said, a cell a column: empty when it is blank. */

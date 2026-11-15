@@ -10,7 +10,7 @@ import dev.vexelray.gui.core.style.Role;
 /**
  * What the satellite windows a card pops out into have in common: the window's title bar with its pause button, then
  * what the card shows, with the whole window to grow and scroll in. The dashboard has one scrollbar, its own, so a card
- * whose contents would scroll shows what fits and opens the rest here ({@link CursorWindow}, {@link TopicsWindow},
+ * whose contents would scroll shows what fits and opens the rest here ({@link CursorWindow}, {@link TopicsWindow}, {@link EventsWindow},
  * {@link ReplayWindow}; the graph's, {@link GraphWindow}, is the precedent).
  */
 final class PanelWindow {

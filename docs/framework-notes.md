@@ -301,3 +301,20 @@ in the title bar with the buttons at the right. Three things stood in the way, e
   its end. The run panel puts its words last so the buttons are never what is cut. `WindowInstrument`'s javadoc says
   why the bar's right is not the application's, so the fix is not there: a leading child that can take a share of
   the slack (a grow with a floor, ellipsizing its text) would do it.
+
+## FN-22 · A list does not say when it is scrolled to an end, so it cannot load more there 🔬
+
+The Events window was to page through the whole recording by scrolling: reaching the top or the bottom of its 200 rows
+would load the stretch before or after. `ListView` says a click, a selection, an activation, a drop and a menu choice
+as messages, and nothing about its scroll. The range exists (`ScrollAxes`, a `State<ScrollRange>` read off the
+layout), but only as a state on the GUI thread to watch, not as a message a `@View` hears, and a view that watched it
+would be code of its own running at a scroll. So the window pages with Earlier and Later buttons above the list
+instead, each moving the stretch by half of it. Every application with a long log, a chat or a feed will want the
+same: a list could publish an addressed `Reached(list, end)` edge message when its view first touches either end, as
+it publishes `Clicked`.
+
+Found beside it: `ottermate window <name>` right after the `click` that opens a satellite answers "no window" (the
+window opens a moment later), and `await <window>/<landmark>` in a `--script` answers "this driver is window 'main'",
+although the guide says a target may name its window. The check drove the window with one-off `--window events`
+commands instead. An `await` that waits for the window to open, as the first window is waited for, would let one
+script do it.

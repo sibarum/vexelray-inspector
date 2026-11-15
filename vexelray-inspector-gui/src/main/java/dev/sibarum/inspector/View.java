@@ -23,6 +23,7 @@ import dev.sibarum.inspector.core.Messages.Field;
 import dev.sibarum.inspector.core.Messages.Flow;
 import dev.sibarum.inspector.core.Messages.Flows;
 import dev.sibarum.inspector.core.Messages.Event;
+import dev.sibarum.inspector.core.Messages.EventSlice;
 import dev.sibarum.inspector.core.Messages.Follow;
 import dev.sibarum.inspector.core.Messages.GoTo;
 import dev.sibarum.inspector.core.Messages.GoToRow;
@@ -1505,6 +1506,39 @@ final class View {
             inks.add(i == r.selected() ? Look.CURSOR : t.has(r.rows().get(i)) ? Ui.PATH : Role.INK);
         }
         return inks;
+    }
+
+    /**
+     * What the events window says, a row a place, in the rows panel's columns: as the panel does, but its times count
+     * from the cursor's row wherever it is, since a stretch paged away from the cursor does not hold it. Pure, for a test.
+     */
+    static List<List<String>> eventCells(EventSlice s) {
+        RowsAround r = s.rows();
+        List<List<String>> cells = new ArrayList<>(r.rows().size());
+        for (int i = 0; i < r.rows().size(); i++) {
+            Row row = r.rows().get(i);
+            String when = i == r.selected() ? "the cursor's" : s.cursor() < 0 ? ""
+                    : String.format(Locale.ROOT, "%+.3f ms", (row.atNanos() - s.cursor()) / 1e6);
+            cells.add(List.of(when, row.thread(), row.lane(), row.kind(), row.detail(), row.cause()));
+        }
+        return cells;
+    }
+
+    /** What the events window's bar says of its stretch: what it follows, or how far from the cursor it is held. */
+    static String eventsNote(EventSlice s) {
+        List<Row> rows = s.rows().rows();
+        if (rows.isEmpty()) {
+            return "No events kept";
+        }
+        String count = rows.size() + " events";
+        if (s.following()) {
+            return count + (s.paused() ? " around the cursor" : ", the newest, following the present");
+        }
+        if (s.cursor() < 0) {
+            return count + ", held where they were paged to";
+        }
+        return String.format(Locale.ROOT, "%s held, %+.3f to %+.3f ms from the cursor", count,
+                (rows.getFirst().atNanos() - s.cursor()) / 1e6, (rows.getLast().atNanos() - s.cursor()) / 1e6);
     }
 
     /** The threads panel's columns, in order. */

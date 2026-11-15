@@ -598,6 +598,39 @@ public final class Messages {
     }
 
     /**
+     * The events window: a longer stretch of the rows than the card's, {@link #SLICE} of them. Following the cursor, the
+     * stretch around it as the card's is (the newest rows while recording follows the present); paged away from it, the
+     * stretch around the row it was paged to, which stays where it is as rows arrive. A state topic, as the rows are.
+     *
+     * @param rows      the stretch, its {@code selected} the cursor's row when it is among them, -1 when not
+     * @param cursor    when the cursor's row was written, which the stretch's times count from wherever it is; -1
+     *                  when there is no row
+     * @param following whether the stretch follows the cursor, rather than holding where it was paged to
+     * @param paused    whether the cursor is stopped, rather than following the present
+     * @param earlier   whether there are rows kept before the stretch
+     * @param later     whether there are rows kept after it
+     */
+    public static final Topic<EventSlice> EVENT_SLICE_TOPIC = Topic.state(EventSlice.class);
+
+    public record EventSlice(RowsAround rows, long cursor, boolean following, boolean paused, boolean earlier,
+                             boolean later) {
+
+        /** How many rows the window's stretch holds. */
+        public static final int SLICE = 200;
+
+        public static final EventSlice NONE = new EventSlice(RowsAround.NONE, -1L, true, false, false, false);
+    }
+
+    /**
+     * The events window's Earlier or Later ({@code by} -1 or 1): move its stretch half a stretch back or on, to hold
+     * there; Later at the newest end follows the cursor again. {@code by} 0 follows the cursor again at once.
+     */
+    public static final Topic<PageEvents> PAGE_EVENTS_TOPIC = Topic.edge(PageEvents.class);
+
+    public record PageEvents(int by) {
+    }
+
+    /**
      * The ledger as of the cursor, for the threads panel (design.md section 5): an account a clock, each of the turn of
      * that clock the cursor is in, cut into working, waiting, resting and unaccounted by the rows. A state topic, as
      * the details are.

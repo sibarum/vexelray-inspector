@@ -96,6 +96,20 @@ final class Landmarks {
     static final String REPLAY_WINDOW = "replay.window";
     static final String REPLAY_WINDOW_BODY = "replay.window.body";
 
+    /** On the Events card: opens the events window, a longer stretch of them with room to scroll. */
+    static final String EVENTS_OPEN = "events.open";
+
+    /**
+     * In the events window: where its stretch is, its Earlier, Later and Back to the cursor buttons, its table, and
+     * the table's body.
+     */
+    static final String EVENTS_WINDOW_TEXT = "events.window.text";
+    static final String EVENTS_EARLIER = "events.earlier";
+    static final String EVENTS_LATER = "events.later";
+    static final String EVENTS_FOLLOW = "events.follow";
+    static final String EVENTS_WINDOW = "events.window";
+    static final String EVENTS_WINDOW_BODY = "events.window.body";
+
     /** The timeline: its lanes, the present at their right edge. */
     static final String TIMELINE = "timeline";
 

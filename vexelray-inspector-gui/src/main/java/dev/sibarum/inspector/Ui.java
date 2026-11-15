@@ -129,7 +129,7 @@ final class Ui {
     private static final float ROW_REM = 1.25f;
 
     /** The rows panel's column widths, in {@link View#ROW_COLUMNS}' order: the detail takes what is left. */
-    private static final List<Length> ROW_WIDTHS = List.of(Length.rem(7.5f), Length.rem(8f), Length.rem(5f),
+    static final List<Length> ROW_WIDTHS = List.of(Length.rem(7.5f), Length.rem(8f), Length.rem(5f),
             Length.rem(8f), Length.grow(1f), Length.rem(9f));
 
     /** The threads panel's column widths, in {@link View#THREAD_COLUMNS}' order: the note takes what is left. */
@@ -192,6 +192,7 @@ final class Ui {
     private final IconButton openCursor;
     private final IconButton openTopics;
     private final IconButton openReplay;
+    private final IconButton openEvents;
     private final Table<Integer> rows;
     /** What each of the rows panel's places says, a cell a column, and in what ink, as {@link #rows} last set them. */
     private List<List<String>> rowTexts = List.of();
@@ -294,12 +295,13 @@ final class Ui {
         // Never focused, as the follow button is not (FN-11).
         gui.focusable(exportFrame.node(), false);
         gui.landmark(Landmarks.EXPORT, exportFrame.node());
+        openEvents = popOut(Landmarks.EVENTS_OPEN, "Open a longer stretch of events in its own window");
         // The rows beside the details: the cursor's moment as the rows said it, and as the event it is on. The Events
         // card is as tall as its rows, and the Cursor card is stretched to it.
         Node cursorPanels = gui.row().width(Length.FILL).gap(Type.GAP).alignItems(AlignItems.STRETCH)
                 .children(card(head("Cursor", exportFrame.node(), openCursor.node()), detailsPanel)
                                 .width(Length.grow(1f)),
-                        card("Events", rows.node()).width(Length.grow(2f)));
+                        card(head("Events", openEvents.node()), rows.node()).width(Length.grow(2f)));
 
         List<Table.Column<Integer>> threadColumns = new ArrayList<>();
         for (int i = 0; i < View.THREAD_COLUMNS.size(); i++) {
@@ -772,13 +774,15 @@ final class Ui {
     Optional<String> popOutWindow(String address) {
         return address.equals(openCursor.address()) ? Optional.of(CursorWindow.KEY)
                 : address.equals(openTopics.address()) ? Optional.of(TopicsWindow.KEY)
-                : address.equals(openReplay.address()) ? Optional.of(ReplayWindow.KEY) : Optional.empty();
+                : address.equals(openReplay.address()) ? Optional.of(ReplayWindow.KEY)
+                : address.equals(openEvents.address()) ? Optional.of(EventsWindow.KEY) : Optional.empty();
     }
 
     /** The address the pop-out button with {@code landmark} presses with, for a test. */
     String popOutAddress(String landmark) {
         return landmark.equals(Landmarks.CURSOR_OPEN) ? openCursor.address()
-                : landmark.equals(Landmarks.TOPICS_OPEN) ? openTopics.address() : openReplay.address();
+                : landmark.equals(Landmarks.TOPICS_OPEN) ? openTopics.address()
+                : landmark.equals(Landmarks.EVENTS_OPEN) ? openEvents.address() : openReplay.address();
     }
 
     /** A card's pop-out button, at its heading's right: opens what the card shows in a window, with room to scroll. */

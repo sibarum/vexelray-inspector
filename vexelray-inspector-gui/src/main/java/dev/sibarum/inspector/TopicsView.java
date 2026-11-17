@@ -10,6 +10,7 @@ import dev.sibarum.inspector.core.Messages.Traced;
 import dev.vexelray.framework.api.Subscribe;
 import dev.vexelray.framework.api.View;
 import dev.vexelray.gui.widget.ListView;
+import dev.vexelray.gui.widget.Table;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,6 +55,14 @@ final class TopicsView {
     public void chosen(ListView.Chosen c) {
         if (c.action().equals(Landmarks.COPY) && c.at().equals(window.topics().address())) {
             window.topics().copied().ifPresent(csv -> window.gui().clipboard().set(csv));
+        }
+    }
+
+    /** A header of this window's table clicked: every topic in the order it now asks. */
+    @Subscribe
+    public void sorted(Table.Sorted s) {
+        if (s.table().equals(window.topics().table().address())) {
+            window.topics().sorted();
         }
     }
 

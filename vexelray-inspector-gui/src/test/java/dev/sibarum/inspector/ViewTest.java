@@ -34,6 +34,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import dev.vexelray.gui.core.style.Role;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 
@@ -202,6 +203,48 @@ class ViewTest {
         eventually("the window holds every topic", () -> wiring.topicsWindow().topics().count() == more
                 && Integer.toString(more - 1).equals(wiring.topicsWindow().topics().cells(last).get(4)));
         assertEquals("", Ui.shownOf(Ui.TOPICS_SHOWN, Ui.TOPICS_SHOWN), "a card showing everything says nothing");
+    }
+
+    @Test
+    void theTopicsCardSortedByWrittenShowsTheBusiestOfEveryTopicFirst() throws InterruptedException {
+        int more = Ui.TOPICS_SHOWN + 2;
+        List<Messages.Flow> flows = new java.util.ArrayList<>();
+        for (int i = 0; i < more; i++) {
+            flows.add(new Messages.Flow("dev.example.T" + i, "edge", List.of(), List.of(), i * 10L, i, 0.0));
+        }
+        shell.bus().publish(Messages.FLOWS_TOPIC, new Messages.Flows("run", "", List.of(), flows));
+        eventually("the first topics shown in the order given",
+                () -> wiring.ui().flowsShownTopics().size() == Ui.TOPICS_SHOWN
+                        && wiring.ui().flowsShownTopics().getFirst().equals("dev.example.T0"));
+        // As a click on the Written header twice: the table says so on Table.SORTED, and the view hears it.
+        wiring.ui().flowsTable().sortBy(4, dev.vexelray.gui.widget.Table.Sort.DESCENDING);
+        String busiest = "dev.example.T" + (more - 1);
+        eventually("the busiest of every topic first, though it was past those shown",
+                () -> wiring.ui().flowsShownTopics().getFirst().equals(busiest));
+        assertEquals(Ui.TOPICS_SHOWN, wiring.ui().flowsShownTopics().size());
+        // The counts move one past the rest: it comes to the top without another click.
+        flows.set(3, new Messages.Flow("dev.example.T3", "edge", List.of(), List.of(), 1_000L, 3, 0.0));
+        shell.bus().publish(Messages.FLOWS_TOPIC, new Messages.Flows("run", "", List.of(), flows));
+        eventually("re-ordered as its count passed the others",
+                () -> wiring.ui().flowsShownTopics().getFirst().equals("dev.example.T3"));
+    }
+
+    @Test
+    void aTopicsOrderComparesCountsAsNumbersAndBlanksUnderThem() {
+        Map<String, List<String>> cells = Map.of(
+                "a", List.of("A", "edge", "", "", "9", "", ""),
+                "b", List.of("b", "edge", "", "", "10", "3", ""),
+                "c", List.of("C", "state", "", "", "200", "1", ""));
+        List<String> topics = List.of("a", "b", "c");
+        assertEquals(List.of("c", "b", "a"),
+                Topics.ordered(topics, cells, 4, dev.vexelray.gui.widget.Table.Sort.DESCENDING, 10),
+                "200 over 10 over 9, not as text");
+        assertEquals(List.of("a", "c", "b"),
+                Topics.ordered(topics, cells, 5, dev.vexelray.gui.widget.Table.Sort.ASCENDING, 10),
+                "nothing counted under every count");
+        assertEquals(List.of("a", "b"), Topics.ordered(topics, cells, 0,
+                dev.vexelray.gui.widget.Table.Sort.ASCENDING, 2), "names case aside, then cut to the limit");
+        assertEquals(topics, Topics.ordered(topics, cells, -1, dev.vexelray.gui.widget.Table.Sort.NONE, 10));
     }
 
     @Test

@@ -172,6 +172,13 @@ final class Look {
      */
     static final Role PATH = p -> p.equals(LIGHT_PALETTE) ? LIGHT_PATH : DARK_PATH;
 
+    /**
+     * A draw held for the GPU, on the lanes: the GPU being slow, a frame the run could not show when it was ready. It was
+     * the caution colour, which this palette makes the cursor's brass, so a held draw read as where the person is
+     * looking; the danger's red is its own hue, and as strong.
+     */
+    static final Role HELD_FOR_GPU = Role.DANGER;
+
     private Look() {
     }
 }

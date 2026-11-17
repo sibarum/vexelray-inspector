@@ -35,6 +35,14 @@ final class Keys {
         static final Topic<ZoomKey> TOPIC = Topic.edge(ZoomKey.class);
     }
 
+    /**
+     * Ctrl+= and Ctrl+-: the whole window's type a step larger ({@code direction} positive) or smaller (negative);
+     * Ctrl+0 ({@code 0}) back to its own size. The lanes' zoom is {@link ZoomKey}, without Ctrl.
+     */
+    record TypeKey(int direction) {
+        static final Topic<TypeKey> TOPIC = Topic.edge(TypeKey.class);
+    }
+
     /** Up or Down: step the cursor onto the next or previous row, {@code by} of them, back when negative. */
     record RowKey(int by) {
         static final Topic<RowKey> TOPIC = Topic.edge(RowKey.class);

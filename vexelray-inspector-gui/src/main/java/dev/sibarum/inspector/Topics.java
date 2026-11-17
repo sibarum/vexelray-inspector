@@ -4,9 +4,11 @@ import dev.vexelray.gui.core.Gui;
 import dev.vexelray.gui.core.Node;
 import dev.vexelray.gui.core.layout.Length;
 import dev.vexelray.gui.core.style.Role;
+import dev.vexelray.gui.widget.Face;
 import dev.vexelray.gui.widget.Table;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +20,11 @@ import java.util.Set;
  * cursor is on crossed in the path's colour. On the dashboard it shows the first {@code limit} topics, as many as fit
  * without a scrollbar; in the topics window, all of them.
  *
- * <p>Its rows are rebuilt only when the topics change, which is once a run; the counts, which change with every
- * batch, change in place. Holds what it was last told only to do that and to copy it, as {@link Ui} does.
+ * <p>Every column sorts, a click on its header: a count as a number, so the busiest topics can be put first. The
+ * dashboard's first {@code limit} are then the first in that order of every topic, not of those already shown.
+ *
+ * <p>Its rows are rebuilt only when the topics change, which is once a run, or the order does; the counts, which
+ * change with every batch, change in place. Holds what it was last told only to do that and to copy it, as {@link Ui} does.
  */
 final class Topics {
 
@@ -37,6 +42,8 @@ final class Topics {
     private Set<String> crossed = Set.of();
     /** The topics, in the order last given; the first {@link #limit} of them are the table's rows. */
     private List<String> topics = List.of();
+    /** The topics the table was last given to show: the first {@link #limit} in its order. */
+    private List<String> shown = List.of();
     /** What each topic's cells say, by topic: what a row realized later is built with. */
     private final Map<String, List<String>> cells = new HashMap<>();
     /** Each realized cell's text, by topic and column. */
@@ -49,13 +56,14 @@ final class Topics {
         List<Table.Column<String>> columns = new ArrayList<>();
         for (int i = 0; i < View.FLOW_COLUMNS.size(); i++) {
             int at = i;
-            columns.add(Table.Column.of(View.FLOW_COLUMNS.get(i), WIDTHS.get(i), (made, topic) -> {
+            Face<String> face = (made, topic) -> {
                 Node text = made.text(cells.getOrDefault(topic, View.NO_FLOW).get(at))
                         .textSize(Type.SMALL).textColor(at > 0 ? Role.DIM
                                 : crossed.contains(topic) ? Ui.PATH : Role.INK);
                 nodes.computeIfAbsent(topic, t -> new Node[View.FLOW_COLUMNS.size()])[at] = text;
                 return text;
-            }));
+            };
+            columns.add(Table.Column.of(View.FLOW_COLUMNS.get(i), WIDTHS.get(i), face, by(at, cells)));
         }
         table = new Table<>(gui, ROW_REM, columns).name(name);
         table.rows().name(body).action(Ui.COPY);
@@ -88,7 +96,8 @@ final class Topics {
             cells.clear();
             cells.putAll(by);
             nodes.clear();
-            table.items(topics.subList(0, Math.min(limit, topics.size())));
+            shown = List.of();
+            reorder();
             return;
         }
         for (String topic : given) {
@@ -103,6 +112,71 @@ final class Topics {
                     shown[i].text(now.get(i));
                 }
             }
+        }
+        reorder();
+    }
+
+    /**
+     * The table was sorted by a click on a header, or put back in the order given: the first {@link #limit} by that
+     * order are found again among every topic, not only among those shown.
+     */
+    void sorted() {
+        reorder();
+    }
+
+    /** The topics the table shows, in its order. */
+    List<String> shown() {
+        return shown;
+    }
+
+    /**
+     * Show the first {@link #limit} topics in the table's order, when they are not what it shows: when the topics
+     * change, the sort does, or the counts move a topic past another in the column sorted by. The table orders what
+     * it is given by the same comparator, so the two agree.
+     */
+    private void reorder() {
+        List<String> next = ordered(topics, cells, table.sortedColumn(), table.sortDirection(), limit);
+        if (!next.equals(shown)) {
+            shown = next;
+            nodes.clear();
+            table.items(next);
+        }
+    }
+
+    /**
+     * The first {@code limit} of {@code topics} ordered by {@code column} in {@code direction}, each topic's cells as
+     * {@code cells} gives them; in the order given while it sorts by none. Pure, for a test.
+     */
+    static List<String> ordered(List<String> topics, Map<String, List<String>> cells, int column,
+                                Table.Sort direction, int limit) {
+        List<String> all = new ArrayList<>(topics);
+        if (column >= 0 && direction != Table.Sort.NONE) {
+            Comparator<String> order = by(column, cells);
+            all.sort(direction == Table.Sort.DESCENDING ? order.reversed() : order);
+        }
+        return List.copyOf(all.subList(0, Math.min(limit, all.size())));
+    }
+
+    /** The first of {@link View#FLOW_COLUMNS} that is a count, and every one after it: sorted as numbers. */
+    static final int COUNTS_FROM = 4;
+
+    /**
+     * How topics compare in {@code column}, by their cells as {@code cells} has them when asked: a count as a number,
+     * a blank one (nothing counted) under every number, and a name as words, case aside.
+     */
+    static Comparator<String> by(int column, Map<String, List<String>> cells) {
+        if (column >= COUNTS_FROM) {
+            return Comparator.comparingDouble((String topic) -> count(cells.getOrDefault(topic, View.NO_FLOW).get(column)));
+        }
+        return Comparator.comparing((String topic) -> cells.getOrDefault(topic, View.NO_FLOW).get(column),
+                String.CASE_INSENSITIVE_ORDER);
+    }
+
+    private static double count(String said) {
+        try {
+            return said.isEmpty() ? -1.0 : Double.parseDouble(said);
+        } catch (NumberFormatException e) {
+            return -1.0;
         }
     }
 

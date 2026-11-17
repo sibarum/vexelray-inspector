@@ -11,6 +11,7 @@ import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.RowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
 import dev.sibarum.inspector.Keys.StepKey;
+import dev.sibarum.inspector.Keys.TypeKey;
 import dev.sibarum.inspector.Keys.ZoomKey;
 import dev.sibarum.inspector.core.Messages.Account;
 import dev.sibarum.inspector.core.Messages.Choose;
@@ -68,6 +69,7 @@ import dev.vexelray.gui.keymap.Keymap;
 import dev.vexelray.gui.widget.Button;
 import dev.vexelray.gui.widget.ListView;
 import dev.vexelray.gui.widget.Select;
+import dev.vexelray.gui.widget.Table;
 import dev.vexelray.canvas.Color;
 import sibarum.atchung.Sender;
 import sibarum.probe.Log;
@@ -123,8 +125,9 @@ import java.util.Optional;
  * the time the lane spans in doublings, which the asked half draws as a stretch of the picture ({@code Drawn.stretch})
  * until the next picture is built at the new scale. A click on a lane focuses it, and puts the cursor on the event
  * nearest the click if one is near ({@link GoTo}), or else at the moment clicked ({@link Seek}); the main thread's is
- * focused at first. Shift and a drag across the lanes selects the stretch dragged over ({@link SelectRange}), which the
- * bench keeps on its island, the lanes wash and the readouts count over; Escape lets it go ({@link ClearRange}).
+ * focused at first. A plain drag across the lanes takes the cursor with it ({@link Seek} as it moves); Shift and a
+ * drag selects the stretch dragged over ({@link SelectRange}), which the bench keeps on its island, the lanes wash and the readouts count over; Escape lets it go ({@link ClearRange}).
+ * Ctrl with {@code =}, {@code -} and {@code 0} sizes the whole window's type ({@link TypeKey}), as the template did.
  *
  * <p><b>The cursor is a line, not the right edge.</b> Stopped, the cursor is drawn across the lanes where its moment
  * is, and the lanes stay where they came to rest for as long as it is in view: a click leaves it where it was clicked,
@@ -141,7 +144,7 @@ import java.util.Optional;
  * <p><b>The lanes</b> are bands of one picture, in {@code Model.LANES}' order, since they share the time axis and
  * slide together. A stretch (a pass, a tick, a draw, a wait) is drawn as the passes always were; a moment (an input, a
  * draw held) is the line alone. A draw held for the ceiling is drawn faint, since that is pacing doing its job; one
- * held for the GPU in the caution colour, since that is the GPU being slow; injected input dimmed beside input taken
+ * held for the GPU in red ({@link Look#HELD_FOR_GPU}), since that is the GPU being slow; injected input dimmed beside input taken
  * from a device.
  *
  * <p><b>The event the cursor is on</b> is drawn over the others in the text's colour, the whole height of its lane's
@@ -223,7 +226,7 @@ final class View {
          */
         static Inks of(Gui gui) {
             return new Inks(gui.theme().color(Role.ACCENT), gui.theme().color(Role.FAINT),
-                    gui.theme().color(Role.CAUTION), gui.theme().color(Role.DIM), gui.theme().color(Look.CURSOR),
+                    gui.theme().color(Look.HELD_FOR_GPU), gui.theme().color(Role.DIM), gui.theme().color(Look.CURSOR),
                     gui.theme().color(Role.LINE), gui.theme().color(Ui.PATH));
         }
 
@@ -288,7 +291,7 @@ final class View {
          Sender<Choose> choose, Sender<Leave> leave, Sender<StepRow> stepRow, Sender<GoToRow> goToRow,
          Sender<RunAgain> runAgain, Sender<GoToTick> goToTick, Sender<WindowCommand> windows,
          Sender<SelectRange> selectRange, Sender<ClearRange> clearRange, Sender<CopyKey> copyKey,
-         Sender<ExportKey> exportKey, Sender<ExportFrame> exportFrame) {
+         Sender<ExportKey> exportKey, Sender<ExportFrame> exportFrame, Sender<TypeKey> typeKey) {
         this.exportFrame = exportFrame;
         this.gui = gui;
         this.ui = ui;
@@ -349,6 +352,14 @@ final class View {
         keys.action("timeline.row-forward", "Next row", Shortcut.of(Key.DOWN)).sends(rowKey, new RowKey(1));
         keys.action("view.zoom-in", "Zoom in", Shortcut.of(Key.EQUAL)).sends(zoomKey, new ZoomKey(true));
         keys.action("view.zoom-out", "Zoom out", Shortcut.of(Key.MINUS)).sends(zoomKey, new ZoomKey(false));
+        // The window's type, as the template's zoom was: which chord zooms is the application's to say, how far it
+        // goes the framework's. With Ctrl, so the lanes' own = and - stay theirs.
+        keys.action("view.type-larger", "Larger type", Shortcut.of(Key.EQUAL, Modifier.CONTROL),
+                Shortcut.of(Key.NUMPAD_ADD, Modifier.CONTROL)).sends(typeKey, new TypeKey(1));
+        keys.action("view.type-smaller", "Smaller type", Shortcut.of(Key.MINUS, Modifier.CONTROL),
+                Shortcut.of(Key.NUMPAD_SUBTRACT, Modifier.CONTROL)).sends(typeKey, new TypeKey(-1));
+        keys.action("view.type-reset", "Type at its own size", Shortcut.of(Key.DIGIT_0, Modifier.CONTROL),
+                Shortcut.of(Key.NUMPAD_0, Modifier.CONTROL)).sends(typeKey, new TypeKey(0));
         keys.action(Landmarks.COPY, "Copy the selected rows", Shortcut.of(Key.C, Modifier.CONTROL))
                 .sends(copyKey, new CopyKey());
         keys.action(Landmarks.EXPORT, "Export the frame to a file", Shortcut.of(Key.E, Modifier.CONTROL))
@@ -486,6 +497,12 @@ final class View {
         }
     }
 
+    /** A table's header clicked: the Topics card shows the first topics of every one in the order it now asks. */
+    @Subscribe
+    public void sorted(Table.Sorted s) {
+        ui.flowsSorted(s.table());
+    }
+
     /** Copy chosen from a table's row menu: that table's selected rows onto the clipboard. */
     @Subscribe
     public void chosen(ListView.Chosen c) {
@@ -509,6 +526,18 @@ final class View {
             gui.clipboard().set(csv);
             LOG.debug("copied {} chars of CSV from {}", csv.length(), copyFrom);
         });
+    }
+
+    /** Ctrl+=, Ctrl+- or Ctrl+0: the window's type a step larger, smaller, or back to its own size, gliding there. */
+    @Subscribe
+    public void typeKey(TypeKey key) {
+        if (key.direction() > 0) {
+            gui.zoomIn();
+        } else if (key.direction() < 0) {
+            gui.zoomOut();
+        } else {
+            gui.resetZoom();
+        }
     }
 
     /** {@code =} or {@code -}: halve or double what the lane spans, about its right edge, gliding there. */
@@ -566,16 +595,34 @@ final class View {
     /** Where a Shift+drag on the lanes began, a moment; not a number while none is going on. */
     private double selectFrom = Double.NaN;
 
+    /** Where a plain drag on the lanes last put the cursor, a moment; not a number while none is going on. */
+    private double scrubbedTo = Double.NaN;
+
     /**
      * A drag on the lanes: with Shift held as it starts, select the stretch from the moment it started at to the moment
      * under the pointer, sent as it moves (a state topic, so a fast drag costs the bench one a tick). Without Shift,
-     * nothing yet: a plain drag is kept for moving the cursor.
+     * move the cursor: the moment under the pointer, from where it starts, sent as a {@link Seek} each time it has
+     * moved a pixel or more, as a click there would.
      */
     private void dragged(DragEvent.Phase phase, float x, boolean shift) {
         long now = System.nanoTime();
         double scale = laneW > 0f ? laneW / span : 0.0;
         if (phase == DragEvent.Phase.START) {
             selectFrom = shift && scale > 0 ? restingMomentAt(x, now, scale) : Double.NaN;
+            scrubbedTo = Double.NaN;
+            if (!shift && scale > 0) {
+                scrub(restingMomentAt(x, now, scale), now);
+            }
+            return;
+        }
+        if (!shift && Double.isNaN(selectFrom) && scale > 0) {
+            double at = restingMomentAt(x, now, scale);
+            if (Double.isNaN(scrubbedTo) || Math.abs(at - scrubbedTo) * scale >= 1.0) {
+                scrub(at, now);
+            }
+            if (phase == DragEvent.Phase.END) {
+                scrubbedTo = Double.NaN;
+            }
             return;
         }
         if (Double.isNaN(selectFrom)) {
@@ -590,6 +637,14 @@ final class View {
         if (phase == DragEvent.Phase.END) {
             selectFrom = Double.NaN;
         }
+    }
+
+    /** Put the cursor at {@code at}, a moment a plain drag is over. */
+    private void scrub(double at, long now) {
+        scrubbedTo = at;
+        pressedAt = now;
+        pressWindow = -1L;
+        seek.send(new Seek((long) at));
     }
 
     /** The moment at {@code x} on the lanes, where the motion puts their right edge {@code now}. */

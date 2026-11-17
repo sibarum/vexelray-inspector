@@ -534,6 +534,23 @@ final class Ui {
         flows.crossed(topics);
     }
 
+    /** The flows table was sorted, if {@code table} is its address: its first topics found again in that order. */
+    void flowsSorted(String table) {
+        if (table.equals(flows.table().address())) {
+            flows.sorted();
+        }
+    }
+
+    /** The topics the flows table shows, in its order, for a test. */
+    List<String> flowsShownTopics() {
+        return flows.shown();
+    }
+
+    /** The flows table, for a test to sort as a header click would. */
+    Table<String> flowsTable() {
+        return flows.table();
+    }
+
     /** The topics {@link #crossed} marked last, for a test. */
     java.util.Set<String> crossed() {
         return flows.crossed();

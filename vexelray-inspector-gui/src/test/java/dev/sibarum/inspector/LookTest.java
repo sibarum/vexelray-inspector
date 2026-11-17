@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -62,6 +63,20 @@ class LookTest {
                 + String.format("%.2f", line) + ":1");
         assertTrue(contrast(look.color(Look.EDGE), look.color(Role.PANEL)) >= 1.15,
                 "a card's edge shows against the card, as much as the design's dark one does");
+    }
+
+    /** A draw held for the GPU is not the cursor's brass, nor the marks' cyan, and shows on the lanes' panel. */
+    @ParameterizedTest
+    @MethodSource("looks")
+    void aDrawHeldForTheGpuHasAColourOfItsOwn(Theme look) {
+        Oklab held = Oklab.of(look.color(Look.HELD_FOR_GPU));
+        for (Role other : List.of(Look.CURSOR, Look.PATH, Role.ACCENT)) {
+            double apart = Math.abs(((held.hueDegrees() - Oklab.of(look.color(other)).hueDegrees()) % 360 + 540)
+                    % 360 - 180);
+            assertTrue(apart >= 30.0, "held for the GPU is " + Math.round(apart)
+                    + " degrees from another of the lanes' colours");
+        }
+        assertTrue(contrast(look.color(Look.HELD_FOR_GPU), look.color(Role.PANEL)) >= 3.0, "seen on the lanes");
     }
 
     /** The path reads as the cursor's and is not mistaken for it. */

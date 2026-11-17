@@ -13,8 +13,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       the whole run) and its ruler and legend, a count beside each lane's name, the follow button in the timeline's
       heading, the run-time dial on the Cursor card, the clock cards with their state bars (below, the threads panel
       entry), the readouts as chips, and the cards' bracket corners and glows (FN-21).
-- [ ] Held-for-GPU marks are drawn in caution, which the new palette makes the cursor's brass; they could take a
-      colour of their own.
 
 - [ ] Export frame is not seen past its button with `ottermate`: nothing answers the save picker under automation
       (FN-20). Once something does, a check that exports and reads the file back.
@@ -66,8 +64,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       the bus graph names none of them. Name them as parts upstream, or tell them apart by topic package here.
 - [ ] A recording has no graph: the probe could write the bus graph as a row when it starts, so a replay is drawn
       as its run was.
-- [ ] The flows table does not sort: its items are the topics' names, so a sort by written or rate needs the counts
-      beside them in the item, and a comparator for each column.
 - [ ] FN-14 and FN-15 upstream: a publish row naming its sender, and a receive row for what the framework hands a
       job, a source or a destination. Then drop `Model.writesOn` and `End.UNCOUNTED`.
 - [ ] The link's slowest batch grew over a 90 s watch at 31,000 to 48,000 rows a second, from 11 ms to 101 ms behind
@@ -94,8 +90,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       arrows on a path. Upstream FN-14 (a publish naming its sender) would tell them apart.
 - [ ] A recording's draws and ticks: the CSV has no `frame` column, so `draw.ran` cannot be put on its draw by pass
       and a replay's draws stay unnumbered; read it by thread and order instead, as a tick's is.
-- [ ] Dragging the cursor on the lanes: a plain drag (the lanes already hear `NodeEvent.DRAG`, for Shift's selection)
-      sends `Seek` for each position; the view turns a pixel into a moment as `momentAt` does.
 - [ ] The longest buttons go to one event each: the stretch's slowest ticks, passes and draws as a list, longest
       first, would let the next worst be found too. The draw button's time is its recording, and the status line,
       landing on it, says the draw's length, so the two differ (21.91 ms against 24.69 ms).
@@ -104,18 +98,12 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       inside it, so the two can differ by one (160 against 161): say which in the panel, or count both alike.
 - [ ] The ledger's span lookups skip spans begun more than `ClockLedger.SPAN` before what they look at, so over a stretch
       a rest longer than a second (an unfocused window's park) is left unaccounted.
-- [ ] The flows table builds only the rows in view, and sorts by name, so over a stretch the busy topics are found by
-      scrolling: the sort by written (above) matters more once counts can be a stretch's.
 - [ ] A stretch can only be selected by dragging. A key could grow one from the cursor (Shift+arrow is taken by the
       step), and a selected stretch's ends cannot be dragged to change it.
 - [ ] A zoom while stopped pivots on the right edge and then glides the cursor to the middle if it would leave the
       window. Zooming about the cursor itself would keep it still; it needs the edge's motion tied to the zoom's.
 - [ ] A catch-up from far back (Space after stepping a minute back) is a long, fast glide: `Glide.WINDOW_MAX_NANOS`
       caps it at half a second. Watch it, and lengthen or slow it if it reads as a blur.
-- [ ] Zoom chords (Ctrl+= / Ctrl+- / Ctrl+0) went with the template's `Intent`; bring them back with the next view
-      that takes keys.
-- [ ] Replace the palette anchors in `Look.java` with the design's, measured in Oklab. See the note in that file
-      about which authored colours the construction can reproduce and which have to be declared.
 
 ## Later
 

@@ -332,3 +332,27 @@ then the new installer run again, to put back the PATH link and desktop entry th
 
 What the installer could do: check `replaces` on every run, and remove a replaced install still recorded beside its
 own, as step 9 already does after a first install. The Windows `install.ps1` has the same condition (`if (-not $old)`).
+
+## FN-24 · Reading a compiled drawing compiles in an XML parser 🔬
+
+The title bar's wordmark is a compiled drawing, `/wordmark.sdgb`, and `Wordmark.face` reads it the one public way
+there is: `SdgFile.read(byte[])` (vexelray-fields-sdg-format, at `ec9ea15`). That method takes either format. It
+decodes the bytes as a compiled drawing when they start with `SdgFile.SIGNATURE`, and otherwise passes them to
+`SdgXml.read` when they start with `<`, which calls `DocumentBuilderFactory.newInstance`. Native image cannot tell
+which branch a call will take, so the XML branch is compiled in. Measured 2026-11-17, with
+`-H:AbortOnTypeReachable=javax.xml.parsers.DocumentBuilderFactory` (the trace runs `Ui.<init>` → `Wordmark.bar` →
+`Wordmark.face` → `SdgFile.read` → `SdgXml.read` → `SdgXml.parse`) and `--emit build-report`. The image carries the
+JDK's whole Xerces: the DOM parser, schema validation, DTDs, XInclude and XPointer. That is 3.05 MB of
+`com.sun.org.apache.xerces` code, plus `javax.xml` and `jdk.xml` and their share of the metadata, about 5 % of a
+58 MB executable. Nothing on the class path refers to an XML API directly, so `SdgFile.read` is the whole cost.
+
+Nothing is done about it here, and the application cannot get around it. The binary decoder (`DrawingIntrabuf.CODEC`,
+then `SdgFile.SchemaMapping.fromSchema`) is package-private. And the wordmark is only the first path the trace found:
+vexelray-framework-shell's own `Mark` and `AboutIntro` call `SdgFile.read` too, so dropping the wordmark would keep
+the parser.
+
+What the framework could do: a public reader that only takes the compiled format, such as
+`SdgFile.readCompiled(byte[])`, which throws on anything without the signature. The shell's `Mark` and `AboutIntro`,
+and each application's wordmark, would then use it. XML would stay an authoring format, read by tools and at build
+time. Since the shell itself takes the XML path, every framework application's native image pays about 3 MB for it
+today, whatever it draws.

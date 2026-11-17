@@ -1,13 +1,96 @@
-# VexelRay Inspector
+<p align="center">
+  <img src="vexelray-inspector-gui/src/main/rc/vexelray-inspector.svg" width="96" alt="The Inspector's mark: a large gear meshed with a small one">
+</p>
 
-DevTools for VexelRay applications: plain panels on a timeline that can be rewound ([docs/design.md](docs/design.md)).
+<h1 align="center">VexelRay Inspector</h1>
 
-A VexelRay desktop application, generated from the `vexel-desktop` template and being rebuilt for VexelRay 0.2. R1, first light,
-is done: it attaches to an application running with its link open (the newest, or one chosen), launches one, or
-plays a recording back, and draws its clocks' lanes on a timeline that can be paused and rewound, the present at the
-right edge. R2, the declared graph, is done too: the run's declared parts drawn as a graph, and a table of every topic
-with what crossed it, both as of the cursor ([bus-graph.md](docs/bus-graph.md)). Everything past R2 in the design is
-still to come.
+<p align="center"><b>Cause and effect, for applications that run on many clocks at once.</b></p>
+
+---
+
+A VexelRay application is a busy place. Input is taken the moment it arrives, logic runs in ticks on a lane of its
+own, drawing is held to the display's rate and waits on the GPU, and slow work goes off to jobs that answer in no
+particular order. Every one of those is strictly timed, and none of them waits for the others. From the outside, it
+looks like chaos.
+
+The Inspector is a window into it. It attaches to a running application, or launches one, or plays a recording back,
+and lays out everything that happened as **one timeline of cause and effect**: each pass of the main loop, each tick,
+each message, each draw and what the GPU made it wait for, on a shared time axis that can be paused, stepped and
+rewound. Click an event and the path that led to it lights up across every panel. Select a stretch and every panel
+counts it. Go back ten seconds and every panel shows exactly what it showed then, because it is recomputed from the
+rows rather than remembered.
+
+It is a developer tool, and it does not apologise for it. It also does not look like one that was built on a
+Friday afternoon: it glides rather than jumps, its text is sharp at any size, and it carries a light look and a dark
+one.
+
+## Where it came from
+
+The first Inspector was written for VexelRay 0.1, in October 2026, and it was drawn as clockwork: a balance wheel
+that swung once per frame, the message bus as beads on a circuit, a clock that bent time so a burst could be followed.
+It was handsome. It was also guessing.
+
+0.1 had one main loop that took input, called the application's handlers, drew and presented, and its bus could not
+say who had sent a message or who had received it. Its notes from those weeks are a list of things the Inspector
+could not know: *nothing at runtime says who sent a message or who received it* (FN-6), *the bus cannot say who
+receives a message* (FN-7), *a publish names its thread, not its sender* (FN-8), *a handler call is not a message*
+(FN-11), *the pools say nothing of their own work* (FN-15). It worked around them with a stand-in table, written by
+hand from a survey of the source, mapping each topic to the part that probably received it. A topic missing from the
+table was drawn with a `?` for its receiver. Twelve days and three versions of the bus view later (beads, then a
+circuit, then a component graph), that `?` was still there. You cannot draw cause and effect over a system that does not know its own causes.
+
+VexelRay 0.2 took the loop apart and put it back together on messages. Every part (a component, a view, a job, a
+source) talks to the others by messages and nothing else, and every send is a constructor parameter the annotation
+processor can see. The graph of who sends what to whom stopped being a guess and became a compile-time fact, written
+into the application and handed to anyone who asks for it. The Inspector was rebuilt from nothing on that model: the
+design was ruled on 30 October, and eight milestones (the live timeline, the declared graph, a click's path, the rows
+panel, per-clock thread ledgers, replay) were done by 3 November. `git log` tells both halves of that story. The
+0.1 history is still there, under the `v0.1.x` tags, for anyone who wants to read the attempt that ran out of things
+it could know.
+
+The message model was not chosen for the Inspector. It is what made the Inspector possible, and it gives three things
+at once:
+
+- **Freedom to place work.** A part that only hears and sends messages does not care which thread it runs on. The
+  framework puts logic on its own lane, views on the GUI thread, jobs on the offload lane and sources on threads of
+  their own, and it can move them (`--logic=main` runs logic on the main thread) without a line of the application
+  changing. There is no lock anywhere in this application.
+- **A hand for automation.** `ottermate` (vexelray-gui's `docs/guides/ottermate.md`) drives a VexelRay application
+  the way a person does, because a key, a click or a menu item is a message, and a message injected over the
+  automation socket is the same message a person would have caused. The Inspector shows injected input dimmed beside
+  the real thing. A run can even replay: the same input messages produce the same widget writes.
+- **A conduit for the debug port.** Because every semantically meaningful event already crosses the bus as a typed,
+  immutable record, the diagnostics socket can see all of it: every write, every delivery, every tick and every draw,
+  with its sender, its receivers and its time on the machine's monotonic clock. The Inspector does not instrument the
+  application. It listens to what the application was already saying.
+
+The Inspector itself is not a brilliant application. It is about eleven thousand lines of panels over a tape of rows. What
+it proves is that the architecture underneath it holds: it is cross-platform (Windows and Linux, from one source),
+it runs smoothly, it compromises nothing the stack's rules ask for, and it costs very little to carry.
+
+## What it costs
+
+The release executable is one file of 58 MB, with no runtime to install beside it. GraalVM's build report
+(`NATIVE_IMAGE_OPTIONS="--emit build-report"` on a native build) says where it goes, measured 2026-11-17:
+
+| What | Size | Share |
+| --- | ---: | ---: |
+| The JDK and the Native Image runtime (code) | 15.4 MB | 27 % |
+| The font atlases: three MSDF faces, about 8,700 glyphs | 9.2 MB | 16 % |
+| The VexelRay stack: framework, GUI, Vulkan, input, bus (code) | 9.3 MB | 16 % |
+| The stack's shaders (SPIR-V) and icons | 2.5 MB | 4 % |
+| The Inspector itself (code) | 1.2 MB | 2 % |
+| Metadata, strings, class data and the rest of the heap, shared by all of the above | 20.5 MB | 35 % |
+
+The biggest line is the platform, which nobody sensible rewrites. The next is the text, and that is a choice made on
+purpose: every glyph is a multi-channel signed distance field, so text is drawn sharp at any size, and the whole window
+can be zoomed at any moment, instantly, without a blurry frame or a re-layout stall. That is an accessibility feature,
+and one desktop applications ignore far too often.
+
+The whole framework, every lane, the bus, the processor's generated wiring, the Vulkan renderer and its shaders,
+comes to about 12 MB of code and shaders, and perhaps 15 MB with its share of the metadata. For a yardstick, adding everyday Chinese (the 6,763 hanzi of GB2312) to the sans and mono faces,
+at the size per glyph the atlases have now, would add about 16 MB. The cost of the architecture is on par with
+adding East Asian language support, which seems a fair benchmark.
 
 ## Run it
 
@@ -52,6 +135,131 @@ mvn compile exec:exec -Dautomation=0                      # a driving socket on 
 mvn test                                                  # the bench, and the real tree headless
 ```
 
+## Using it
+
+The window shows six lanes on one time axis, ten seconds across at first, the details of the cursor under them, and a
+line of readouts:
+
+| Lane | Shows |
+| --- | --- |
+| **Input** | each time the application took input from a device; input an automation verb injected, dimmed |
+| **Main thread** | each pass of the main loop, from when it started to when it ended |
+| **Logic** | each tick of the logic lane (empty under `--logic=main`, framework-notes FN-8) |
+| **Messages** | each message published on the bus, as a moment on the thread that published it; not the bus's own bookkeeping |
+| **Drawing** | each draw, from recording to present; a draw held for the ceiling (faint) or for the GPU (caution) |
+| **GPU** | what the presenter waited on: the fence, the DXGI waitable, a swapchain image |
+
+The details panel says what the inspected run's clock said at the cursor, as local time of day (as the application's
+log has it) and as UTC (as its probe's rows have it), and how far into the run that is; on an event, what it was, its
+thread, and for a message its type. From, To and Transport say what they can: the publishing thread, and that the
+receivers and how the message travelled are not recorded yet (framework-notes FN-10).
+
+The readouts count the second before the cursor: draws, draws held by reason, ticks and their median, 95th
+percentile and longest, and the rows the link lost. Shift and a drag across the lanes selects a stretch instead: it
+pauses, washes the stretch across every lane, puts the cursor at its later end, and the readouts count it, each count
+with its rate and the rows lost inside it; the flows table counts what was written and delivered within it, each rate
+over its length, and says so over the table; and the threads panel sums each clock's whole turns inside it ("487
+passes"), each state's share of their length, their wakes, and the longest wake to run. All three keep counting the
+stretch while the cursor moves, until Escape lets it go or the lanes follow the present again. At the readouts line's
+right end, a button each goes to the stretch's longest main-thread pass, logic tick and draw (the draw whose recording
+took longest, as the readouts' max), keeping the stretch selected. A stretch is measured on the lanes as they come to
+rest, so one dragged while they still glide from a pause ends where it is seen to. Only what the tape keeps can be
+selected, so a drag past the newest row stops at it. A lane the run does not record, which only a run of another link
+version can leave out, has its name dimmed and the status line names it (framework-notes FN-9). While rows are
+arriving the lanes follow the present at their right edge; when the application goes away they stop where they were,
+and the status line says what happened.
+
+| Key | Does |
+| --- | --- |
+| Space | pause: the lanes slow to a stop; paused, follow the present again, catching up with it |
+| The pause button in any window's title bar | as Space; every window's shows a pause mark while following and a play mark while paused, however it was paused |
+| Left / Right | step the cursor onto the focused lane's previous or next event (pausing first if following) |
+| Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lanes span |
+| Up / Down | step the cursor onto the previous or next row, in order of time (pausing first if following); the rows panel and the details show it |
+| = / - | zoom in or out about the right edge: half or twice the time across, from 10 ms to a minute |
+| Click a lane | focus it (its name brightens and its band is outlined with a soft glow), and put the cursor on its event nearest the click, or where it was clicked if none is near |
+| Click a row | put the cursor on that row of the rows panel |
+| Shift+drag on the lanes | select the stretch dragged over, for the readouts to count |
+| Escape | let the stretch selected go |
+| Shift+click / Ctrl+click a row | choose a range of rows, or one more or fewer, in any table, to copy; in the rows panel the cursor stays where it is |
+| Ctrl+C, or Copy on a row's right-click menu | copy the chosen rows of the table last clicked as CSV, its column titles first |
+| Ctrl+E, or Export frame on the Cursor card | save the frame the cursor is in to a CSV file, pausing first if following |
+
+What is copied is what the table shows, a cell a field. The rows panel's rows can be chosen among the eleven it
+shows, and the choice is kept until the cursor moves.
+
+**Export frame** saves one CSV file, a section a panel as of the cursor, each its title on a line of its own, then its
+header line, then a blank line: the frame (its number, the cursor's time, the stretch selected), the details, the
+readouts, the path, the threads, the flows, the rows around the cursor, and every row of the cursor's frame, the main
+loop's pass its rows number (the event's the cursor is on, or its row's, or else the newest row's at or before it).
+Lengths are milliseconds and moments are milliseconds from the cursor and seconds into the run, each named in its
+header; a figure the rows could not fill is blank. A name typed with no extension gets `.csv`, and the status line
+says where it was saved or why it was not.
+
+Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
+says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click
+leaves it where it was clicked, and a step or a zoom moves only the line until it would leave the window, when the
+lanes glide to put it in the middle. Space pauses with the cursor at the right edge, where the present was. On an
+event, it is drawn over the others in the text's colour, and the status line says what it was, how long it took and
+when it ended. Each event is drawn as long as it took, with a pixel-wide line at its end so that one far shorter than
+a pixel still shows; zoom in and a busy stretch opens up into separate events. Each stands on its band's floor as tall
+as the log of how long it took, from a sliver at 0.1 ms or less to the band's whole height at a second or more, so a
+storm of short events is a low comb and one long blocking event a tall slab at any zoom. The last minute is kept, and
+stepping stops at either end of it. Rows go on arriving and being kept while paused.
+
+Nothing on the lane jumps: every change of where it is going or how much it spans, a key held down included, glides
+there with no corner in its speed or in any derivative of it, and lands exactly (design.md 9.8). Under the system's
+reduced-motion setting it goes straight there. Hovering an event shows nothing yet (framework-notes FN-7). Choosing
+which application to inspect, and the Sequence mode, are R1's later slices.
+
+## Automation
+
+VexelRay Inspector can be driven and read from outside, by a script, a macro or an agent, through the framework's two
+loopback sockets: **remote control** (the keys, clicks and reads a person has) and **diagnostics** (the flight
+recorder, the log, the Inspector). Both are in every build, the release one too, and both start off.
+
+- **Switched on by hand**: the plug in the title bar opens the switches, one per socket, each with a port (blank for
+  a free one).
+- **Switched on at launch**, for an agent that means to: `--automation=0` (both, on a free port),
+  `--automation.control=<port>`, `--automation.diagnostics=<port>`, or `VEXELRAY_AUTOMATION=0` in the environment.
+- **Not there at all**: `--automation.available=none` (or `control`, or `diagnostics`), or
+  `VEXELRAY_AUTOMATION_AVAILABLE` in the environment. A socket that is not available cannot be switched on by
+  anything, and with neither available the plug is gone.
+
+Whatever turned it on, **the plug's lamps say what each socket is doing**, remote control's (red) left of the plug and
+diagnostics' (blue) right:
+
+| Lamp | Means |
+| --- | --- |
+| none | off, and nothing has connected to it this session |
+| ring | open, and nothing has connected yet |
+| filled ring | open, and something is connected now |
+| ring with a grey dot | open; something was connected and has gone |
+| grey dot | off, after something had connected to it this session |
+
+The plug's tooltip and the switches' window say the same in words, with the port and how many are connected.
+
+### Taking a screenshot
+
+Screenshots are `ottermate`'s, and only its: it photographs the running window on the application's own device, so
+the picture is right about content as well as chrome. There is no `--capture` flag in this project on purpose.
+
+```
+ottermate shot out.png --launch mvn compile exec:exec -Dautomation=0
+```
+
+Say what the picture is *of* with options, and `ottermate` sets it first and stops if it cannot. Everything before
+`--launch` is ottermate's; everything after it is the application's command line (on Windows, `mvn.cmd`):
+
+```
+ottermate --zoom 1.5 --dpi 2 --size 1600x900 shot big.png --launch ...   # pixels
+ottermate --size 36emx20em shot smallest.png --launch ...                # the minimum, in em
+```
+
+The landmarks in `Landmarks.java` are the names a script uses: `await status.run Inspecting` waits for the first rows
+of an attached run, `lanes` is the box the lanes are drawn in, `details` the panel under it with a landmark per value
+(`detail.clock-time`, `detail.schema`, ...), and `readouts` the line of numbers. `ottermate help` lists every verb.
+
 ## A native executable
 
 Two builds, made with GraalVM native-image (a GraalVM JDK as `JAVA_HOME`, and Visual Studio with the "Desktop
@@ -81,112 +289,6 @@ and it is short because almost nothing is this program's: the libraries register
 registers the icon. If a native run fails on something the JVM run did not (a `Missing...RegistrationError`), run it
 on a JVM under `-agentlib:native-image-agent=config-output-dir=...`, do the thing that failed, and add
 only the entries that name this program.
-
-## The icon
-
-`vexelray-inspector-gui/src/main/rc/vexelray-inspector.ico` is the application's mark, and it is one file read three ways: the window and its
-taskbar button wear it (`@VexelApp(icon = Inspector.ICON)`; the pom puts it on the class path), and so does the
-title bar the framework draws; the `.exe` links it (`src/main/rc/vexelray-inspector.rc`), and so Explorer, a shortcut and a
-pinned button show it too. It is "Movement" from the suite canvas's Inspector board, a large gear meshed with a small
-one, and its source is `vexelray-inspector.svg` beside it (`-light.svg` for light taskbars). While the window is hidden
-or the program runs in the background it wears `vexelray-inspector-background.ico` instead, the same mark at 60 %
-ringed by a dashed lime rim, drawn from `vexelray-inspector-background[-24|-16].svg`; the framework finds it by name.
-
-The title bar's wordmark is "Movement" too, from the wordmark board: INSPECT and R in Cinzel's capitals with the O cut
-as the icon's gear. `src/main/rc/wordmark.svg` is the letters traced from the font, so the font is not carried, and the
-build makes it `/wordmark.sdgb`, an SDG the bar inks (`Wordmark`).
-
-A second window — a viewer, a settings window — wears the window mark, on the taskbar and in its title bar, with
-nothing to write: declare it in a recipe with `windows.named(...)`, and the framework builds its tree and claims it
-wearing `shell.windowMark()`. That mark is this same one unless
-a `vexelray-inspector-window.ico` sits beside it, which is then found by name and registered for the native image with
-the mark. The VexelRay suite's applications ship one: a band of the application's colour over its glyph, so a
-second window reads as its own and is still told apart from the main one.
-
-To change it, edit the 64x64 SVG and render it at every size Windows asks for, 16 to 256 px, into that `.ico` —
-`vex-suite-common`'s `tools/Ico.java` does exactly this, from each size's own rasterisation rather than shrinking the
-largest (its class path needs imagelib's wrapper, `-api` and `-windows` jars). Replace the file, and the window and the executable change together. An `.ico` or `.png` that is missing is
-a compile error; one that does not decode costs the window its mark, logged, and nothing else.
-
-Run from `mvn exec:exec`, the process is `java.exe`, so the window and its taskbar button wear the mark but Windows
-groups the button with other Java programs, and pinning it pins Java. The native executable has neither problem.
-
-## Using it
-
-The window shows six lanes on one time axis, ten seconds across at first, the details of the cursor under them, and a
-line of readouts:
-
-| Lane | Shows |
-| --- | --- |
-| **Input** | each time the application took input from a device; input an automation verb injected, dimmed |
-| **Main thread** | each pass of the main loop, from when it started to when it ended |
-| **Logic** | each tick of the logic lane (empty under `--logic=main`, framework-notes FN-8) |
-| **Messages** | each message published on the bus, as a moment on the thread that published it; not the bus's own bookkeeping |
-| **Drawing** | each draw, from recording to present; a draw held for the ceiling (faint) or for the GPU (caution) |
-| **GPU** | what the presenter waited on: the fence, the DXGI waitable, a swapchain image |
-
-The details panel says what the inspected run's clock said at the cursor, as local time of day (as the application's
-log has it) and as UTC (as its probe's rows have it), and how far into the run that is; on an event, what it was, its
-thread, and for a message its type. From, To and Transport say what they can: the publishing thread, and that the
-receivers and how the message travelled are not recorded yet (framework-notes FN-10).
-
-The readouts count the second before the cursor: draws, draws held by reason, ticks and their median, 95th
-percentile and longest, and the rows the link lost. Shift and a drag across the lanes selects a stretch instead: it
-pauses, washes the stretch across every lane, puts the cursor at its later end, and the readouts count it, each count
-with its rate and the rows lost inside it; the flows table counts what was written and delivered within it, each rate
-over its length, and says so over the table; and the threads panel sums each clock's whole turns inside it ("487
-passes"), each state's share of their length, their wakes, and the longest wake to run. All three keep counting the
-stretch while the cursor moves, until Escape lets it go or the lanes follow the present again. At the readouts line's
-right end, a button each goes to the stretch's longest main-thread pass, logic tick and draw (the draw whose recording
-took longest, as the readouts' max), keeping the stretch selected. A stretch is measured on
-the lanes as they come to rest, so one dragged while they still glide from a pause ends where it is seen to. Only what
-the tape keeps can be selected, so a drag past the newest row stops at it. A lane the run does not record, which only a run of another link version can
-leave out, has its name dimmed and the status line names it (framework-notes FN-9). While rows are arriving the lanes follow the present at their right edge; when the application goes away they
-stop where they were, and the status line says what happened.
-
-| Key | Does |
-| --- | --- |
-| Space | pause: the lanes slow to a stop; paused, follow the present again, catching up with it |
-| The pause button in any window's title bar | as Space; every window's shows a pause mark while following and a play mark while paused, however it was paused |
-| Left / Right | step the cursor onto the focused lane's previous or next event (pausing first if following) |
-| Shift+Left / Shift+Right | step the cursor back or forward a tenth of what the lanes span |
-| Up / Down | step the cursor onto the previous or next row, in order of time (pausing first if following); the rows panel and the details show it |
-| = / - | zoom in or out about the right edge: half or twice the time across, from 10 ms to a minute |
-| Click a lane | focus it (its name brightens and its band is outlined with a soft glow), and put the cursor on its event nearest the click, or where it was clicked if none is near |
-| Click a row | put the cursor on that row of the rows panel |
-| Shift+drag on the lanes | select the stretch dragged over, for the readouts to count |
-| Escape | let the stretch selected go |
-| Shift+click / Ctrl+click a row | choose a range of rows, or one more or fewer, in any table, to copy; in the rows panel the cursor stays where it is |
-| Ctrl+C, or Copy on a row's right-click menu | copy the chosen rows of the table last clicked as CSV, its column titles first |
-
-| Ctrl+E, or Export frame on the Cursor card | save the frame the cursor is in to a CSV file, pausing first if following |
-
-What is copied is what the table shows, a cell a field. The rows panel's rows can be chosen among the eleven it
-shows, and the choice is kept until the cursor moves.
-
-**Export frame** saves one CSV file, a section a panel as of the cursor, each its title on a line of its own, then its
-header line, then a blank line: the frame (its number, the cursor's time, the stretch selected), the details, the
-readouts, the path, the threads, the flows, the rows around the cursor, and every row of the cursor's frame, the main
-loop's pass its rows number (the event's the cursor is on, or its row's, or else the newest row's at or before it).
-Lengths are milliseconds and moments are milliseconds from the cursor and seconds into the run, each named in its
-header; a figure the rows could not fill is blank. A name typed with no extension gets `.csv`, and the status line
-says where it was saved or why it was not.
-
-Paused, the cursor is a line across the lanes, and the readouts show the run as it was at the cursor; the status line
-says where it is, counted from the run's first row. The lanes stay where they are while the cursor is in view: a click
-leaves it where it was clicked, and a step or a zoom moves only the line until it would leave the window, when the
-lanes glide to put it in the middle. Space pauses with the cursor at the right edge, where the present was. On an event, it is drawn over the others in the
-text's colour, and the status line says what it was, how long it took and when it ended. Each event is drawn as long as
-it took, with a pixel-wide line at its end so that one far shorter than a pixel still shows; zoom in and a busy
-stretch opens up into separate events. Each stands on its band's floor as tall as the log of how long it took, from
-a sliver at 0.1 ms or less to the band's whole height at a second or more, so a storm of short events is a low comb
-and one long blocking event a tall slab at any zoom. The last minute is kept, and stepping stops at either end of it. Rows go on
-arriving and being kept while paused.
-
-Nothing on the lane jumps: every change of where it is going or how much it spans, a key held down included, glides
-there with no corner in its speed or in any derivative of it, and lands exactly (design.md 9.8). Under the system's
-reduced-motion setting it goes straight there. Hovering an event shows nothing yet (framework-notes FN-7). Choosing
-which application to inspect, and the Sequence mode, are R1's later slices.
 
 ## How it is put together
 
@@ -300,6 +402,37 @@ moment of a run crossing many checkpoints. The lanes show every event kept and p
 that at rest they show the run as of the cursor and while they glide they show what they pass. The readouts are
 computed from the model as of the cursor, so they rewind with it.
 
+## The icon
+
+`vexelray-inspector-gui/src/main/rc/vexelray-inspector.ico` is the application's mark, and it is one file read three
+ways: the window and its taskbar button wear it (`@VexelApp(icon = Inspector.ICON)`; the pom puts it on the class
+path), and so does the title bar the framework draws; the `.exe` links it (`src/main/rc/vexelray-inspector.rc`), and
+so Explorer, a shortcut and a pinned button show it too. It is "Movement" from the suite canvas's Inspector board, a
+large gear meshed with a small one, and its source is `vexelray-inspector.svg` beside it (`-light.svg` for light
+taskbars). While the window is hidden or the program runs in the background it wears
+`vexelray-inspector-background.ico` instead, the same mark at 60 % ringed by a dashed lime rim, drawn from
+`vexelray-inspector-background[-24|-16].svg`; the framework finds it by name.
+
+The title bar's wordmark is "Movement" too, from the wordmark board: INSPECT and R in Cinzel's capitals with the O cut
+as the icon's gear. `src/main/rc/wordmark.svg` is the letters traced from the font, so the font is not carried, and the
+build makes it `/wordmark.sdgb`, an SDG the bar inks (`Wordmark`).
+
+A second window — a viewer, a settings window — wears the window mark, on the taskbar and in its title bar, with
+nothing to write: declare it in a recipe with `windows.named(...)`, and the framework builds its tree and claims it
+wearing `shell.windowMark()`. That mark is this same one unless a `vexelray-inspector-window.ico` sits beside it,
+which is then found by name and registered for the native image with the mark. The VexelRay suite's applications ship
+one: a band of the application's colour over its glyph, so a second window reads as its own and is still told apart
+from the main one.
+
+To change it, edit the 64x64 SVG and render it at every size Windows asks for, 16 to 256 px, into that `.ico` —
+`vex-suite-common`'s `tools/Ico.java` does exactly this, from each size's own rasterisation rather than shrinking the
+largest (its class path needs imagelib's wrapper, `-api` and `-windows` jars). Replace the file, and the window and the
+executable change together. An `.ico` or `.png` that is missing is a compile error; one that does not decode costs the
+window its mark, logged, and nothing else.
+
+Run from `mvn exec:exec`, the process is `java.exe`, so the window and its taskbar button wear the mark but Windows
+groups the button with other Java programs, and pinning it pins Java. The native executable has neither problem.
+
 ## The stack
 
 Everything below is installed locally rather than downloaded, so `mvn install` in each of those projects has to have
@@ -315,55 +448,6 @@ happened at least once. If the build cannot resolve them, that is why.
 | `tactroller-atchung` | keyboard and pointer input onto an atchung bus (brings `atchung-core`) |
 | `tactroller-clipboard` | the OS clipboard, with no input-subsystem coupling |
 | `vexelray-os-*`, `tactroller-*` | picked by an OS-activated profile; exactly one activates |
-
-## Automation
-
-VexelRay Inspector can be driven and read from outside, by a script, a macro or an agent, through the framework's two loopback
-sockets: **remote control** (the keys, clicks and reads a person has) and **diagnostics** (the flight recorder, the
-log, the Inspector). Both are in every build, the release one too, and both start off.
-
-- **Switched on by hand**: the plug in the title bar opens the switches, one per socket, each with a port (blank for
-  a free one).
-- **Switched on at launch**, for an agent that means to: `--automation=0` (both, on a free port),
-  `--automation.control=<port>`, `--automation.diagnostics=<port>`, or `VEXELRAY_AUTOMATION=0` in the environment.
-- **Not there at all**: `--automation.available=none` (or `control`, or `diagnostics`), or
-  `VEXELRAY_AUTOMATION_AVAILABLE` in the environment. A socket that is not available cannot be switched on by
-  anything, and with neither available the plug is gone.
-
-Whatever turned it on, **the plug's lamps say what each socket is doing**, remote control's (red) left of the plug and
-diagnostics' (blue) right:
-
-| Lamp | Means |
-| --- | --- |
-| none | off, and nothing has connected to it this session |
-| ring | open, and nothing has connected yet |
-| filled ring | open, and something is connected now |
-| ring with a grey dot | open; something was connected and has gone |
-| grey dot | off, after something had connected to it this session |
-
-The plug's tooltip and the switches' window say the same in words, with the port and how many are connected.
-
-## Taking a screenshot
-
-Screenshots are `ottermate`'s, and only its: it photographs the running window on the application's own device, so
-the picture is right about content as well as chrome. There is no `--capture` flag in this project on purpose.
-
-```
-ottermate shot out.png --launch mvn compile exec:exec -Dautomation=0
-```
-
-Say what the picture is *of* with options, and `ottermate` sets it first and stops if it cannot. Everything before
-`--launch` is ottermate's; everything after it is the application's command line (on Windows, `mvn.cmd`):
-
-```
-ottermate --zoom 1.5 --dpi 2 --size 1600x900 shot big.png --launch ...   # pixels
-ottermate --size 36emx20em shot smallest.png --launch ...                # the minimum, in em
-```
-
-The landmarks in `Landmarks.java` are the names a script uses: `await status.run Inspecting` waits for the first rows
-of an attached run, `lanes` is the box the lanes are drawn in, `details` the panel under it with a landmark per value (`detail.clock-time`,
-`detail.schema`, ...), and `readouts` the line of numbers.
-`ottermate help` lists every verb.
 
 ## Logging
 
@@ -388,7 +472,8 @@ logger. Levels, settings and the rules for what belongs at which level are in `a
 
 ## The three documents
 
-`docs/framework-notes.md` and `docs/TODO.md` start nearly empty and are meant to be filled in as you go. See the note
-at the top of the first one — it is the more important of the two. `docs/retrospective.md` is filled in at the end of
-each milestone: the pass over the notes that looks for what they have in common, and the one the framework reads
-first.
+`docs/framework-notes.md` and `docs/TODO.md` are meant to be filled in as you go. See the note at the top of the first
+one — it is the more important of the two. `docs/retrospective.md` is filled in at the end of each milestone: the pass
+over the notes that looks for what they have in common, and the one the framework reads first. `docs/design.md` is
+the 0.2 design, every decision in it ruled, and [`docs/bus-graph.md`](docs/bus-graph.md) the contract the graph panel
+reads.

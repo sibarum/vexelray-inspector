@@ -14,6 +14,14 @@ Keep an entry short enough that it does not need editing, and delete it when it 
       heading, the run-time dial on the Cursor card, the clock cards with their state bars (below, the threads panel
       entry), the readouts as chips, and the cards' bracket corners and glows (FN-21).
 
+- [ ] The strip of stats has no process CPU or memory yet. Both can be read from the Inspector's side by the run's
+      pid (`QueryProcessCycleTime`, `GetProcessMemoryInfo`; `/proc/<pid>` on Linux), but `vexelray-os` has neither
+      call (meter.md's `ProcessCpu` has not landed): an FN entry when it is written here. The heap and GPU memory can
+      only come from inside the run, as `Snap` fields.
+- [ ] The link's `Snap` (presented, wakes, parks, focus) is never asked for: `LinkRows` opens the stream with `snapEveryMs` 0 and drops any that come.
+- [ ] The strip's frame time counts the gap across an idle stretch as a frame, so a run that draws in bursts shows a
+      p95 of hundreds of ms; and FPS is not set against the display's refresh, which no row says.
+
 - [ ] Export frame is not seen past its button with `ottermate`: nothing answers the save picker under automation
       (FN-20). Once something does, a check that exports and reads the file back.
 - [ ] Export frame's rows of the frame are looked for within 2 s of the cursor (`Bench.FRAME_REACH`), so a pass longer

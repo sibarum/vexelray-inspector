@@ -908,6 +908,12 @@ class BenchTest {
                         1_500_000, 2_000_000, 2_000_000, 6), live,
                 "after 1.1 s: nine draws (the one ending at 1.1 s is out), their recording, ten holds and ticks,"
                         + " and the lost rows");
+        Messages.Glance glance = longestRead().glance();
+        assertEquals(100 * MS, glance.frameP50Nanos(), "a draw every 100 ms");
+        assertEquals(100 * MS, glance.frameP95Nanos());
+        assertEquals(15_500_000L, glance.logicBusyNanos(), "the ten ticks, 1.1 ms to 2.0 ms");
+        assertEquals(9 * 2_920_000L + 10_000L + 1_000_000L, glance.mainBusyNanos(), 20_000L,
+                "nine whole passes, the end of the one before them, and the last pass's 1 ms");
         sent.clear();
         tell(Messages.STEP_TOPIC, new Step(-1_000 * MS, 2_100 * MS));
         Readouts then = readouts();

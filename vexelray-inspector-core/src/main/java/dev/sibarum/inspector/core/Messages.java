@@ -449,13 +449,15 @@ public final class Messages {
      * @param longestPass    the main thread's longest pass in it, for a click to go to; empty with none
      * @param longestTick    the logic tick whose length is {@code tickMaxNanos}; empty with none
      * @param longestDraw    the draw whose recording is {@code recordingMaxNanos}; empty with none
+     * @param glance         the figures the strip of stats over the timeline shows, over the same stretch
      */
     public static final Topic<Readouts> READOUTS_TOPIC = Topic.state(Readouts.class);
 
     public record Readouts(String run, long fromNanos, long toNanos, boolean selected, int draws, int heldForCeiling,
                            int heldForGpu, long recordingP50Nanos, long recordingP95Nanos, long recordingMaxNanos,
                            int ticks, long tickP50Nanos, long tickP95Nanos, long tickMaxNanos, long rowsLost,
-                           Optional<Event> longestPass, Optional<Event> longestTick, Optional<Event> longestDraw) {
+                           Optional<Event> longestPass, Optional<Event> longestTick, Optional<Event> longestDraw,
+                           Glance glance) {
 
         /** Readouts that name no longest event. */
         public Readouts(String run, long fromNanos, long toNanos, boolean selected, int draws, int heldForCeiling,
@@ -464,6 +466,16 @@ public final class Messages {
             this(run, fromNanos, toNanos, selected, draws, heldForCeiling, heldForGpu, recordingP50Nanos,
                     recordingP95Nanos, recordingMaxNanos, ticks, tickP50Nanos, tickP95Nanos, tickMaxNanos, rowsLost,
                     Optional.empty(), Optional.empty(), Optional.empty());
+        }
+
+        /** Readouts with no glance. */
+        public Readouts(String run, long fromNanos, long toNanos, boolean selected, int draws, int heldForCeiling,
+                        int heldForGpu, long recordingP50Nanos, long recordingP95Nanos, long recordingMaxNanos,
+                        int ticks, long tickP50Nanos, long tickP95Nanos, long tickMaxNanos, long rowsLost,
+                        Optional<Event> longestPass, Optional<Event> longestTick, Optional<Event> longestDraw) {
+            this(run, fromNanos, toNanos, selected, draws, heldForCeiling, heldForGpu, recordingP50Nanos,
+                    recordingP95Nanos, recordingMaxNanos, ticks, tickP50Nanos, tickP95Nanos, tickMaxNanos, rowsLost,
+                    longestPass, longestTick, longestDraw, Glance.NONE);
         }
 
         /** How long the stretch counted is. */
@@ -475,6 +487,29 @@ public final class Messages {
         public double perSecond(int n) {
             return nanos() <= 0 ? 0.0 : n * 1e9 / nanos();
         }
+
+        /** {@code busyNanos} of the stretch, as a share of it from 0 to 1. */
+        public double share(long busyNanos) {
+            return nanos() <= 0 ? 0.0 : Math.clamp((double) busyNanos / nanos(), 0.0, 1.0);
+        }
+    }
+
+    /**
+     * The figures most people know a running program by, over a readouts' stretch: how often it drew and how evenly,
+     * and how much of the time its two busiest threads were at work. Read from the rows, so they rewind as every
+     * panel does.
+     *
+     * @param frameP50Nanos  from one draw's present to the next, the median, over the draws in the stretch; -1 with
+     *                       fewer than two, as an idle application draws nothing and so has no frame time
+     * @param frameP95Nanos  the 95th percentile; -1 with fewer than two draws
+     * @param mainBusyNanos  how long the main thread spent in its loop's passes within the stretch: everything but
+     *                       waiting for events, so a pass held on the GPU counts as busy
+     * @param logicBusyNanos how long the logic lane spent in its ticks within the stretch
+     */
+    public record Glance(long frameP50Nanos, long frameP95Nanos, long mainBusyNanos, long logicBusyNanos) {
+
+        /** Nothing read. */
+        public static final Glance NONE = new Glance(-1L, -1L, 0L, 0L);
     }
 
     /**

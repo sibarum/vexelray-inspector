@@ -161,6 +161,9 @@ final class Ui {
     private final Node strip;
     private final Node[] names;
     private final Node readouts;
+    /** The strip's figures and their notes, a tile each, in {@link View#GLANCE}'s order. */
+    private final Node[] glanceFigures;
+    private final Node[] glanceNotes;
     /** The buttons that go to the stretch's longest pass, tick and draw, in {@link View#LONGEST}'s order. */
     private final Button[] longest;
     private final IconButton follow;
@@ -263,6 +266,23 @@ final class Ui {
         }
         Node readoutRow = gui.row().width(Length.FILL).gap(Type.TIGHT).alignItems(AlignItems.CENTER)
                 .children(readoutNodes);
+
+        // The strip of stats: a card a figure, each as wide as the next, its name over it and its note under it.
+        int tiles = View.GLANCE.size();
+        glanceFigures = new Node[tiles];
+        glanceNotes = new Node[tiles];
+        Node[] tileNodes = new Node[tiles];
+        for (int i = 0; i < tiles; i++) {
+            glanceFigures[i] = gui.text("-").width(Length.FILL).textColor(Role.INK).textSize(Length.rem(1.6f))
+                    .wordWrap(false);
+            glanceNotes[i] = gui.text("").width(Length.FILL).textColor(Role.DIM).textSize(Type.SMALL)
+                    .wordWrap(false);
+            tileNodes[i] = card(View.GLANCE.get(i), glanceFigures[i], glanceNotes[i]).width(Length.grow(1f));
+            gui.landmark(Landmarks.GLANCE_TILE + View.GLANCE.get(i).toLowerCase(java.util.Locale.ROOT)
+                    .replace(' ', '-'), tileNodes[i]);
+        }
+        Node glance = gui.row().width(Length.FILL).gap(Type.GAP).alignItems(AlignItems.STRETCH).children(tileNodes);
+        gui.landmark(Landmarks.GLANCE, glance);
 
         // Clipped to the card, never scrolled: the dashboard has one scrollbar, its own, and a long path is read whole
         // in the cursor window.
@@ -397,7 +417,7 @@ final class Ui {
         // found (once it has run), and the graph beside its topics. Each as tall as what it holds, and the page,
         // not a card, scrolls: the dashboard has one scrollbar, and whatever would scroll in a card is in a window.
         Node page = gui.column().width(Length.FILL).padding(Type.GAP).gap(Type.GAP)
-                .children(card("Timeline", lanes).width(Length.FILL), cursorPanels,
+                .children(glance, card("Timeline", lanes).width(Length.FILL), cursorPanels,
                         card("Clocks", threads.node(), readoutRow).width(Length.FILL), replay, panels);
         Node timeline = gui.column().width(Length.FILL).height(Length.grow(1f)).clip(true).scroll(false, true)
                 .children(page);
@@ -753,6 +773,14 @@ final class Ui {
     /** What the readouts line says. */
     void readouts(String line) {
         readouts.text(line);
+    }
+
+    /** What the strip of stats says: a figure and its note for each tile, in {@link View#GLANCE}'s order. */
+    void glance(List<View.Tile> tiles) {
+        for (int i = 0; i < glanceFigures.length && i < tiles.size(); i++) {
+            glanceFigures[i].text(tiles.get(i).figure());
+            glanceNotes[i].text(tiles.get(i).note());
+        }
     }
 
     /** The landmarks of the longest buttons, in {@link View#LONGEST}'s order. */

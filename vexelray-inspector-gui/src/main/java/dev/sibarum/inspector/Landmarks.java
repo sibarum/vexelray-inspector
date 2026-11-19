@@ -128,6 +128,15 @@ final class Landmarks {
     /** The readouts line, over the second before the cursor, or over the stretch selected ("Selected ..."). */
     static final String READOUTS = "readouts";
 
+    /** The strip of stats over the timeline: FPS, frame time, and how busy the main thread and the logic were. */
+    static final String GLANCE = "glance";
+
+    /**
+     * One tile of it: this, then its name in lower case with a dash for each space ({@code glance.fps},
+     * {@code glance.main-thread}); its text is the figure, then its note under it.
+     */
+    static final String GLANCE_TILE = "glance.";
+
     /**
      * The buttons at the readouts line's right end that go to a stretch's longest main-thread pass, logic tick and draw
      * (by its recording); enabled while a stretch is selected.

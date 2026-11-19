@@ -782,6 +782,24 @@ class ViewTest {
     }
 
     @Test
+    void theStripOfStatsSaysFpsFrameTimeAndHowBusyTheTwoClocksWere() {
+        Readouts r = new Readouts("r", 0L, 1_000_000_000L, false, 58, 0, 2, 500_000, 620_000, 900_000, 120, 450_000,
+                1_200_000, 3_100_000, 0, Optional.empty(), Optional.empty(), Optional.empty(),
+                new Messages.Glance(16_900_000L, 22_100_000L, 340_000_000L, 120_000_000L));
+        assertEquals(List.of(new View.Tile("58", "2 draws held for the GPU"),
+                        new View.Tile("16.9 ms", "median; p95 22.1 ms"),
+                        new View.Tile("34 %", "busy in loop passes"),
+                        new View.Tile("12 %", "busy in ticks; 120 ticks a second")),
+                View.glance(r));
+        Readouts idle = new Readouts("r", 0L, 1_000_000_000L, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertEquals(List.of(new View.Tile("0", "nothing drawn: idle"), new View.Tile("-", "fewer than two frames"),
+                        new View.Tile("0 %", "busy in loop passes"), new View.Tile("0 %", "busy in ticks; 0 ticks a second")),
+                View.glance(idle), "an idle run draws nothing, so it has no frame time");
+        assertEquals("-", View.glance(new Readouts("", 0L, 0L, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)).getFirst()
+                .figure(), "nothing attached");
+    }
+
+    @Test
     void theFlowsPanelSaysWhenItCountsAStretchSelected() {
         Optional<Messages.Range> stretch = Optional.of(new Messages.Range(1_000_000_000L, 3_500_000_000L));
         assertEquals("Counted within the 2.500 s selected, each rate over its length",

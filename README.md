@@ -137,6 +137,11 @@ mvn test                                                  # the bench, and the r
 
 ## Using it
 
+Over the lanes, a strip of four figures most people know a program by, counted over the same second (or stretch
+selected) as the readouts, and rewound with them: **FPS**, the draws a second; **Frame time**, from one present to the
+next, median and 95th percentile (a dash with fewer than two draws, since an idle application draws nothing); and how
+much of the time the **Main thread** spent in its loop's passes and the **Logic** in its ticks.
+
 The window shows six lanes on one time axis, ten seconds across at first, the details of the cursor under them, and a
 line of readouts:
 

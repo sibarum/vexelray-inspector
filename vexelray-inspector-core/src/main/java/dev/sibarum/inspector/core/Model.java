@@ -1394,7 +1394,36 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         return new Readouts(run, from, to, selected, draws, ceiling, gpu, percentile(recordings, 0.50),
                 percentile(recordings, 0.95), percentile(recordings, 1.0), ticks.length, percentile(ticks, 0.50),
                 percentile(ticks, 0.95), percentile(ticks, 1.0), rowsLost, longest(MAIN, PASS, from, to, false),
-                longest(LOGIC, "", from, to, false), longest(DRAWING, DRAW, from, to, true));
+                longest(LOGIC, "", from, to, false), longest(DRAWING, DRAW, from, to, true), glance(from, to));
+    }
+
+    /**
+     * The glance over the events of this model ending after {@code from} and at or before {@code to}: the gaps between
+     * consecutive draws' presents, both in the stretch; and the main thread's passes and the logic's ticks, each cut to
+     * the stretch, added up.
+     */
+    Messages.Glance glance(long from, long to) {
+        long[] presents = lane(DRAWING).marks().stream()
+                .filter(m -> m.toNanos() > from && m.toNanos() <= to && m.kind().equals(DRAW))
+                .mapToLong(Mark::toNanos).sorted().toArray();
+        long[] gaps = new long[Math.max(0, presents.length - 1)];
+        for (int i = 1; i < presents.length; i++) {
+            gaps[i - 1] = presents[i] - presents[i - 1];
+        }
+        Arrays.sort(gaps);
+        return new Messages.Glance(gaps.length == 0 ? -1L : percentile(gaps, 0.50),
+                gaps.length == 0 ? -1L : percentile(gaps, 0.95), busy(MAIN, PASS, from, to), busy(LOGIC, "", from, to));
+    }
+
+    /** How long {@code lane}'s events of {@code kind} (any, when empty) spent within {@code from} to {@code to}. */
+    private long busy(String lane, String kind, long from, long to) {
+        long sum = 0L;
+        for (Mark m : lane(lane).marks()) {
+            if (kind.isEmpty() || m.kind().equals(kind)) {
+                sum += Math.max(0L, Math.min(m.toNanos(), to) - Math.max(m.fromNanos(), from));
+            }
+        }
+        return sum;
     }
 
     /**

@@ -7,6 +7,7 @@ import dev.sibarum.inspector.Keys.CopyKey;
 import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.ExportKey;
 import dev.sibarum.inspector.core.Messages.ExportFrame;
+import dev.sibarum.inspector.core.Messages.Glance;
 import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.RowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
@@ -1493,6 +1494,7 @@ final class View {
     public void readouts(Readouts r) {
         readouts = r;
         ui.readouts(readout(r));
+        ui.glance(glance(r));
         List<Optional<Event>> events = longest(r);
         for (int i = 0; i < LONGEST.size(); i++) {
             boolean can = r.selected() && events.get(i).isPresent();
@@ -1757,6 +1759,41 @@ final class View {
             said.add(e.count() == End.UNCOUNTED ? part : part + " " + e.count());
         }
         return String.join(", ", said);
+    }
+
+    /** The strip of stats' tiles, by name, in order. */
+    static final List<String> GLANCE = List.of("FPS", "Frame time", "Main thread", "Logic");
+
+    /** One tile of the strip: its figure, and the note under it. */
+    record Tile(String figure, String note) {
+    }
+
+    /**
+     * What the strip of stats says, a tile each in {@link #GLANCE}'s order, over the readouts' stretch: draws a
+     * second; the time from one present to the next, median and 95th percentile; and the share of the stretch the
+     * main thread spent in passes and the logic in ticks. A dash for what nothing was read for. Pure, for a test.
+     */
+    static List<Tile> glance(Readouts r) {
+        if (r.run().isEmpty() && r.draws() == 0 && r.ticks() == 0) {
+            return List.of(new Tile("-", ""), new Tile("-", ""), new Tile("-", ""), new Tile("-", ""));
+        }
+        Glance g = r.glance();
+        String fps = r.selected() ? String.format(Locale.ROOT, "%.1f", r.perSecond(r.draws()))
+                : String.format(Locale.ROOT, "%.0f", r.perSecond(r.draws()));
+        String drew = r.draws() == 0 ? "nothing drawn: idle"
+                : r.heldForGpu() > 0 ? r.heldForGpu() + (r.heldForGpu() == 1 ? " draw" : " draws") + " held for the GPU"
+                : "frames drawn a second";
+        Tile frame = g.frameP50Nanos() < 0 ? new Tile("-", "fewer than two frames")
+                : new Tile(String.format(Locale.ROOT, "%.1f ms", g.frameP50Nanos() / 1e6),
+                String.format(Locale.ROOT, "median; p95 %.1f ms", g.frameP95Nanos() / 1e6));
+        return List.of(new Tile(fps, drew), frame,
+                new Tile(percent(r.share(g.mainBusyNanos())), "busy in loop passes"),
+                new Tile(percent(r.share(g.logicBusyNanos())),
+                        String.format(Locale.ROOT, "busy in ticks; %.0f ticks a second", r.perSecond(r.ticks()))));
+    }
+
+    private static String percent(double share) {
+        return String.format(Locale.ROOT, "%.0f %%", share * 100.0);
     }
 
     /**

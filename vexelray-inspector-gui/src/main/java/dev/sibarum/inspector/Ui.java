@@ -275,8 +275,7 @@ final class Ui {
         for (int i = 0; i < tiles; i++) {
             glanceFigures[i] = gui.text("-").width(Length.FILL).textColor(Role.INK).textSize(Length.rem(1.6f))
                     .wordWrap(false);
-            glanceNotes[i] = gui.text("").width(Length.FILL).textColor(Role.DIM).textSize(Type.SMALL)
-                    .wordWrap(false);
+            glanceNotes[i] = gui.text("").width(Length.FILL).textColor(Role.DIM).textSize(Type.SMALL);
             tileNodes[i] = card(View.GLANCE.get(i), glanceFigures[i], glanceNotes[i]).width(Length.grow(1f));
             gui.landmark(Landmarks.GLANCE_TILE + View.GLANCE.get(i).toLowerCase(java.util.Locale.ROOT)
                     .replace(' ', '-'), tileNodes[i]);

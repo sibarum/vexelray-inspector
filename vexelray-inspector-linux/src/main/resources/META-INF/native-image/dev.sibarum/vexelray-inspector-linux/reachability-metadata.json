@@ -1,0 +1,11 @@
+{
+  "comment": [
+    "LinuxProcessMeters: found through ServiceLoader, so its services file is a resource."
+  ],
+  "resources": [
+    { "glob": "META-INF/services/dev.sibarum.inspector.core.ProcessMeters" }
+  ],
+  "reflection": [
+    { "type": "dev.sibarum.inspector.linux.LinuxProcessMeters", "methods": [ { "name": "<init>", "parameterTypes": [] } ] }
+  ]
+}

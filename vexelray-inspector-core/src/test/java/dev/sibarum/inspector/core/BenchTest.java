@@ -192,7 +192,7 @@ class BenchTest {
     @Test
     void theNewestRunIsAttachedTo() {
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
-        assertEquals(List.of(new Attach("scheduler-12", "uds:two")), took(Attach.class));
+        assertEquals(List.of(new Attach("scheduler-12", "uds:two", 12)), took(Attach.class));
         sent.clear();
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
         assertEquals(List.of(), took(Attach.class), "attached already: the timer's next beat changes nothing");
@@ -216,7 +216,7 @@ class BenchTest {
         tell(Messages.CHOOSE_TOPIC, new Choose(TWO, Bench.ATTACHED));
         assertEquals(List.of(), took(Attach.class), "chosen again: it is attached already");
         tell(Messages.CHOOSE_TOPIC, new Choose(ONE, Bench.ATTACHED));
-        assertEquals(List.of(new Attach(ONE.name(), ONE.stream())), took(Attach.class));
+        assertEquals(List.of(new Attach(ONE.name(), ONE.stream(), ONE.pid())), took(Attach.class));
     }
 
     @Test
@@ -238,7 +238,7 @@ class BenchTest {
         tell(Messages.DETACHED_TOPIC, new Detached(ONE.name(), "it went away"));
         sent.clear();
         tell(Messages.RUNS_TOPIC, new Runs(List.of(TWO), ""));
-        assertEquals(List.of(new Attach(TWO.name(), TWO.stream())), took(Attach.class));
+        assertEquals(List.of(new Attach(TWO.name(), TWO.stream(), TWO.pid())), took(Attach.class));
     }
 
     @Test
@@ -264,11 +264,11 @@ class BenchTest {
         tell(Messages.RUNS_TOPIC, new Runs(List.of(), ""));
         assertEquals("Waiting for pid:12 to start", timeline().status());
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
-        assertEquals(List.of(new Attach(TWO.name(), TWO.stream())), took(Attach.class));
+        assertEquals(List.of(new Attach(TWO.name(), TWO.stream(), TWO.pid())), took(Attach.class));
 
         build("calculator-11");
         tell(Messages.RUNS_TOPIC, new Runs(List.of(ONE, TWO), ""));
-        assertEquals(List.of(new Attach(ONE.name(), ONE.stream())), took(Attach.class));
+        assertEquals(List.of(new Attach(ONE.name(), ONE.stream(), ONE.pid())), took(Attach.class));
     }
 
     @Test
@@ -363,7 +363,7 @@ class BenchTest {
         assertTrue(sent.stream().noneMatch(Attach.class::isInstance), "not the newest: the one it launched");
         assertEquals("Launching mvn.cmd exec:exec", timeline().status());
         tell(Messages.CHOOSE_TOPIC, new Choose(TWO, Bench.LAUNCHED));
-        assertEquals(List.of(new Attach(TWO.name(), TWO.stream())), took(Attach.class));
+        assertEquals(List.of(new Attach(TWO.name(), TWO.stream(), TWO.pid())), took(Attach.class));
         tell(Messages.ROWS_TOPIC, new Rows(TWO.name(), 0, 0, List.of(pass(1, 100 * MS, "4ms"))));
         assertEquals(Bench.LAUNCHED, took(RunPanel.class).getLast().from());
     }
@@ -462,7 +462,7 @@ class BenchTest {
         assertEquals("Calculator (calculator-11): it went away. " + Bench.NONE, timeline().status(),
                 "the next beat finds nothing, and the reason stays beside it");
         tell(Messages.RUNS_TOPIC, new Runs(List.of(TWO), ""));
-        assertEquals(List.of(new Attach("scheduler-12", "uds:two")), took(Attach.class));
+        assertEquals(List.of(new Attach("scheduler-12", "uds:two", 12)), took(Attach.class));
     }
 
     @Test

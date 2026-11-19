@@ -356,3 +356,27 @@ What the framework could do: a public reader that only takes the compiled format
 and each application's wordmark, would then use it. XML would stay an authoring format, read by tools and at build
 time. Since the shell itself takes the XML path, every framework application's native image pays about 3 MB for it
 today, whatever it draws.
+
+## FN-25 · Nothing in the stack reads another process's CPU and memory, so the Inspector reads it itself 🔬
+
+The strip of stats wanted the inspected run's CPU and memory beside its FPS. The stack has no such reading: meter.md
+section 4's `ProcessCpu` (cycle counters per thread, in `vexelray-os-windows` behind `vexelray-os-api`) has not
+landed, `vexelray-os-windows`'s `Kernel32` binds none of the calls, and the JDK's `ProcessHandle.info()` gives
+another process's CPU time but not its memory.
+
+What was done: `ProcessMeters` in `-core`, answered by two OS modules of the Inspector's own,
+`vexelray-inspector-windows` (`OpenProcess` with `PROCESS_QUERY_LIMITED_INFORMATION`, `GetProcessTimes`,
+`K32GetProcessMemoryInfo`, `GlobalMemoryStatusEx`, through `Ffi`) and `vexelray-inspector-linux` (`/proc/<pid>/schedstat`,
+`status`, `/proc/meminfo`), found through `ServiceLoader` as the stack's own platforms are, since `vexelray-build`'s
+`isolate` refuses either in `-core`. The link reader reads the process every 250 ms and puts each reading on the tape
+as a row (`process sample`). No application before this one had OS modules of its own: `vexplore-windows` and
+`-linux` are empty folders.
+
+What it costs: two modules and a services file each, and on Windows a CPU figure accounted in scheduler ticks
+(15.6 ms), good to a few percent of one core over a second, which is exactly what meter.md says not to trust for idle
+measurements. The readings are from outside the run, so they need its pid, and a recording has none.
+
+What the framework could do: land `ProcessCpu`, with process memory beside it (working set, private bytes; RSS on
+Linux) and the machine's, as a `vexelray-os-api` interface that takes a pid, not only the current process. The
+Inspector's two modules would then go. Better still, the link's `Snap` could carry the run's own figures, read from
+inside, with the heap and GPU memory that only the run itself can see (`Snap`'s javadoc already reserves heap).

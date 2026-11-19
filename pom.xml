@@ -23,11 +23,16 @@
         vexelray-inspector-gui    the view: the window, the widgets and the framework integration. The application's
                              entry point, its wiring, its icon and its native build are all here.
 
-      They talk by messages and nothing else (vexelray-inspector-core's Messages). Run everything from this folder:
-      mvn compile exec:exec runs the application, mvn test runs both modules' tests.
+      They talk by messages and nothing else (vexelray-inspector-core's Messages). Beside them, one module an OS
+      (vexelray-inspector-windows, -linux) for what only that OS does, found through ServiceLoader. Run everything from
+      this folder: mvn compile exec:exec runs the application, mvn test runs every module's tests.
     -->
     <modules>
         <module>vexelray-inspector-core</module>
+        <!-- What only one OS does (reading a process), behind -core's ProcessMeters; -gui's platform profile picks one.
+             Both build everywhere: neither needs its OS to compile, and each test that does says so. -->
+        <module>vexelray-inspector-windows</module>
+        <module>vexelray-inspector-linux</module>
         <module>vexelray-inspector-gui</module>
     </modules>
 

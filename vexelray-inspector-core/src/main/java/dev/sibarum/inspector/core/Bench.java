@@ -386,13 +386,20 @@ public final class Bench {
          * else over the second before the cursor, {@code at} the model there.
          */
         Readouts readouts(Model at) {
+            Readouts r;
             if (!paused || island.selection().isEmpty()) {
-                return at.readouts(run);
+                r = at.readouts(run);
+            } else {
+                Selection s = island.selection().get();
+                Range range = s.range();
+                long lost = s.to().lost() - s.from().lost();
+                r = island.kept().readouts(run, range.fromNanos(), range.toNanos(), true, Math.max(0L, lost));
             }
-            Selection s = island.selection().get();
-            Range r = s.range();
-            long lost = s.to().lost() - s.from().lost();
-            return island.kept().readouts(run, r.fromNanos(), r.toNanos(), true, Math.max(0L, lost));
+            // The process's readings, from the tape: the one before the stretch's start too, so a second's share has
+            // a reading at each end.
+            Tape t = paused ? island.tape() : tape;
+            List<Row> readings = t.near(r.toNanos(), r.nanos() + ProcessMeter.EVERY_NANOS * 2, ProcessMeter::isSample);
+            return r.withUsage(ProcessMeter.usage(readings, r.fromNanos(), r.toNanos()));
         }
 
         /** The model as of the cursor: the one its island recomputes for it, or the live one while following. */
@@ -703,7 +710,7 @@ public final class Bench {
 
     /** Attach to {@code run}, reached {@code from}, and let the last run's tape go. */
     private static State attach(State s, Run run, String from, boolean chosen, Out out) {
-        out.send(Messages.ATTACH_TOPIC, new Attach(run.name(), run.stream()));
+        out.send(Messages.ATTACH_TOPIC, new Attach(run.name(), run.stream(), run.pid()));
         // The banner stays up while attaching again, so a run its link cannot read does not flicker it every beat; a
         // stream that opens says at once whether there is anything to warn of.
         return say(new State(run.name(), run.title(), "Attaching to " + named(run.title(), run.name()), false,

@@ -434,6 +434,12 @@
                     <version>${tactroller.version}</version>
                     <scope>runtime</scope>
                 </dependency>
+                <dependency>
+                    <groupId>dev.sibarum</groupId>
+                    <artifactId>vexelray-inspector-windows</artifactId>
+                    <version>${project.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
             </dependencies>
         </profile>
         <profile>
@@ -450,6 +456,12 @@
                     <groupId>sibarum.tactroller</groupId>
                     <artifactId>tactroller-linux</artifactId>
                     <version>${tactroller.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>dev.sibarum</groupId>
+                    <artifactId>vexelray-inspector-linux</artifactId>
+                    <version>${project.version}</version>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>

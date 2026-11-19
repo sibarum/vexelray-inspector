@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A run's rows, read over its link for as long as it is attached: a source (vexelray-framework's
@@ -85,7 +86,10 @@ public final class LinkRows {
         } catch (RuntimeException e) {
             return new Detached(request.run(), "its link could not be reached: " + e.getMessage());
         }
-        try (link) {
+        try (link; ProcessMeter meter = ProcessMeter.open(request.pid())) {
+            if (!meter.why().isEmpty()) {
+                LOG.info("{}: its process is not read: {}", request.run(), meter.why());
+            }
             link.onClose(() -> arrived.add(CLOSED));
             StreamOpened opened = link.open(new StreamOpen(LANES, -1, 0), arrived::add, snap -> { });
             if (opened.err().isPresent()) {
@@ -109,7 +113,22 @@ public final class LinkRows {
             Rows opening = rows(request.run(), origin, NOTHING, said, recorded, warning);
             rows.send(withGraph(opening, graphOf(link)));
             Lag lag = new Lag();
-            for (RowBatch b = arrived.take(); b != CLOSED; b = arrived.take()) {
+            long due = System.nanoTime();
+            while (true) {
+                long now = System.nanoTime();
+                if (now - due >= 0) {
+                    // Between batches, from this thread, so a reading keeps its place among the rows it is sent with.
+                    meter.read().ifPresent(s -> rows.send(new Rows(request.run(), 0, -1,
+                            List.of(ProcessMeter.row(s, now)))));
+                    due = now + ProcessMeter.EVERY_NANOS;
+                }
+                RowBatch b = arrived.poll(due - System.nanoTime(), TimeUnit.NANOSECONDS);
+                if (b == CLOSED) {
+                    break;
+                }
+                if (b == null) {
+                    continue;
+                }
                 if (!b.rows().isEmpty()) {
                     lag.add(request.run(), System.nanoTime() - (origin + b.rows().getLast().tMonoNs()), b.rows().size());
                 }

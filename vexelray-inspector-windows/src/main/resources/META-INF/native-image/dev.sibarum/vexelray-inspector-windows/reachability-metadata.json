@@ -1,0 +1,20 @@
+{
+  "comment": [
+    "WindowsProcessMeters: found through ServiceLoader, so its services file is a resource; and every kernel32",
+    "downcall it binds, by shape: OpenProcess, CloseHandle, GetProcessTimes, K32GetProcessMemoryInfo, GlobalMemoryStatusEx."
+  ],
+  "resources": [
+    { "glob": "META-INF/services/dev.sibarum.inspector.core.ProcessMeters" }
+  ],
+  "reflection": [
+    { "type": "dev.sibarum.inspector.windows.WindowsProcessMeters", "methods": [ { "name": "<init>", "parameterTypes": [] } ] }
+  ],
+  "foreign": {
+    "downcalls": [
+      { "returnType": "void*", "parameterTypes": ["jint", "jint", "jint"] },
+      { "returnType": "jint", "parameterTypes": ["void*"] },
+      { "returnType": "jint", "parameterTypes": ["void*", "void*", "void*", "void*", "void*"] },
+      { "returnType": "jint", "parameterTypes": ["void*", "void*", "jint"] }
+    ]
+  }
+}

@@ -11,6 +11,10 @@ changing anything, and `Messages.java` before adding a part.
   on one state, and the jobs that touch the disk. `vexelray-inspector-gui` is the view and the framework integration:
   `View.java`, a `@View` on the GUI thread that shows what the editor decides and tells it what the person did, and
   everything about the window. Run every `mvn` command from this folder, the parent of both.
+- **And one module an OS** for what only that OS does: `vexelray-inspector-windows` and `-linux` answer `-core`'s
+  `ProcessMeters` (reading the inspected process), found through `ServiceLoader` and put on the class path by `-gui`'s
+  platform profiles. `vexelray-build`'s `isolate` goal fails the build on platform-specific code anywhere else
+  (`os.name`, a system library's name), so new code of that kind goes behind an interface here too.
 - **The parts talk by messages, and nothing else.** Every message is a record in `-core`'s `Messages.java`. A part
   never holds another part across lanes (the processor refuses it), so a new feature is a message, a mailbox
   (`@Subscribe`) where it arrives, and a `@Publishes` where it is sent. If message passing is awkward for something,

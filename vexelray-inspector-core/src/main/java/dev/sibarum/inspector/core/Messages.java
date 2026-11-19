@@ -64,10 +64,13 @@ public final class Messages {
         }
     }
 
-    /** Read {@code run}'s rows over its link at {@code stream} ({@link LinkRows}), one run of the source per name. */
+    /**
+     * Read {@code run}'s rows over its link at {@code stream} ({@link LinkRows}), one run of the source per name, and
+     * its process {@code pid} beside them ({@link ProcessMeter}); 0 when the run did not say it.
+     */
     public static final Topic<Attach> ATTACH_TOPIC = Topic.edge(Attach.class, Attach::run);
 
-    public record Attach(String run, String stream) {
+    public record Attach(String run, String stream, long pid) {
     }
 
     /**
@@ -488,6 +491,15 @@ public final class Messages {
             return nanos() <= 0 ? 0.0 : n * 1e9 / nanos();
         }
 
+        /** These readouts with {@code usage} for their glance's. */
+        public Readouts withUsage(Usage usage) {
+            Glance g = glance;
+            return new Readouts(run, fromNanos, toNanos, selected, draws, heldForCeiling, heldForGpu, recordingP50Nanos,
+                    recordingP95Nanos, recordingMaxNanos, ticks, tickP50Nanos, tickP95Nanos, tickMaxNanos, rowsLost,
+                    longestPass, longestTick, longestDraw, new Glance(g.frameP50Nanos(), g.frameP95Nanos(),
+                    g.mainBusyNanos(), g.logicBusyNanos(), usage));
+        }
+
         /** {@code busyNanos} of the stretch, as a share of it from 0 to 1. */
         public double share(long busyNanos) {
             return nanos() <= 0 ? 0.0 : Math.clamp((double) busyNanos / nanos(), 0.0, 1.0);
@@ -506,10 +518,32 @@ public final class Messages {
      *                       waiting for events, so a pass held on the GPU counts as busy
      * @param logicBusyNanos how long the logic lane spent in its ticks within the stretch
      */
-    public record Glance(long frameP50Nanos, long frameP95Nanos, long mainBusyNanos, long logicBusyNanos) {
+    public record Glance(long frameP50Nanos, long frameP95Nanos, long mainBusyNanos, long logicBusyNanos,
+                         Usage usage) {
 
         /** Nothing read. */
         public static final Glance NONE = new Glance(-1L, -1L, 0L, 0L);
+
+        /** A glance with no reading of the run's process. */
+        public Glance(long frameP50Nanos, long frameP95Nanos, long mainBusyNanos, long logicBusyNanos) {
+            this(frameP50Nanos, frameP95Nanos, mainBusyNanos, logicBusyNanos, Usage.NONE);
+        }
+    }
+
+    /**
+     * What the run's process used over a readouts' stretch, read from outside by its pid (ProcessMeter): -1 for what was
+     * not read, as a recording, a platform with no reader, or a process that could not be opened leaves it.
+     *
+     * @param cpuCores         CPU time used over the stretch's wall time: 1.0 is one core busy throughout
+     * @param machineCores     the cores the machine has, for the share of all of them
+     * @param residentBytes    how much of the process was in RAM at the stretch's end (its working set, its RSS)
+     * @param memoryUsedBytes  the machine's RAM in use then, by everything
+     * @param memoryTotalBytes the machine's RAM
+     */
+    public record Usage(double cpuCores, int machineCores, long residentBytes, long memoryUsedBytes,
+                        long memoryTotalBytes) {
+
+        public static final Usage NONE = new Usage(-1.0, -1, -1L, -1L, -1L);
     }
 
     /**

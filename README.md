@@ -140,7 +140,11 @@ mvn test                                                  # the bench, and the r
 Over the lanes, a strip of four figures most people know a program by, counted over the same second (or stretch
 selected) as the readouts, and rewound with them: **FPS**, the draws a second; **Frame time**, from one present to the
 next, median and 95th percentile (a dash with fewer than two draws, since an idle application draws nothing); and how
-much of the time the **Main thread** spent in its loop's passes and the **Logic** in its ticks.
+much of the time the **Main thread** spent in its loop's passes and the **Logic** in its ticks. Then the run's process,
+read from outside by its pid four times a second (Windows and Linux): its **CPU**, as a share of every core as a task
+manager shows it and in cores, and its **Memory**, how much of it is in RAM, with the machine's RAM in use. A
+recording carries no readings, so those two say "not read". On Windows the CPU figure is good to a few percent of one
+core, as Windows accounts it in 15.6 ms ticks (framework-notes FN-25).
 
 The window shows six lanes on one time axis, ten seconds across at first, the details of the cursor under them, and a
 line of readouts:

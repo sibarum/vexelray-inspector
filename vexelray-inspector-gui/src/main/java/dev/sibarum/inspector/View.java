@@ -8,6 +8,7 @@ import dev.sibarum.inspector.Keys.EventKey;
 import dev.sibarum.inspector.Keys.ExportKey;
 import dev.sibarum.inspector.core.Messages.ExportFrame;
 import dev.sibarum.inspector.core.Messages.Glance;
+import dev.sibarum.inspector.core.Messages.Usage;
 import dev.sibarum.inspector.Keys.FollowKey;
 import dev.sibarum.inspector.Keys.RowKey;
 import dev.sibarum.inspector.Keys.PauseKey;
@@ -1762,34 +1763,67 @@ final class View {
     }
 
     /** The strip of stats' tiles, by name, in order. */
-    static final List<String> GLANCE = List.of("FPS", "Frame time", "Main thread", "Logic");
+    static final List<String> GLANCE = List.of("FPS", "Frame time", "Main thread", "Logic", "CPU", "Memory");
 
     /** One tile of the strip: its figure, and the note under it. */
     record Tile(String figure, String note) {
     }
 
+    /** A tile with nothing to say. */
+    private static final Tile NOTHING = new Tile("-", "");
+
     /**
      * What the strip of stats says, a tile each in {@link #GLANCE}'s order, over the readouts' stretch: draws a
-     * second; the time from one present to the next, median and 95th percentile; and the share of the stretch the
-     * main thread spent in passes and the logic in ticks. A dash for what nothing was read for. Pure, for a test.
+     * second; the time from one present to the next, median and 95th percentile; the share of the stretch the main
+     * thread spent in passes and the logic in ticks; the process's CPU, as a share of the whole machine as a task
+     * manager shows it, and in cores; and how much of it was in RAM, with the machine's RAM in use. A dash for what
+     * nothing was read for. Pure, for a test.
      */
     static List<Tile> glance(Readouts r) {
         if (r.run().isEmpty() && r.draws() == 0 && r.ticks() == 0) {
-            return List.of(new Tile("-", ""), new Tile("-", ""), new Tile("-", ""), new Tile("-", ""));
+            return java.util.Collections.nCopies(GLANCE.size(), NOTHING);
         }
         Glance g = r.glance();
         String fps = r.selected() ? String.format(Locale.ROOT, "%.1f", r.perSecond(r.draws()))
                 : String.format(Locale.ROOT, "%.0f", r.perSecond(r.draws()));
-        String drew = r.draws() == 0 ? "nothing drawn: idle"
-                : r.heldForGpu() > 0 ? r.heldForGpu() + (r.heldForGpu() == 1 ? " draw" : " draws") + " held for the GPU"
-                : "frames drawn a second";
-        Tile frame = g.frameP50Nanos() < 0 ? new Tile("-", "fewer than two frames")
+        String drew = r.draws() == 0 ? "idle: nothing drawn"
+                : r.heldForGpu() > 0 ? r.heldForGpu() + " held for the GPU" : "drawn a second";
+        Tile frame = g.frameP50Nanos() < 0 ? new Tile("-", "under two frames")
                 : new Tile(String.format(Locale.ROOT, "%.1f ms", g.frameP50Nanos() / 1e6),
-                String.format(Locale.ROOT, "median; p95 %.1f ms", g.frameP95Nanos() / 1e6));
+                String.format(Locale.ROOT, "p95 %.1f ms", g.frameP95Nanos() / 1e6));
         return List.of(new Tile(fps, drew), frame,
-                new Tile(percent(r.share(g.mainBusyNanos())), "busy in loop passes"),
+                new Tile(percent(r.share(g.mainBusyNanos())), "in loop passes"),
                 new Tile(percent(r.share(g.logicBusyNanos())),
-                        String.format(Locale.ROOT, "busy in ticks; %.0f ticks a second", r.perSecond(r.ticks()))));
+                        String.format(Locale.ROOT, "%.0f ticks a second", r.perSecond(r.ticks()))),
+                cpu(g.usage()), memory(g.usage()));
+    }
+
+    /** The CPU tile: the share of every core, and how many cores' worth that is. */
+    static Tile cpu(Usage u) {
+        if (u.cpuCores() < 0 || u.machineCores() <= 0) {
+            return new Tile("-", "not read");
+        }
+        return new Tile(percent(u.cpuCores() / u.machineCores()),
+                String.format(Locale.ROOT, "%.2f of %d cores", u.cpuCores(), u.machineCores()));
+    }
+
+    /** The memory tile: the process in RAM, and the machine's RAM in use of all of it. */
+    static Tile memory(Usage u) {
+        if (u.residentBytes() < 0) {
+            return new Tile("-", "not read");
+        }
+        String machine = u.memoryUsedBytes() < 0 || u.memoryTotalBytes() <= 0 ? "in RAM"
+                : String.format(Locale.ROOT, "machine %.1f of %.1f GB", u.memoryUsedBytes() / GIB,
+                u.memoryTotalBytes() / GIB);
+        return new Tile(bytes(u.residentBytes()), machine);
+    }
+
+    private static final double GIB = 1024.0 * 1024.0 * 1024.0;
+
+    /** A size as a task manager says it: MB under a GB, else GB to a tenth. */
+    static String bytes(long n) {
+        return n < GIB ? String.format(Locale.ROOT, "%.0f MB", n / (1024.0 * 1024.0))
+                : String.format(Locale.ROOT, "%.1f GB", n / GIB);
     }
 
     private static String percent(double share) {

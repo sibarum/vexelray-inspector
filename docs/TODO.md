@@ -17,8 +17,6 @@ Keep an entry short enough that it does not need editing, and delete it when it 
 - [ ] The strip's CPU on Windows is tick-accounted (`GetProcessTimes`), good to a few percent of a core; cycle counts
       (`QueryProcessCycleTime`) need the TSC's rate (FN-25). There is no macOS reader (`vexelray-inspector-macos`).
 - [ ] The heap and GPU memory can only come from inside the run, as `Snap` fields the link does not carry yet.
-- [ ] The process's readings are rows on the tape, so the Events panel lists one every 250 ms; it could leave them
-      out, or the filter (below) could.
 - [ ] The link's `Snap` (presented, wakes, parks, focus) is never asked for: `LinkRows` opens the stream with `snapEveryMs` 0 and drops any that come.
 - [ ] The strip's frame time counts the gap across an idle stretch as a frame, so a run that draws in bursts shows a
       p95 of hundreds of ms; and FPS is not set against the display's refresh, which no row says.

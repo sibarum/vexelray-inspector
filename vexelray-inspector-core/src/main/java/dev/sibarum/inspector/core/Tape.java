@@ -187,6 +187,15 @@ public record Tape(List<Second> seconds) {
     /** The order the rows panel shows rows in: by time, then by sequence. */
     static final Comparator<Row> ORDER = Comparator.comparingLong(Row::atNanos).thenComparingLong(Row::seq);
 
+    /**
+     * Whether a row is one the rows panel, the events window and Up and Down go through: every row the run sent, and
+     * not the Inspector's own readings of its process ({@link ProcessMeter}), which arrive four times a second and are
+     * read only by the strip's CPU and Memory.
+     */
+    static boolean listed(Row r) {
+        return !ProcessMeter.isSample(r);
+    }
+
     /** How many of the newest rows {@link #newest} looks among: arrival order is time order but for a late thread's. */
     static final int TAIL = 256;
 
@@ -211,6 +220,9 @@ public record Tape(List<Second> seconds) {
         }
         for (int i = Math.max(0, at - 1); i <= Math.min(seconds.size() - 1, at + 1); i++) {
             for (Row r : seconds.get(i).rows()) {
+                if (!listed(r)) {
+                    continue;
+                }
                 if (ORDER.compare(r, pivot) <= 0) {
                     keep(before, r, count, true);
                 } else {
@@ -243,6 +255,9 @@ public record Tape(List<Second> seconds) {
         for (int i = back ? Math.min(at + 1, seconds.size() - 1) : at; i >= 0 && i < seconds.size() && more != 0;
                 i += back ? -1 : 1) {
             for (Row r : seconds.get(i).rows()) {
+                if (!listed(r)) {
+                    continue;
+                }
                 int c = ORDER.compare(r, from);
                 if (back ? c < 0 && (best == null || ORDER.compare(r, best) > 0)
                         : c > 0 && (best == null || ORDER.compare(r, best) < 0)) {
@@ -311,7 +326,9 @@ public record Tape(List<Second> seconds) {
         for (int i = seconds.size() - 1; i >= 0 && left > 0; i--) {
             List<Row> rows = seconds.get(i).rows();
             for (int j = rows.size() - 1; j >= 0 && left > 0; j--, left--) {
-                keep(before, rows.get(j), count, true);
+                if (listed(rows.get(j))) {
+                    keep(before, rows.get(j), count, true);
+                }
             }
         }
         return window(run, before, List.of(), count);

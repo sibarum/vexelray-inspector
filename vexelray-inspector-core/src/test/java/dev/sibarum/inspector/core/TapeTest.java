@@ -62,4 +62,18 @@ class TapeTest {
         assertEquals(List.of(b, late, c, d), tape.newest("run", 4).rows(), "the newest, from where they arrived");
         assertEquals(-1, Tape.EMPTY.around("run", 0L, 4).selected(), "none");
     }
+
+    @Test
+    void theProcessReadingsAreKeptButNotListedOrSteppedOnto() {
+        Row a = row(1, 10 * S, "");
+        Row reading = ProcessMeter.row(new ProcessMeters.Sample(1_000_000L, 300L << 20, 16L << 30, 8L << 30, 20),
+                10 * S + 3);
+        Row b = row(2, 10 * S + 5, "");
+        Tape tape = Tape.EMPTY.add(List.of(a, reading, b), b.atNanos(), Bench.RETAIN);
+        assertEquals(List.of(reading), tape.near(10 * S, S, ProcessMeter::isSample), "kept, for CPU and Memory");
+        assertEquals(List.of(a, b), tape.around("run", 10 * S + 4, 5).rows(), "not in the rows around a moment");
+        assertEquals(List.of(a, b), tape.newest("run", 5).rows(), "nor among the newest");
+        assertEquals(b, tape.next(a, false), "a step goes over it");
+        assertEquals(a, tape.next(b, true), "both ways");
+    }
 }

@@ -109,8 +109,8 @@ start it with `--automation=0` (for one built from this template, `mvn compile e
 the Inspector reads, traced, whatever its `-Dprobe` settings say. Until one is running, the status line says so, and
 the Inspector looks again every two seconds.
 
-**Which one.** By itself it attaches to the newest, and when that one goes away, to the next newest. The run panel in
-the title bar says what is inspected and from where, and its picker lists every application running with its link: one
+**Which one.** By itself it attaches to the newest, and when that one goes away, to the next newest. The picker in
+the title bar names what is inspected (the status line says from where), and lists every application running with its link: one
 chosen there is kept, and when it goes away its lanes stay to step through until another is chosen. Detach stops
 inspecting and keeps the lanes. Three settings choose at launch instead:
 

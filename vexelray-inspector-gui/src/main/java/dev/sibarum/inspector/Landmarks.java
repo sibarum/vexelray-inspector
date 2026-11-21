@@ -19,9 +19,9 @@ final class Landmarks {
     static final String WORDMARK = "wordmark";
 
     /**
-     * The run panel over the lanes, and in it: what is inspected and from where ({@code run.text}, which says
-     * {@code attached}, {@code launched} or {@code replayed} once one is), the picker of running applications, and
-     * the button that stops inspecting.
+     * The run panel in the title bar, and in it the picker of running applications and the button that stops
+     * inspecting; and on the status line, how the run was reached ({@code run.text}, which says {@code attached},
+     * {@code launched} or {@code replayed} once one is).
      */
     static final String RUN = "run";
     static final String RUN_TEXT = "run.text";

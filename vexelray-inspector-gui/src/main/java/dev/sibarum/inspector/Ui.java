@@ -61,8 +61,8 @@ import java.util.Optional;
  *
  * <h2>The run panel</h2>
  *
- * <p>In the title bar, after the mark: the picker of running applications, which names the run; Run again and Detach;
- * then how the run was reached and where its logic runs ({@link #runPanel}). No control takes the focus: a focused
+ * <p>In the title bar, after the mark: the picker of running applications, which names the run; Run again and Detach.
+ * How the run was reached and where its logic runs is on the status line ({@link #runPanel}). No control takes the focus: a focused
  * control claims Space, and Space pauses here (FN-11), so all are driven by the pointer. Export frame is on the Cursor
  * card, as it saves the frame at the cursor.
  *
@@ -174,7 +174,6 @@ final class Ui {
     private final DetailsList details;
     private final Node warning;
     private final Node warningText;
-    private final Node runText;
     private final Select<Run> runs;
     private final Button detach;
     private final Button runAgain;
@@ -216,10 +215,12 @@ final class Ui {
         titleBar.wordmark(wordmark);
         gui.landmark(Landmarks.WORDMARK, wordmark.node());
         status = new StatusBar(gui).slot(Landmarks.STATUS_RUN, StatusBar.Side.LEFT, "")
+                .slot(Landmarks.RUN_TEXT, StatusBar.Side.LEFT, "")
                 .slot(Landmarks.STATUS_LANES, StatusBar.Side.RIGHT, "")
                 .slot(Landmarks.STATUS_DRAWING, StatusBar.Side.RIGHT, "");
         gui.landmark(Landmarks.STATUS, status.node());
         gui.landmark(Landmarks.STATUS_RUN, status.slot(Landmarks.STATUS_RUN));
+        gui.landmark(Landmarks.RUN_TEXT, status.slot(Landmarks.RUN_TEXT));
         gui.landmark(Landmarks.STATUS_LANES, status.slot(Landmarks.STATUS_LANES));
         gui.landmark(Landmarks.STATUS_DRAWING, status.slot(Landmarks.STATUS_DRAWING));
 
@@ -354,23 +355,23 @@ final class Ui {
         warning.visible(false);
         gui.landmark(Landmarks.WARNING, warning);
 
-        runText = gui.text("").width(Length.AUTO).textSize(Type.SMALL).textColor(Role.DIM)
-                .wordWrap(false);
-        gui.landmark(Landmarks.RUN_TEXT, runText);
-        runs = new Select<Run>(gui, Ui::runLabel).name(Landmarks.RUNS).placeholder("Choose an application");
+        // The list says each run's pid, to tell two of one application apart; the closed picker names only the
+        // application, as its value text is not clipped to the picker's width (FN-26) and the status line says the rest.
+        runs = new Select<Run>(gui, Ui::runLabel).name(Landmarks.RUNS).placeholder("Choose an application")
+                .summary(chosen -> chosen.isEmpty() ? "" : runName(chosen.iterator().next()));
         runs.node().width(Length.rem(14f)).windowRegion(WindowRegion.INTERACTIVE);
         gui.focusable(runs.node(), false);
         gui.landmark(Landmarks.RUNS, runs.node());
         detach = barButton("Detach", Landmarks.DETACH);
         runAgain = barButton("Run again", Landmarks.RUN_AGAIN);
         pause = new PauseButton(gui);
-        // In the title bar, after the mark: the pause button every window wears, the run, what can be done to it, the
-        // warning when there is one, and how it was reached and where its logic runs. The bar's left gives way at its
-        // end when the window is narrow (it clips, and an application's part of it can take none of the caption's
-        // slack), so the words go last and the buttons are never what is cut.
+        // In the title bar, after the mark: the pause button every window wears, the run, what can be done to it, and
+        // the warning when there is one. How the run was reached and where its logic runs is the status line's, beside
+        // which run it is: the bar's left gives way at its end when the window is narrow, and words there were cut or
+        // ran into the buttons.
         Node runPanel = gui.row().width(Length.AUTO).height(Length.FILL).gap(Type.TIGHT)
                 .alignItems(AlignItems.CENTER).padding(Length.ZERO, Type.TIGHT)
-                .children(pause.node(), runs.node(), runAgain.node(), detach.node(), warning, runText);
+                .children(pause.node(), runs.node(), runAgain.node(), detach.node(), warning);
         gui.landmark(Landmarks.RUN, runPanel);
         // The bar's own title would only say the mark's name again.
         titleBar.title("");
@@ -902,7 +903,7 @@ final class Ui {
     void runPanel(String line, String beside, List<Run> choices, Run current, boolean canDetach) {
         if (!line.equals(runSaid)) {
             runSaid = line;
-            runText.text(beside);
+            status.text(Landmarks.RUN_TEXT, beside);
         }
         if (!choices.equals(runChoices)) {
             runChoices = choices;
@@ -935,7 +936,12 @@ final class Ui {
 
     /** A running application as the picker lists it. */
     private static String runLabel(Run run) {
-        return (run.title().isBlank() ? run.name() : run.title()) + " · pid " + run.pid();
+        return runName(run) + " · pid " + run.pid();
+    }
+
+    /** A running application's name: its title, or the name it runs under when it has none. */
+    private static String runName(Run run) {
+        return run.title().isBlank() ? run.name() : run.title();
     }
 
     /** What the status line says: which run is inspected, or why none is. */

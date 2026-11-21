@@ -380,3 +380,15 @@ What the framework could do: land `ProcessCpu`, with process memory beside it (w
 Linux) and the machine's, as a `vexelray-os-api` interface that takes a pid, not only the current process. The
 Inspector's two modules would then go. Better still, the link's `Snap` could carry the run's own figures, read from
 inside, with the heap and GPU memory that only the run itself can see (`Snap`'s javadoc already reserves heap).
+
+## FN-26 · A `Select` does not clip a value wider than itself 🔬
+
+The run picker in the title bar is a fixed 14 rem wide, as a `Select` reserves its width. Its closed strip's value
+text is `Length.FILL` with `wordWrap(false)` in a row with `scroll(false, false)`, and a value longer than the strip
+is drawn past its right edge: "VexelRay GUI Demo · pid 22780" ran into the Run again button beside it (seen in the
+native build, 2026-11-19). The Inspector now gives the closed strip a shorter `summary` (the application's name, no
+pid) and moved the run's note to the status line, so the title bar holds only controls. A title long enough still
+overflows.
+
+It costs every application that puts a select in a row of other controls a guess at how long its values can be.
+Upstream, the strip could clip its value text to its box, with an ellipsis, as a text field clips what it holds.

@@ -1063,6 +1063,50 @@ class BenchTest {
     }
 
     @Test
+    void aPassSaysWhereItsTimeWentAndWhatItsGuiChangesDid() {
+        // Pass #24 of a run of the Inspector itself (2026-11-21), its GUI changes cut to five; the rows in their order.
+        long at = 2_563 * MS;
+        String c = "156b6.t05.1";
+        List<Row> rows = List.of(
+                new Row(1, at, 0L, 24L, "main", "frame", "before frame", "1.02ms", c),
+                new Row(2, at + 50_000, 0L, 24L, "main", "bus", "pump delivered", "0", c),
+                new Row(3, at + 70_000, 0L, 24L, "main", "bus", "pump drain", "19.8us", c),
+                new Row(4, at + 100_000, 0L, 24L, "main", "layout", "dispatch input", "52.2us", c),
+                new Row(5, at + 200_000, 0L, 24L, "main", "layout", "mutation unchanged", "SetProp node=75 SDG", c),
+                new Row(6, at + 210_000, 0L, 24L, "main", "layout", "mutation unchanged", "SetProp node=76 SDG", c),
+                new Row(7, at + 220_000, 0L, 24L, "main", "layout", "mutation unchanged", "SetText node=80 chars=3", c),
+                new Row(8, at + 230_000, 0L, 24L, "main", "layout", "mutation layout", "SetText node=81 chars=4", c),
+                new Row(9, at + 240_000, 0L, 24L, "main", "layout", "mutation draw", "SetProp node=2 TEXT_COLOR", c),
+                new Row(10, at + 500_000, 0L, 24L, "main", "bus", "vexelray.gui.main.mutations batch", "5", c),
+                new Row(11, at + 520_000, 0L, 24L, "main", "bus", "pump delivered", "5", c),
+                new Row(12, at + 530_000, 0L, 24L, "main", "bus", "pump drain", "460.1us", c),
+                new Row(13, at + 1_400_000, 0L, 24L, "main", "layout", "flex layout", "100.0us", c),
+                new Row(14, at + 1_500_000, 0L, 24L, "main", "layout", "resolve geometry", "25.0us", c),
+                new Row(15, at + 2_000_000, 0L, 24L, "main", "layout", "tree update", "1.99ms", c),
+                new Row(16, at + 7_000_000, 0L, 24L, "main", "frame", "frame", "7.92ms", c));
+        Model m = Model.EMPTY.fold(rows, Long.MAX_VALUE);
+        Mark pass = m.lane(Model.MAIN).marks().getFirst();
+        assertEquals("updating the tree 1.99 ms (draining its queues 0.48 ms, layout 0.13 ms, input to widgets 0.05 ms),"
+                + " input and clocks 1.02 ms", pass.field(Model.SPENT));
+        assertEquals("5 to the main window: 3 did nothing, 1 redrew it, 1 relaid it out", pass.field(Model.CHANGES));
+        assertTrue(m.parts().isEmpty(), "nothing left waiting for a pass");
+    }
+
+    @Test
+    void aPassWhoseUpdateChangedNothingSaysNoChanges() {
+        long at = 2_000 * MS;
+        List<Row> rows = List.of(
+                new Row(1, at, 0L, 9L, "main", "frame", "before frame", "500.0us", ""),
+                new Row(2, at + 50_000, 0L, 9L, "main", "bus", "pump drain", "6.4us", ""),
+                new Row(3, at + 100_000, 0L, 9L, "main", "layout", "tree update", "200.0us", ""),
+                new Row(4, at + 1_000_000, 0L, 9L, "main", "frame", "frame", "1ms", ""));
+        Mark pass = Model.EMPTY.fold(rows, Long.MAX_VALUE).lane(Model.MAIN).marks().getFirst();
+        assertEquals("updating the tree 0.20 ms, input and clocks 0.50 ms", pass.field(Model.SPENT),
+                "a drain that delivered nothing is no part of where the time went");
+        assertEquals("", pass.field(Model.CHANGES));
+    }
+
+    @Test
     void anEventsPathIsEveryHopItsCauseTookFoldedByWhereItHappened() {
         long at = 2_000 * MS;
         String cause = "b3702.o00.28";

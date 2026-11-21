@@ -84,7 +84,8 @@ import java.util.Optional;
  * {@code draw skipped} and a draw held come before the zone's row, {@code frame.present} or {@code frame.update},
  * {@code loop.park} and {@code wait for events} after it. Those before wait in {@link #ahead} until their pass is
  * folded; those after are set on its mark. This is the recorder's {@code why} (vexelray-gui's {@code Frames}), read
- * from the same rows.
+ * from the same rows. The work inside the zone (the update, its drains and layout, each GUI change applied) is
+ * gathered in {@link #parts} the same way and said as {@link #SPENT} and {@link #CHANGES}: see {@link PassParts}.
  *
  * <h2>What set an event off</h2>
  *
@@ -110,10 +111,11 @@ import java.util.Optional;
  * @param mainTick    the main thread's last {@code tick} zone not yet claimed: under {@code --logic=main} the logic's
  *                    and the widgets' ticks both run there, and only the {@code tick.ran} row after one says whose it
  *                    is (FN-16); {@link #NO_TICK} when there is none
+ * @param parts       what the rows inside passes not folded yet said of them ({@link PassParts}), by pass number
  */
 public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOffset, Map<String, String> names,
                     Map<Long, List<Field>> ahead, List<String> probed, String warning, Declared declared,
-                    Map<String, Counted> counts, Row mainTick) {
+                    Map<String, Counted> counts, Row mainTick, Map<Long, PassParts> parts) {
 
     /**
      * One hop of a cause's path: what happened there, in words, on which thread, when it began, and how many rows in a
@@ -204,6 +206,9 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     public static final String DREW = "Drew";
     public static final String PARKED = "Parked";
     public static final String WAITED = "Waited";
+    /** A pass's, from its own rows before its zone's ({@link PassParts}): where its time went; what its GUI changes did. */
+    public static final String SPENT = "Spent on";
+    public static final String CHANGES = "GUI changes";
     /** A message's: its type's package. */
     public static final String PACKAGE = "Package";
     /**
@@ -232,7 +237,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
     /** Where {@link #ahead} keeps what a row with no pass said for the next draw: a recording's rows have none. */
     private static final long UNNUMBERED = 0L;
     public static final List<String> FIELDS = List.of(TYPE, PATH, PASS_NUMBER, TICK_NUMBER, DRAW_NUMBER, TOOK, THREAD,
-            DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, RECORDING, FROM, PACKAGE, VERB, SENT, EDGES,
+            SPENT, CHANGES, DREW, PARKED, WAITED, ROUNDS, DELIVERED, CARRIED, SHOWED, RECORDING, FROM, PACKAGE, VERB, SENT, EDGES,
             REASON);
 
     /** The row a tick writes after its zone, and a draw after its own: atchung's and vexelray-gui's. */
@@ -332,7 +337,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
 
     /** Before any row. */
     static final Model EMPTY =new Model(0L, LANES.stream().map(n -> new Lane(n, List.of())).toList(), 0L, 0L,
-            Map.of(), Map.of(), List.of(), "", Declared.NONE, Map.of(), NO_TICK);
+            Map.of(), Map.of(), List.of(), "", Declared.NONE, Map.of(), NO_TICK, Map.of());
 
     /** The rows that name what a cause is: on the probe's {@code app} lane. */
     static final String APP_LANE = "app";
@@ -365,12 +370,13 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         ahead = Map.copyOf(ahead);
         probed = List.copyOf(probed);
         counts = Map.copyOf(counts);
+        parts = Map.copyOf(parts);
     }
 
     /** This model warning of {@code warning} instead; empty to warn of nothing. */
     Model withWarning(String warning) {
         return new Model(newestNanos, lanes, lost, clockOffset, names, ahead, probed, warning, declared, counts,
-                mainTick);
+                mainTick, parts);
     }
 
     /** The lane named {@code name}, which is one of {@link #LANES}. */
@@ -403,6 +409,10 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
         String warned = warning;
         Declared graph = declared;
         Row onMain = mainTick;
+        // Copied the first time a row of this batch adds to it, and changed in place after: a pass's GUI changes are
+        // dozens of rows, and copying the map for each would be the batch's cost.
+        Map<Long, PassParts> gathered = parts;
+        boolean gatheredOwn = false;
         // What this batch counted, by topic: merged onto the counts once, at the end, rather than copied for each row.
         HashMap<String, Tally> tallies = null;
         // Each lane's events as they were, replaced only where a row changes one, and what this batch adds to them.
@@ -497,6 +507,15 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                 onMain = r;
                 continue;
             }
+            if (PassParts.isPart(r)) {
+                // Inside the pass's zone, so before its row: kept for it, which says them as two fields.
+                if (!gatheredOwn) {
+                    gathered = new HashMap<>(gathered);
+                    gatheredOwn = true;
+                }
+                gathered.put(r.frame(), gathered.getOrDefault(r.frame(), PassParts.NONE).plus(r));
+                continue;
+            }
             Field about = r.frame() > 0 ? aboutPass(r) : null;
             if (about != null) {
                 long pass = r.kind().equals("wake") ? r.frame() + 1 : r.frame();
@@ -551,6 +570,19 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     kept.keySet().removeIf(k -> k <= pass || k > pass + AHEAD_PASSES);
                     told = kept;
                 }
+                PassParts own = gathered.get(pass);
+                if (own != null) {
+                    for (Field f : own.fields()) {
+                        m = m.with(f.name(), f.value(), false);
+                    }
+                }
+                if (gathered.keySet().stream().anyMatch(k -> k <= pass)) {
+                    if (!gatheredOwn) {
+                        gathered = new HashMap<>(gathered);
+                        gatheredOwn = true;
+                    }
+                    gathered.keySet().removeIf(k -> k <= pass || k > pass + AHEAD_PASSES);
+                }
             }
             if (added.get(lane) == null) {
                 added.set(lane, new ArrayList<>());
@@ -576,7 +608,7 @@ public record Model(long newestNanos, List<Lane> lanes, long lost, long clockOff
                     : lanes.get(i));
         }
         Map<String, Counted> counted = tallies == null ? counts : merged(counts, tallies);
-        return new Model(newest, out, lostNow, offset, named, told, probe, warned, graph, counted, onMain);
+        return new Model(newest, out, lostNow, offset, named, told, probe, warned, graph, counted, onMain, gathered);
     }
 
     /** The sender named for writes from outside a tick that more than one declared part could have made. */
